@@ -1,0 +1,101 @@
+/* Auth page styling */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html, body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+/* Background with richer orange gradient */
+.auth-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e65100, #ff8f00);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4rem; /* offset navbar */
+}
+
+/* Glassmorphism card container - white background with slight opacity */
+.auth-card {
+  width: 100%;
+  max-width: 720px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 165, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 3rem;
+  margin-top: 2rem;
+  margin-bottom: 3rem;
+  color: #212121;
+}
+
+.auth-card .space-y-6 {
+  margin-bottom: 3rem; /* extra space under form */
+}
+
+/* Input styling - dark theme */
+.auth-card input {
+  width: 100%;
+  background: #ffffff;
+  color: #212121;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.auth-card input:focus {
+  background: #fafafa;
+  border-color: #ff7a00;
+  outline: 2px solid rgba(255, 122, 0, 0.2);
+}
+
+/* Placeholder styling */
+.auth-card input::placeholder {
+  color: rgba(26, 32, 44, 0.5);
+}
+
+/* Primary button styling, keep existing orange palette but add glass effect */
+.auth-card button[type="submit"] {
+  background: linear-gradient(135deg, #ff7a00, #e66b00);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+
+.auth-card button[type="submit"]:hover {
+  background: linear-gradient(135deg, #e66b00, #cc5a00);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 122, 0, 0.3);
+}
+
+/* Link styling for navigation prompts */
+.auth-card a {
+  color: #ff7a00;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+/* Typography enhancements */
+.auth-card h2 {
+  color: #ff7a00;
+}
+.auth-card span {
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.2em;
+  color: #ff7a00;
+}
+
+.auth-card a:hover {
+  color: #e66b00;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 1.5rem;
+  }
+}

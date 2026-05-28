@@ -1,0 +1,8 @@
+/* Contrast fixes for admin components */
+.bg-orange-600:not(.text-white),
+.bg-orange-500:not(.text-white),
+.bg-black,
+.bg-gray-900,
+.bg-zinc-900 {
+  color: #f1f5f9 !important; /* light text for dark backgrounds */
+}

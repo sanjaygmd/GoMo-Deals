@@ -1,0 +1,390 @@
+import { useState, useEffect } from "react";
+import {
+  Mail, Phone, MapPin, Edit2, Save, X, Shield, Lock,
+  Users, Package, ShoppingCart, TrendingUp, Camera,
+  CheckCircle, Clock, Star, BarChart2
+} from "lucide-react";
+import { useAuth } from "../../../context/AuthContext.jsx";
+import { useToast } from "../../../hooks/use-toast";
+import { cn } from "../../../lib/utils";
+import { api } from "../../../services/api";
+
+export default function ProfilePage() {
+  const { user, login } = useAuth();
+  const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState(null);
+
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    role: user?.role || "Admin",
+    address: user?.address || "",
+  });
+  const [originalData, setOriginalData] = useState(formData);
+
+  useEffect(() => {
+    if (user) {
+      const data = {
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        role: user.role || "Admin",
+        address: user.address || "",
+      };
+      setFormData(data);
+      setOriginalData(data);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    api.get("/admin/dashboard-data")
+      .then(resp => { if (resp.data.success) setStats(resp.data.data.stats); })
+      .catch(() => {});
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEdit = () => { setOriginalData(formData); setIsEditing(true); };
+  const handleCancel = () => { setFormData(originalData); setIsEditing(false); };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const resp = await api.put(`/admin/profile/${user?.id}`, formData);
+      const data = resp.data;
+      if (resp.status === 200) {
+        login(data.user);
+        toast({ title: "Profile Updated", description: "Your details have been saved." });
+        setIsEditing(false);
+      } else {
+        toast({ variant: "destructive", title: "Update Failed", description: data.message });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Server Error", description: "Could not reach the server." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordSave = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({ variant: "destructive", title: "Error", description: "New passwords do not match." });
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      toast({ variant: "destructive", title: "Error", description: "New password must be at least 6 characters." });
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const resp = await api.put("/admin/update-password-self", {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      if (resp.data.success) {
+        toast({ title: "Success", description: "Password updated successfully." });
+        setIsChangingPassword(false);
+        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      } else {
+        toast({ variant: "destructive", title: "Update Failed", description: resp.data.message });
+      }
+    } catch (err) {
+      toast({ variant: "destructive", title: "Error", description: err.response?.data?.message || "Failed to update password." });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const initials = (formData.name || "A")
+    .split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+
+  const quickStats = [
+    { label: "Total Orders",    value: stats?.total_orders    ?? "—", icon: ShoppingCart, color: "text-orange-600",  bg: "bg-orange-50" },
+    { label: "Total Products",  value: stats?.total_products  ?? "—", icon: Package,      color: "text-orange-600", bg: "bg-orange-50" },
+    { label: "Total Customers", value: stats?.total_customers ?? "—", icon: Users,        color: "text-orange-600",   bg: "bg-orange-50" },
+    { label: "Total Revenue",   value: stats ? `₹${Number(stats.total_revenue).toLocaleString("en-IN")}` : "—", icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50" },
+  ];
+
+  const fields = [
+    { key: "name",    label: "Full Name",       icon: Shield,  editable: true },
+    { key: "email",   label: "Email Address",   icon: Mail,    editable: true },
+    { key: "phone",   label: "Phone Number",    icon: Phone,   editable: true },
+    { key: "role",    label: "Role",            icon: Shield,  editable: false },
+    { key: "address", label: "Office Address",  icon: MapPin,  editable: true, full: true },
+  ];
+
+  return (
+    <div className="space-y-8 pb-20 max-w-[1400px] mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="h-2 w-10 bg-orange-600 rounded-full" />
+        <div>
+          <span className="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em]">Account</span>
+          <h1 className="text-4xl font-black text-orange-950 tracking-tight leading-none mt-1">Admin Profile</h1>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Left — Avatar Card */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-[2.5rem] border border-orange-100 shadow-sm overflow-hidden relative">
+            {/* Top gradient banner */}
+            <div className="h-28 bg-gradient-to-br from-orange-600 via-orange-600 to-purple-700 relative">
+              <div className="absolute inset-0 opacity-20"
+                style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+            </div>
+
+            <div className="px-8 pb-8 -mt-12 flex flex-col items-center text-center">
+              {/* Avatar */}
+              <div className="relative mb-4">
+                <div className="h-24 w-24 rounded-[1.5rem] bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-orange-200 border-4 border-white">
+                  {initials}
+                </div>
+                <button className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-white border border-orange-200 flex items-center justify-center shadow-md hover:bg-orange-50 transition-colors">
+                  <Camera className="h-3.5 w-3.5 text-orange-500" />
+                </button>
+              </div>
+
+              <h2 className="text-xl font-black text-orange-900 tracking-tight">{formData.name || "Admin"}</h2>
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest">
+                  {formData.role} · Active
+                </span>
+              </div>
+
+              <div className="mt-6 w-full space-y-2.5">
+                {[
+                  { icon: Mail,   val: formData.email   || "Not set" },
+                  { icon: Phone,  val: formData.phone   || "Not set" },
+                  { icon: MapPin, val: formData.address || "Not set" },
+                ].map(({ icon: Icon, val }, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-orange-50 text-left">
+                    <div className="h-7 w-7 rounded-xl bg-white flex items-center justify-center shadow-sm shrink-0">
+                      <Icon className="h-3.5 w-3.5 text-orange-500" />
+                    </div>
+                    <span className="text-[12px] font-bold text-orange-600 truncate">{val}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 w-full pt-5 border-t border-orange-100">
+                <div className="flex items-center justify-center gap-1.5 mb-1">
+                  <Star className="h-3.5 w-3.5 text-orange-400 fill-orange-400" />
+                  <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest">Platform Overview</span>
+                </div>
+                <p className="text-xs text-orange-400 font-semibold">You manage the entire GoMo Deals marketplace</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Security Badge */}
+          <div className="bg-gradient-to-br from-orange-950 to-orange-800 rounded-[2rem] p-6 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10" />
+            <div className="h-10 w-10 rounded-2xl bg-white/10 flex items-center justify-center mb-4">
+              <Shield className="h-5 w-5 text-white" />
+            </div>
+            <p className="font-black text-sm tracking-tight mb-1">Security Status</p>
+            <p className="text-[11px] font-bold text-orange-400">Admin access level — All permissions granted</p>
+            <div className="mt-4 flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-orange-400" />
+              <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest">Verified Administrator</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right — Info + Stats */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 gap-4">
+            {quickStats.map((s, i) => (
+              <div key={i} className="bg-white rounded-[2rem] p-6 border border-orange-100 shadow-sm hover:shadow-xl hover:shadow-orange-100 hover:-translate-y-1 transition-all duration-300">
+                <div className={cn("h-11 w-11 rounded-2xl flex items-center justify-center mb-4 shadow-sm", s.bg, s.color)}>
+                  <s.icon size={20} />
+                </div>
+                <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-1">{s.label}</p>
+                <p className="text-2xl font-black text-orange-950 tracking-tight">{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Personal Info Form */}
+          <div className="bg-white rounded-[2.5rem] border border-orange-100 shadow-sm p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-orange-900 tracking-tight">Personal Information</h3>
+                <p className="text-[11px] font-black text-orange-400 uppercase tracking-widest mt-1">
+                  {isEditing ? "Editing your profile — make your changes below" : "Your account details"}
+                </p>
+              </div>
+              {!isEditing ? (
+                <button
+                  onClick={handleEdit}
+                  className="h-11 px-6 rounded-2xl bg-orange-50 text-orange-700 font-black text-[11px] uppercase tracking-widest hover:bg-orange-100 transition-colors flex items-center gap-2"
+                >
+                  <Edit2 size={14} /> Edit Profile
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCancel}
+                    disabled={loading}
+                    className="h-11 px-5 rounded-2xl bg-orange-100 text-orange-600 font-black text-[11px] uppercase tracking-widest hover:bg-orange-200 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <X size={14} /> Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="h-11 px-6 rounded-2xl bg-orange-950 text-white font-black text-[11px] uppercase tracking-widest hover:bg-orange-800 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-orange-200"
+                  >
+                    <Save size={14} /> {loading ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {fields.map(f => (
+                <div key={f.key} className={cn("flex flex-col gap-2", f.full && "sm:col-span-2")}>
+                  <label className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <f.icon className="h-3 w-3" /> {f.label}
+                  </label>
+                  {isEditing && f.editable ? (
+                    <input
+                      name={f.key}
+                      value={formData[f.key]}
+                      onChange={handleChange}
+                      className="h-12 px-4 rounded-2xl border border-orange-200 bg-orange-50 font-bold text-sm text-orange-900 focus:outline-none focus:border-orange-400 focus:bg-white transition-all"
+                    />
+                  ) : (
+                    <div className={cn(
+                      "h-12 px-4 rounded-2xl flex items-center font-bold text-sm",
+                      f.editable ? "bg-orange-50 text-orange-700 border border-orange-100" : "bg-orange-50 text-orange-700 border border-orange-100"
+                    )}>
+                      {formData[f.key] || <span className="text-orange-400 italic">Not set</span>}
+                      {!f.editable && (
+                        <div className="ml-auto">
+                          <div className="h-5 px-2 rounded-lg bg-orange-100 text-orange-600 text-[9px] font-black uppercase tracking-widest flex items-center">
+                            Locked
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Security & Password */}
+          <div className="bg-white rounded-[2.5rem] border border-orange-100 shadow-sm p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-orange-900 tracking-tight">Security</h3>
+                <p className="text-[11px] font-black text-orange-400 uppercase tracking-widest mt-1">
+                  Manage your password and security settings
+                </p>
+              </div>
+              {!isChangingPassword ? (
+                <button
+                  onClick={() => setIsChangingPassword(true)}
+                  className="h-11 px-6 rounded-2xl bg-orange-50 text-orange-700 font-black text-[11px] uppercase tracking-widest hover:bg-orange-100 transition-colors flex items-center gap-2"
+                >
+                  <Lock size={14} /> Change Password
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setIsChangingPassword(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); }}
+                    disabled={passwordLoading}
+                    className="h-11 px-5 rounded-2xl bg-orange-100 text-orange-600 font-black text-[11px] uppercase tracking-widest hover:bg-orange-200 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <X size={14} /> Cancel
+                  </button>
+                  <button
+                    onClick={handlePasswordSave}
+                    disabled={passwordLoading}
+                    className="h-11 px-6 rounded-2xl bg-orange-950 text-white font-black text-[11px] uppercase tracking-widest hover:bg-orange-800 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-orange-200"
+                  >
+                    <Save size={14} /> {passwordLoading ? "Updating..." : "Update Password"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {isChangingPassword && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-4 border-t border-orange-100">
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <label className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] flex items-center gap-2"><Lock className="h-3 w-3" /> Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    className="h-12 px-4 rounded-2xl border border-orange-200 bg-orange-50 font-bold text-sm text-orange-900 focus:outline-none focus:border-orange-400 focus:bg-white transition-all"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] flex items-center gap-2"><Shield className="h-3 w-3" /> New Password</label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                    className="h-12 px-4 rounded-2xl border border-orange-200 bg-orange-50 font-bold text-sm text-orange-900 focus:outline-none focus:border-orange-400 focus:bg-white transition-all"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] flex items-center gap-2"><Shield className="h-3 w-3" /> Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="h-12 px-4 rounded-2xl border border-orange-200 bg-orange-50 font-bold text-sm text-orange-900 focus:outline-none focus:border-orange-400 focus:bg-white transition-all"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Activity Summary */}
+          <div className="bg-white rounded-[2.5rem] border border-orange-100 shadow-sm p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-black text-orange-900 tracking-tight">Today's Activity</h3>
+              <div className="h-10 w-10 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-400">
+                <BarChart2 size={18} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: "New Orders Today",    value: stats?.today_orders        ?? "—", icon: ShoppingCart, color: "text-orange-600",    bg: "bg-orange-50" },
+                { label: "Revenue Today",        value: stats ? `₹${Number(stats.today_revenue || 0).toLocaleString("en-IN")}` : "—", icon: TrendingUp, color: "text-orange-600", bg: "bg-orange-50" },
+                { label: "New Products Today",  value: stats?.today_new_products  ?? "—", icon: Package,      color: "text-orange-600",   bg: "bg-orange-50" },
+                { label: "New Customers Today", value: stats?.today_new_customers ?? "—", icon: Users,        color: "text-orange-600",  bg: "bg-orange-50" },
+              ].map((s, i) => (
+                <div key={i} className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-orange-50/60 hover:bg-white hover:shadow-lg border border-transparent hover:border-orange-100 transition-all">
+                  <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm", s.bg, s.color)}>
+                    <s.icon size={17} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest mb-0.5">{s.label}</p>
+                    <p className="text-lg font-black text-orange-950 tracking-tight">{s.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

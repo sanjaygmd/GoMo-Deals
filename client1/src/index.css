@@ -1,0 +1,825 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-orange-50: #fffaf0;
+  --color-orange-100: #ffedd5;
+  --color-orange-200: #fed7aa;
+  --color-orange-300: #fdba74;
+  --color-orange-400: #fb923c;
+  --color-orange-500: #f97316;
+  --color-orange-600: #ea580c;
+  --color-orange-700: #c2410c;
+  --color-orange-800: #9a3412;
+  --color-orange-850: #7c2d12;
+  --color-orange-900: #0c0a09;
+  --color-orange-950: #030712;
+  --color-orange-955: #000000;
+  
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+  --font-serif: "Playfair Display", serif;
+}
+
+:root {
+  --color-primary: #f97316; /* orange accent */
+  --color-bg-dark: #111827; /* deep slate */
+  --color-bg-light: #f9fafb; /* gray-50 */
+  --color-text-primary: #f1f5f9; /* slate-100 */
+  --color-text-secondary: #94a3b8; /* slate-400 */
+  --color-heading: #0f172a; /* slate-900 */
+}
+
+@layer base {
+  body {
+    @apply antialiased text-orange-900 bg-white font-sans;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tighter;
+  }
+  
+  /* Modern Button Global Defaults */
+  button, a {
+    @apply transition-all duration-300 active:scale-[0.98];
+  }
+
+  input, select, textarea, button {
+    font-family: inherit;
+  }
+
+  html, body, p, span, div, li, ul, ol, td, th, a, button, input, select, textarea {
+    font-family: "Plus Jakarta Sans", sans-serif;
+  }
+
+  .font-serif, .font-serif *, h1.font-serif, h2.font-serif, h3.font-serif, h4.font-serif {
+    font-family: "Playfair Display", Georgia, serif !important;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .nav-icons svg { display: inline-block; vertical-align: middle; }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .text-glow-orange {
+    text-shadow: 0 0 15px rgba(249, 115, 22, 0.5);
+  }
+
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)];
+  }
+
+  .glass-dark {
+    @apply bg-orange-950/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(249,115,22,0.15)];
+  }
+
+  .premium-gradient {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  }
+
+  .gold-gradient {
+    background: linear-gradient(135deg, #ea580c 0%, #fdba74 50%, #ea580c 100%);
+  }
+
+  .shadow-orange-glow {
+    box-shadow: 0 10px 40px -10px rgba(249, 115, 22, 0.4);
+  }
+  
+  .shadow-soft {
+    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.05);
+  }
+
+  /* Darker shadow overrides for admin UI */
+  .admin-dashboard .shadow-soft,
+  .admin-dashboard .shadow-glass,
+  .admin-dashboard .shadow-xl,
+  .admin-dashboard .shadow-[0_20px_50px_rgba(0,0,0,0.15)],
+  .admin-dashboard .shadow-[0_8px_32px_rgba(0,0,0,0.04)] {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  /* Remove any overly bright white shadows */
+  .admin-dashboard .shadow-white {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  /* Soft glass shadow */
+  .shadow-glass {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+
+
+  /* Glassmorphism Card */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+  }
+
+/* Remove overly broad transparent background rule for admin dashboard */
+/* .admin-dashboard * {
+  background: transparent !important;
+} */
+
+  /* Admin Dashboard Typography & Context-Aware Color System */
+  /* Unify all typography in the admin dashboard under one single font style: Plus Jakarta Sans */
+  .admin-dashboard,
+  .admin-dashboard *,
+  .admin-dashboard h1,
+  .admin-dashboard h2,
+  .admin-dashboard h3,
+  .admin-dashboard h4,
+  .admin-dashboard h5,
+  .admin-dashboard h6,
+  .admin-dashboard .font-serif,
+  .admin-dashboard .font-sans,
+  .admin-dashboard .title-lg,
+  .admin-dashboard .title-md {
+    font-family: "Plus Jakarta Sans", sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Enforce Square Edges (Sharp Borders) ONLY for the admin sidebar (as requested) */
+  .admin-dashboard aside,
+  .admin-dashboard aside * {
+    border-radius: 0px !important;
+  }
+
+  /* --- LIGHT BOUTIQUE CARD & CONTAINER STYLING --- */
+  
+  .admin-dashboard .glass-card {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid #ffedd5 !important; /* orange-100 */
+    color: #0c0a09 !important; /* dark chocolate */
+    box-shadow: 0 4px 20px rgba(234, 88, 12, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01) !important;
+    border-radius: 1.5rem !important;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  .admin-dashboard .glass-card:hover {
+    transform: translateY(-3px) !important;
+    background: #ffffff !important;
+    border-color: #0c0a09 !important; /* matches seller card hover border */
+    box-shadow: 0 20px 40px rgba(12, 10, 9, 0.05), 0 0 30px rgba(234, 88, 12, 0.03) !important;
+  }
+
+  /* Card Headings */
+  .admin-dashboard .glass-card h1,
+  .admin-dashboard .glass-card h2,
+  .admin-dashboard .glass-card h3,
+  .admin-dashboard .glass-card h4,
+  .admin-dashboard .glass-card h5,
+  .admin-dashboard .glass-card h6 {
+    color: #0c0a09 !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  /* Tables inside Dashboard */
+  .admin-dashboard th {
+    color: #ea580c !important; /* orange-600 */
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    background-color: #fffaf0 !important; /* Soft orange-50 */
+    border-bottom: 2px solid #fed7aa !important; /* orange-200 */
+  }
+  
+  .admin-dashboard td {
+    color: #1c1917 !important; /* neutral text */
+    border-bottom: 1px solid #ffedd5 !important; /* orange-100 */
+    background-color: #ffffff !important;
+  }
+  
+  .admin-dashboard tr:hover td {
+    background-color: #fffaf0 !important; /* soft hover highlighted row */
+  }
+
+  /* Inputs, Textareas, Select elements inside Dashboard */
+  .admin-dashboard input,
+  .admin-dashboard textarea,
+  .admin-dashboard select {
+    color: #0c0a09 !important;
+    background-color: #ffffff !important;
+    border: 1px solid #fed7aa !important; /* orange-200 */
+    border-radius: 1rem !important;
+    transition: all 0.3s ease !important;
+  }
+
+  .admin-dashboard input:focus,
+  .admin-dashboard textarea:focus,
+  .admin-dashboard select:focus {
+    background-color: #ffffff !important;
+    border-color: #ea580c !important; /* orange-600 */
+    box-shadow: 0 0 15px rgba(234, 88, 12, 0.15) !important;
+    outline: none !important;
+  }
+
+  .admin-dashboard input:hover,
+  .admin-dashboard textarea:hover,
+  .admin-dashboard select:hover {
+    border-color: #fb923c !important; /* orange-400 */
+    background-color: #ffffff !important;
+  }
+
+  /* Support clean background for select dropdown options on Windows */
+  .admin-dashboard select option {
+    background-color: #ffffff !important;
+    color: #0c0a09 !important;
+  }
+
+  .admin-dashboard input::placeholder,
+  .admin-dashboard textarea::placeholder {
+    color: #a8a29e !important; /* neutral-400 placeholder */
+  }
+
+  /* Header (Clean boutique glass) styles */
+  .admin-dashboard nav {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid #ffedd5 !important; /* orange-100 */
+  }
+  .admin-dashboard nav p,
+  .admin-dashboard nav span {
+    color: #0c0a09 !important;
+  }
+  .admin-dashboard nav button {
+    color: #7c2d12 !important; /* orange-850 */
+  }
+  .admin-dashboard nav button:hover {
+    color: #ea580c !important;
+    background-color: #fffaf0 !important;
+  }
+
+  /* Sidebar (Solid premium dark espresso) styles - exact same as Seller Sidebar */
+  .admin-dashboard aside {
+    background: #0c0a09 !important; /* solid orange-900 / espresso */
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+  }
+  
+  .admin-dashboard aside p {
+    color: #f97316 !important; /* orange-500 */
+    font-weight: 800 !important;
+  }
+  
+  .admin-dashboard aside a {
+    color: #ffedd5 !important; /* orange-100 */
+    border: 1px solid transparent !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  
+  .admin-dashboard aside a:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+  }
+  
+  .admin-dashboard aside a.active {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+  }
+  
+  .admin-dashboard aside a.active p,
+  .admin-dashboard aside a.active span {
+    color: #ffffff !important;
+  }
+
+  /* Modals & Overlays Glass Style */
+  .admin-dashboard .fixed.inset-0 {
+    background-color: rgba(12, 10, 9, 0.4) !important; /* professional soft backdrop */
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+  
+  .admin-dashboard .fixed.inset-0 .glass-card {
+    background-color: #ffffff !important;
+    border: 1px solid #fed7aa !important;
+    box-shadow: 0 20px 50px rgba(12, 10, 9, 0.15) !important;
+  }
+
+
+}
+
+/* Manual class overrides for backup compatibility */
+.font-serif {
+  font-family: "Playfair Display", serif;
+}
+
+.font-sans {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes modal {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-modal {
+  animation: modal 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #faf6f0 25%, #f3ede2 50%, #faf6f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite linear;
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 2.2s infinite ease-in-out;
+}
+
+.sliding-underline {
+  position: relative;
+}
+
+.sliding-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(to right, #f97316, #f59e0b);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sliding-underline:hover::after {
+  width: 100%;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(249, 115, 22, 0.02);
+  border-radius: 99px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(249, 115, 22, 0.15);
+  border-radius: 99px;
+  transition: background 0.2s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(249, 115, 22, 0.3);
+}
+
+@keyframes bell-shake {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(12deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(7deg); }
+  60% { transform: rotate(-7deg); }
+  75% { transform: rotate(3deg); }
+  90% { transform: rotate(-3deg); }
+}
+
+.hover-bell-shake:hover svg {
+  animation: bell-shake 0.6s ease-in-out;
+}
+
+@keyframes heart-beat {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.18); }
+  45% { transform: scale(0.93); }
+  70% { transform: scale(1.12); }
+}
+
+.hover-heart-beat:hover svg {
+  animation: heart-beat 0.65s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+
+
+/* Admin Dashboard Premium Theme */
+.admin-dashboard {
+  background-color: #fffaf0 !important; /* luxury soft cream */
+  background-image: radial-gradient(rgba(234, 88, 12, 0.03) 1.2px, transparent 0) !important; /* boutique warm pattern */
+  background-size: 24px 24px !important;
+  color: #0c0a09 !important; /* dark chocolate text */
+  min-height: 100vh;
+  flex-direction: column;
+  display: flex;
+}
+
+/* Premium Typography System - Exclusively Plus Jakarta Sans */
+.admin-dashboard h1, .admin-dashboard h2, .admin-dashboard h3, .admin-dashboard h4, .admin-dashboard h5, .admin-dashboard h6 {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  color: #0c0a09 !important;
+}
+
+.admin-dashboard .title-lg {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  font-weight: 850;
+  letter-spacing: -0.04em;
+  color: #0c0a09 !important;
+}
+
+.admin-dashboard .title-md {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  color: #0c0a09 !important;
+}
+
+/* Status text coloring matching bright professional layout */
+.admin-dashboard .text-muted {
+  color: #78716c !important; /* stone-500 */
+}
+.admin-dashboard .text-success {
+  color: #166534 !important; /* green-800 */
+}
+.admin-dashboard .text-warning {
+  color: #854d0e !important; /* yellow-800 */
+}
+.admin-dashboard .text-danger {
+  color: #991b1b !important; /* red-800 */
+}
+
+/* Force legible dark values for explicit slate/zinc/orange styles inside admin panels */
+.admin-dashboard .text-zinc-950,
+.admin-dashboard .text-zinc-900,
+.admin-dashboard .text-zinc-800,
+.admin-dashboard .text-orange-955,
+.admin-dashboard .text-orange-950,
+.admin-dashboard .text-orange-900,
+.admin-dashboard .text-orange-850,
+.admin-dashboard .text-orange-800,
+.admin-dashboard .text-orange-750,
+.admin-dashboard .text-slate-900,
+.admin-dashboard .text-slate-800,
+.admin-dashboard .text-slate-955,
+.admin-dashboard .text-slate-950,
+.admin-dashboard .text-black,
+.admin-dashboard .text-orange-900\/70,
+.admin-dashboard .text-orange-955\/70,
+.admin-dashboard .text-orange-950\/70 {
+  color: #0c0a09 !important; /* dark chocolate text color */
+}
+
+.admin-dashboard .text-zinc-750,
+.admin-dashboard .text-zinc-700,
+.admin-dashboard .text-slate-700,
+.admin-dashboard .text-gray-700,
+.admin-dashboard .text-orange-700 {
+  color: #1c1917 !important; /* Stone black */
+}
+
+.admin-dashboard .text-zinc-500,
+.admin-dashboard .text-zinc-400,
+.admin-dashboard .text-zinc-650,
+.admin-dashboard .text-zinc-600,
+.admin-dashboard .text-slate-500,
+.admin-dashboard .text-slate-600,
+.admin-dashboard .text-slate-400 {
+  color: #78716c !important; /* stone-500 professional gray */
+}
+
+.admin-dashboard .text-orange-600,
+.admin-dashboard .text-orange-650,
+.admin-dashboard .text-orange-550,
+.admin-dashboard .text-orange-50,
+.admin-dashboard .text-orange-500,
+.admin-dashboard .text-orange-450,
+.admin-dashboard .text-orange-400,
+.admin-dashboard .text-orange-350,
+.admin-dashboard .text-orange-300 {
+  color: #ea580c !important; /* elegant boutique orange */
+}
+
+.admin-dashboard .text-orange-200,
+.admin-dashboard .text-orange-100 {
+  color: #f97316 !important;
+}
+
+.admin-dashboard .badge {
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-dashboard div[class*="bg-white"]:not([class*="bg-white/5"]):not([class*="bg-white/10"]):not([class*="bg-white/20"]):not([class*="bg-white/30"]):not([class*="h-1"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="w-1"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]),
+.admin-dashboard div[class*="bg-zinc-50"],
+.admin-dashboard div[class*="bg-zinc-100"],
+.admin-dashboard div[class*="bg-gray-50"],
+.admin-dashboard div[class*="bg-gray-100"],
+.admin-dashboard div[class*="bg-slate-50"],
+.admin-dashboard div[class*="bg-slate-100"],
+.admin-dashboard div[class*="bg-orange-50"]:not([class*="h-1"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="w-1"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]),
+.admin-dashboard div[class*="bg-orange-100"],
+.admin-dashboard div[class*="bg-orange-200"],
+.admin-dashboard div[class*="bg-orange-950/20"],
+.admin-dashboard div[class*="bg-orange-955/20"],
+.admin-dashboard div[class*="bg-orange-950/40"] {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid #ffedd5 !important; /* orange-100 */
+  color: #0c0a09 !important;
+  border-radius: 1.5rem !important;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.admin-dashboard div[class*="bg-white"]:not([class*="bg-white/5"]):not([class*="bg-white/10"]):not([class*="bg-white/20"]):not([class*="bg-white/30"]):not([class*="h-1"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="w-1"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):hover,
+.admin-dashboard div[class*="bg-zinc-50"]:hover,
+.admin-dashboard div[class*="bg-zinc-100"]:hover,
+.admin-dashboard div[class*="bg-gray-50"]:hover,
+.admin-dashboard div[class*="bg-gray-100"]:hover,
+.admin-dashboard div[class*="bg-slate-50"]:hover,
+.admin-dashboard div[class*="bg-slate-100"]:hover,
+.admin-dashboard div[class*="bg-orange-50"]:hover,
+.admin-dashboard div[class*="bg-orange-100"]:hover,
+.admin-dashboard div[class*="bg-orange-200"]:hover,
+.admin-dashboard div[class*="bg-orange-955/20"]:hover,
+.admin-dashboard div[class*="bg-orange-950/20"]:hover,
+.admin-dashboard div[class*="bg-orange-950/40"]:hover {
+  transform: translateY(-3px) !important;
+  background: #ffffff !important;
+  border-color: #0c0a09 !important; /* matches seller card hover border */
+  box-shadow: 0 20px 40px rgba(12, 10, 9, 0.05), 0 0 30px rgba(234, 88, 12, 0.03) !important;
+}
+
+/* List stripes & Table row backgrounds */
+.admin-dashboard .bg-white\/40,
+.admin-dashboard .bg-orange-50\/40,
+.admin-dashboard .bg-orange-50\/50,
+.admin-dashboard .bg-orange-500\/5,
+.admin-dashboard tr.bg-orange-50\/50,
+.admin-dashboard tr.bg-orange-500\/5 {
+  background: #fffaf0 !important;
+  border: 1px solid #ffedd5 !important;
+  color: #0c0a09 !important;
+}
+
+.admin-dashboard .bg-white\/40:hover,
+.admin-dashboard .bg-orange-50\/40:hover {
+  background: #ffedd5 !important;
+  border-color: #fb923c !important;
+}
+
+/* Background contrast fixes for dark elements (Sidebars, hero sections) */
+.admin-dashboard .bg-orange-950,
+.admin-dashboard .bg-orange-900,
+.admin-dashboard .bg-orange-850,
+.admin-dashboard .bg-orange-800,
+.admin-dashboard .bg-orange-700,
+.admin-dashboard .bg-orange-600,
+.admin-dashboard .bg-orange-500,
+.admin-dashboard .bg-black,
+.admin-dashboard .bg-gray-900,
+.admin-dashboard .bg-zinc-955,
+.admin-dashboard .bg-zinc-950,
+.admin-dashboard .bg-zinc-900 {
+  color: #ffffff !important; /* Maintain crisp text for true dark containers */
+}
+
+/* Solid premium dark chocolate-espresso backdrop for layout gradients */
+.admin-dashboard div[class*="bg-gradient-to-br"][class*="from-zinc-900"],
+.admin-dashboard div[class*="bg-gradient-to-br"][class*="from-black"] {
+  background: linear-gradient(135deg, #160c07 0%, #030712 100%) !important; 
+  border: 1px solid rgba(234, 88, 12, 0.25) !important;
+  border-radius: 1.5rem !important;
+}
+
+/* Soft boutique status badges */
+.admin-dashboard .badge-success,
+.admin-dashboard .bg-emerald-500\/10,
+.admin-dashboard .bg-green-500\/10,
+.admin-dashboard .bg-emerald-50 {
+  background: #f0fdf4 !important; /* green-50 */
+  color: #166534 !important; /* green-800 */
+  border: 1px solid #bbf7d0 !important; /* green-200 */
+}
+
+.admin-dashboard .badge-warning,
+.admin-dashboard .bg-amber-500\/10,
+.admin-dashboard .bg-yellow-500\/10,
+.admin-dashboard .bg-amber-50 {
+  background: #fffbeb !important; /* yellow-50 */
+  color: #854d0e !important; /* yellow-800 */
+  border: 1px solid #fef08a !important; /* yellow-200 */
+}
+
+.admin-dashboard .badge-danger,
+.admin-dashboard .bg-rose-500\/10,
+.admin-dashboard .bg-red-500\/10,
+.admin-dashboard .bg-rose-50 {
+  background: #fff5f5 !important; /* red-50 */
+  color: #991b1b !important; /* red-800 */
+  border: 1px solid #fecaca !important; /* red-200 */
+}
+
+.admin-dashboard span[class*="bg-orange-50"],
+.admin-dashboard span[class*="bg-orange-100"],
+.admin-dashboard span[class*="bg-orange-200"],
+.admin-dashboard div[class*="bg-orange-50"][class*="h-"],
+.admin-dashboard div[class*="bg-orange-100"][class*="h-"],
+.admin-dashboard div[class*="bg-orange-200"][class*="h-"],
+.admin-dashboard .bg-orange-500\/10[class*="h-"],
+.admin-dashboard .bg-orange-600\/10[class*="h-"] {
+  background: #fffaf0 !important; /* orange-50 */
+  color: #ea580c !important; /* orange-600 */
+  border: 1px solid #ffedd5 !important; /* orange-100 */
+}
+
+.admin-dashboard span[class*="bg-orange-50"] *,
+.admin-dashboard span[class*="bg-orange-100"] *,
+.admin-dashboard span[class*="bg-orange-200"] *,
+.admin-dashboard div[class*="bg-orange-50"][class*="h-"] *,
+.admin-dashboard div[class*="bg-orange-100"][class*="h-"] * {
+  color: #ea580c !important;
+}
+
+/* Modern Primary Button Redesign */
+.admin-dashboard button.bg-orange-950,
+.admin-dashboard button.bg-orange-600,
+.admin-dashboard .bg-orange-950,
+.admin-dashboard button.bg-zinc-950 {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.15) !important;
+  border-radius: 0.75rem !important;
+}
+
+.admin-dashboard button.bg-orange-950:hover,
+.admin-dashboard button.bg-orange-600:hover,
+.admin-dashboard .bg-orange-950:hover,
+.admin-dashboard button.bg-zinc-950:hover {
+  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.25) !important;
+  filter: brightness(1.05) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Frosted Action Buttons */
+.admin-dashboard button.bg-white,
+.admin-dashboard a.bg-white,
+.admin-dashboard button.bg-white[class*="text-orange-955"],
+.admin-dashboard button.bg-white[class*="text-orange-955"].shadow-sm,
+.admin-dashboard button.bg-white[class*="text-orange-950"].shadow-sm,
+.admin-dashboard button.bg-white[class*="text-zinc-950"].shadow-sm,
+.admin-dashboard button.bg-white[class*="text-orange-950"],
+.admin-dashboard button.bg-white[class*="text-black"],
+.admin-dashboard button.bg-white[class*="text-zinc-800"] {
+  background: #ffffff !important;
+  color: #ea580c !important; /* orange-600 */
+  border: 1px solid #ffedd5 !important; /* orange-100 */
+  border-radius: 0.75rem !important;
+}
+
+.admin-dashboard button.bg-white:hover,
+.admin-dashboard a.bg-white:hover {
+  background: #fffaf0 !important;
+  border-color: #ea580c !important;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.08) !important;
+}
+
+/* Selected Filter Pills & Active Tab Buttons */
+.admin-dashboard button.bg-orange-950.text-white,
+.admin-dashboard button.bg-orange-950.text-orange-955,
+.admin-dashboard button.bg-orange-950.text-orange-950,
+.admin-dashboard button.bg-white.active {
+  background: #ea580c !important;
+  color: #ffffff !important;
+  border: 1px solid #ea580c !important;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.15) !important;
+}
+
+/* Secondary Buttons & Unselected Tabs */
+.admin-dashboard button.bg-orange-50\/5,
+.admin-dashboard button.bg-orange-500\/5,
+.admin-dashboard button.bg-rose-500\/5,
+.admin-dashboard button.bg-white\/10,
+.admin-dashboard button.bg-white\/50,
+.admin-dashboard button.bg-orange-50\/20,
+.admin-dashboard button:not([class*="bg-orange-"]):not([class*="bg-zinc-"]):not([class*="bg-black"]):not([class*="bg-white"]):not([class*="bg-rose-"]) {
+  background: #ffffff !important;
+  color: #ea580c !important;
+  border: 1px solid #ffedd5 !important;
+  border-radius: 0.75rem !important;
+}
+
+.admin-dashboard button.bg-orange-50\/5:hover,
+.admin-dashboard button.bg-orange-500\/5:hover,
+.admin-dashboard button.bg-rose-500\/5:hover,
+.admin-dashboard button.bg-white\/10:hover,
+.admin-dashboard button.bg-white\/50:hover,
+.admin-dashboard button.bg-orange-50\/20:hover,
+.admin-dashboard button:not([class*="bg-orange-"]):not([class*="bg-zinc-"]):not([class*="bg-black"]):not([class*="bg-white"]):not([class*="bg-rose-"]):hover {
+  background: #fffaf0 !important;
+  border-color: #ea580c !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.08) !important;
+}
+
+/* Action states (Suspend/Activate) */
+.admin-dashboard button.bg-rose-50,
+.admin-dashboard a.bg-rose-50 {
+  background: #fff5f5 !important;
+  color: #e11d48 !important; /* rose-600 */
+  border: 1px solid #fecaca !important;
+}
+.admin-dashboard button.bg-rose-50:hover,
+.admin-dashboard a.bg-rose-50:hover {
+  background: #e11d48 !important;
+  color: #ffffff !important;
+  border-color: #e11d48 !important;
+}
+
+.admin-dashboard button.bg-orange-50,
+.admin-dashboard a.bg-orange-50 {
+  background: #fffaf0 !important;
+  color: #ea580c !important;
+  border: 1px solid #ffedd5 !important;
+}
+.admin-dashboard button.bg-orange-50:hover,
+.admin-dashboard a.bg-orange-50:hover {
+  background: #ea580c !important;
+  color: #ffffff !important;
+  border-color: #ea580c !important;
+}
+
+/* Non-button tags */
+.admin-dashboard .bg-rose-50:not(button),
+.admin-dashboard span.bg-rose-50 {
+  background: #fff5f5 !important;
+  color: #e11d48 !important;
+  border: 1px solid #fecaca !important;
+}
+.admin-dashboard .bg-orange-50:not(button),
+.admin-dashboard span.bg-orange-50 {
+  background: #fffaf0 !important;
+  color: #ea580c !important;
+  border: 1px solid #ffedd5 !important;
+}
+
+/* Table Row Highlights */
+.admin-dashboard table tr:hover td,
+.admin-dashboard tr:hover td,
+.admin-dashboard tbody tr:hover td {
+  background-color: #fffaf0 !important; /* soft warm highlights on hover */
+}
