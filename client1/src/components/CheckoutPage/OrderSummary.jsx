@@ -42,7 +42,16 @@ const OrderSummary = ({
     setLoading(true);
     setError("");
     try {
-      const res = await validateCoupon(couponCode, subtotal);
+      const cleanedItems = items.map(item => ({
+        category: item.category || item.category_name || '',
+        category_name: item.category_name || item.category || '',
+        parent_category: item.parent_category || item.parent_category_name || '',
+        parent_category_name: item.parent_category_name || item.parent_category || '',
+        price: item.price || item.discountPrice || 0,
+        discountPrice: item.discountPrice || item.price || 0,
+        quantity: item.quantity || 1
+      }));
+      const res = await validateCoupon(couponCode, subtotal, cleanedItems);
       if (res.success) {
         setAppliedCoupon(res.data);
         if (onCouponApply) onCouponApply(res.data);
@@ -58,11 +67,61 @@ const OrderSummary = ({
     }
   };
 
+  const eligibleSubtotal = React.useMemo(() => {
+    if (!appliedCoupon || !appliedCoupon.category || appliedCoupon.category === 'all') return subtotal;
+
+    const getCategoryMapping = (couponCategory) => {
+      const mapping = {
+        'electronics': ['electronics', 'mobiles and accessories', 'mobiles & accessories', 'laptops and tablets', 'laptops & tablets', 'smart wearables', 'audio devices', 'cameras and photography', 'cameras & photography', 'gaming'],
+        'fashion': ['fashion', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'footwear', 'accessories', 'ethnic wear', 'activewear'],
+        'clothing': ['clothing', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'ethnic wear', 'activewear'],
+        'mens': ['men\'s wear', 'mens wear', 'footwear', 'accessories'],
+        'women': ['women\'s wear', 'womens wear', 'footwear', 'accessories'],
+        'kids': ['kids collection', 'children books', 'toys'],
+        'toys': ['toys', 'kids collection'],
+        'gifts': ['gifts', 'home decor', 'fragrances'],
+        'home-living': ['home & living', 'home and living', 'furniture', 'home decor', 'kitchenware', 'bedding & bath', 'bedding and bath', 'lighting', 'garden & outdoor', 'garden and outdoor'],
+        'books': ['books', 'fiction & novels', 'fiction and novels', 'non-fiction', 'stationery', 'textbooks', 'comics & manga', 'comics and manga', 'children books'],
+        'beauty': ['beauty', 'skincare', 'cosmetics', 'fragrances', 'haircare', 'men grooming', 'wellness'],
+        'sports-fitness': ['sports & fitness', 'sports and fitness', 'fitness gear', 'activewear', 'outdoor & camping', 'sports equipment', 'yoga & pilates', 'yoga and pilates', 'nutrition & supplements', 'nutrition and supplements'],
+        'healthy-foods': ['daily essentials & groceries', 'daily essentials and groceries', 'grains & rice', 'grains and rice', 'lentils & dals', 'lentils and dals', 'healthy foods'],
+        'home-livings': ['']
+      };
+      return mapping[couponCategory?.toLowerCase()] || [couponCategory?.toLowerCase()];
+    };
+
+    const isCategoryMatch = (itemCategory, itemParentCategory, couponCategory) => {
+      if (!couponCategory || couponCategory.toLowerCase() === 'all') return true;
+      if (!itemCategory) return false;
+
+      const targetCategories = getCategoryMapping(couponCategory);
+      const norm = (s) => s ? s.toLowerCase().replace(/[^a-z0-9]/g, '').trim() : '';
+      const normalizedTargets = targetCategories.map(norm);
+      
+      const normItemCat = norm(itemCategory);
+      const normItemParentCat = norm(itemParentCategory);
+      
+      return normalizedTargets.includes(normItemCat) || 
+             normalizedTargets.includes(normItemParentCat) ||
+             normItemCat.includes(norm(couponCategory)) ||
+             normItemParentCat.includes(norm(couponCategory));
+    };
+
+    return items.reduce((acc, item) => {
+      const itemCategory = item.category || item.category_name || '';
+      const itemParentCategory = item.parent_category || item.parent_category_name || '';
+      if (isCategoryMatch(itemCategory, itemParentCategory, appliedCoupon.category)) {
+        return acc + ((item.price || item.discountPrice || 0) * (item.quantity || 1));
+      }
+      return acc;
+    }, 0);
+  }, [items, appliedCoupon, subtotal]);
+
   const discountAmount = appliedCoupon 
     ? (appliedCoupon.type === 'flat' || appliedCoupon.type === 'fixed' || parseFloat(appliedCoupon.discount_amount || 0) > 0)
-      ? parseFloat(appliedCoupon.discount_amount)
+      ? Math.min(parseFloat(appliedCoupon.discount_amount), eligibleSubtotal)
       : Math.min(
-          (subtotal * (appliedCoupon.discount_percent || 0)) / 100, 
+          (eligibleSubtotal * (appliedCoupon.discount_percent || 0)) / 100, 
           appliedCoupon.max_discount || Infinity
         ) 
     : 0;

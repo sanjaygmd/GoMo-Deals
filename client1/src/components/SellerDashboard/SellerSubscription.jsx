@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Video, Shield, Check, Crown, CreditCard, ChevronRight, AlertTriangle, Monitor, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { 
+  loadRazorpay, 
+  createSellerSubscriptionOrder, 
+  confirmSellerSubscription, 
+  cancelSellerSubscription 
+} from '../../services/sellerSubscriptionService';
 
 const SUBSCRIPTION_PLANS = [
   {
@@ -53,6 +59,7 @@ const SellerSubscription = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const currentPlan = SUBSCRIPTION_PLANS.find(p => p.id === currentPlanId) || SUBSCRIPTION_PLANS[0];
 
@@ -62,18 +69,73 @@ const SellerSubscription = () => {
     setSelectedPlan(plan);
     setIsProcessing(true);
     setSuccessMsg('');
+    setErrorMsg('');
 
-    // Simulate Razorpay payment processing delay
-    setTimeout(() => {
-      // Update user context with new subscription
-      updateUser({ ...user, seller_subscription: plan.id });
-      setIsProcessing(false);
-      setSuccessMsg(`Successfully upgraded to ${plan.name} plan!`);
-      setSelectedPlan(null);
-      
-      // Clear success message after 4s
-      setTimeout(() => setSuccessMsg(''), 4000);
-    }, 1500);
+    try {
+      if (plan.id === 'free') {
+        // Cancel subscription
+        await cancelSellerSubscription();
+        updateUser({ ...user, seller_subscription: 'free' });
+        setSuccessMsg('Subscription cancelled successfully.');
+      } else {
+        // Upgrade / Subscribe
+        const sdkLoaded = await loadRazorpay();
+        if (!sdkLoaded) {
+          throw new Error('Payment gateway failed to load. Check your connection.');
+        }
+
+        const orderRes = await createSellerSubscriptionOrder(plan.price);
+        if (!orderRes.success && !orderRes.order) {
+          throw new Error(orderRes.message || 'Failed to create payment order.');
+        }
+
+        const options = {
+          key: import.meta.env.VITE_RAZORPAY_KEY,
+          amount: plan.price * 100,
+          currency: 'INR',
+          name: 'GoMo Deals Seller Subscription',
+          description: `${plan.name} Plan`,
+          ...(orderRes.isMock ? {} : { order_id: orderRes.order?.id }),
+          handler: async (response) => {
+            try {
+              const confirmRes = await confirmSellerSubscription({
+                plan_id: plan.id,
+                razorpay_payment_id: response.razorpay_payment_id || `pay_mock_${Date.now()}`,
+                razorpay_order_id: response.razorpay_order_id || orderRes.order?.id || 'mock',
+                razorpay_signature: response.razorpay_signature || 'mock_sig',
+                amount: plan.price,
+              });
+              updateUser({ ...user, seller_subscription: plan.id, seller_subscription_expiry: confirmRes.data?.seller_subscription_expiry });
+              setSuccessMsg(`Successfully upgraded to ${plan.name} plan!`);
+              setSelectedPlan(null);
+              setTimeout(() => setSuccessMsg(''), 4000);
+            } catch (e) {
+              setErrorMsg(e.message || 'Payment received but activation failed. Contact support.');
+            } finally {
+              setIsProcessing(false);
+            }
+          },
+          modal: { ondismiss: () => setIsProcessing(false) },
+          prefill: {
+            name: user?.name,
+            email: user?.email,
+            contact: user?.phone
+          },
+          theme: { color: '#1e293b' },
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        return; // Processing ends when modal closes or handler finishes
+      }
+    } catch (error) {
+      setErrorMsg(error.message || 'Failed to process subscription.');
+    }
+    
+    setIsProcessing(false);
+    setSelectedPlan(null);
+    if (plan.id === 'free') {
+       setTimeout(() => setSuccessMsg(''), 4000);
+    }
   };
 
   return (
@@ -115,6 +177,18 @@ const SellerSubscription = () => {
             className="mb-8 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center gap-3">
             <Check size={16} />
             <span className="text-sm font-bold">{successMsg}</span>
+          </motion.div>
+        )}
+        {errorMsg && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="mb-8 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={16} />
+              <span className="text-sm font-bold">{errorMsg}</span>
+            </div>
+            <button onClick={() => setErrorMsg('')} className="opacity-70 hover:opacity-100 transition-opacity">
+              <X size={16} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

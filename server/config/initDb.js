@@ -837,6 +837,61 @@ export const initSchema = async () => {
             CREATE INDEX IF NOT EXISTS idx_offers_product_id ON product_offers(product_id);
         `);
 
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS flea_market_meetings (
+                meeting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                product_id UUID NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+                customer_id UUID NOT NULL REFERENCES customers(customer_id) ON DELETE CASCADE,
+                seller_id UUID NOT NULL REFERENCES sellers(seller_id) ON DELETE CASCADE,
+                kg_amount DECIMAL(15,2) NOT NULL,
+                purpose TEXT,
+                scheduled_at TIMESTAMP NOT NULL,
+                meeting_link VARCHAR(500) NOT NULL,
+                status VARCHAR(50) DEFAULT 'Scheduled', -- 'Scheduled', 'Cancelled', 'Completed', 'Expired'
+                earnings DECIMAL(15,2) DEFAULT 0,
+                meeting_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT unique_seller_meeting_time UNIQUE (seller_id, scheduled_at)
+            )
+        `);
+
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_meetings_seller_id ON flea_market_meetings(seller_id);
+            CREATE INDEX IF NOT EXISTS idx_meetings_customer_id ON flea_market_meetings(customer_id);
+            CREATE INDEX IF NOT EXISTS idx_meetings_scheduled_at ON flea_market_meetings(scheduled_at);
+        `);
+
+        // B2B Flea Market terms agreements tracking columns
+        await pool.query(`
+            ALTER TABLE customers ADD COLUMN IF NOT EXISTS has_agreed_to_flea_market_terms BOOLEAN DEFAULT FALSE;
+            ALTER TABLE sellers ADD COLUMN IF NOT EXISTS has_agreed_to_flea_market_terms BOOLEAN DEFAULT FALSE;
+        `);
+
+        // Customer membership column (in case table was created before this column existed)
+        await pool.query(`
+            ALTER TABLE customers ADD COLUMN IF NOT EXISTS membership VARCHAR(50) DEFAULT 'free';
+        `);
+
+        // Seller Subscriptions columns
+        await pool.query(`
+            ALTER TABLE sellers ADD COLUMN IF NOT EXISTS seller_subscription VARCHAR(50) DEFAULT 'free';
+            ALTER TABLE sellers ADD COLUMN IF NOT EXISTS seller_subscription_expiry TIMESTAMP DEFAULT NULL;
+        `);
+
+        // Seller Subscriptions History Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS seller_subscriptions_history (
+                history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                seller_id UUID REFERENCES sellers(seller_id) ON DELETE CASCADE,
+                plan_id VARCHAR(50) NOT NULL,
+                amount DECIMAL(15,2) NOT NULL,
+                razorpay_order_id VARCHAR(255),
+                razorpay_payment_id VARCHAR(255),
+                status VARCHAR(50) DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         // Ensure unique coupon customer constraint is applied to pre-existing tables safely
         try {
             await pool.query(`

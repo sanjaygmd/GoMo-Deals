@@ -7,6 +7,15 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // Normalization helper to map snake_case database properties to camelCase frontend expectations
+    const normalizeUserData = (userData) => {
+        if (!userData) return null;
+        return {
+            ...userData,
+            hasAgreedToFleaMarketTerms: userData.hasAgreedToFleaMarketTerms ?? userData.has_agreed_to_flea_market_terms ?? false
+        };
+    };
+
     // Security Helper: Only save non-sensitive, visual display details to localStorage.
     // Privileged fields like roles, email, phone, and customer IDs are kept strictly in-memory.
     const saveSanitizedUser = (userData) => {
@@ -27,8 +36,9 @@ export const AuthProvider = ({ children }) => {
             try {
                 const response = await authService.getMe();
                 if (response.success) {
-                    setUser(response.data);
-                    saveSanitizedUser(response.data);
+                    const normalized = normalizeUserData(response.data);
+                    setUser(normalized);
+                    saveSanitizedUser(normalized);
                 }
             } catch (err) {
                 console.log("No active session found");
@@ -44,8 +54,9 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = (userData) => {
-        setUser(userData);
-        saveSanitizedUser(userData);
+        const normalized = normalizeUserData(userData);
+        setUser(normalized);
+        saveSanitizedUser(normalized);
     };
 
     const logout = async () => {
@@ -80,7 +91,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const updateUser = (userData) => {
-        const newUser = { ...user, ...userData };
+        const newUser = normalizeUserData({ ...user, ...userData });
         setUser(newUser);
         saveSanitizedUser(newUser);
     };
@@ -89,8 +100,9 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await authService.getMe();
             if (response.success) {
-                setUser(response.data);
-                saveSanitizedUser(response.data);
+                const normalized = normalizeUserData(response.data);
+                setUser(normalized);
+                saveSanitizedUser(normalized);
             }
         } catch (err) {
             console.error("Failed to refresh user session:", err);

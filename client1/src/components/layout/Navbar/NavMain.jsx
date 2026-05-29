@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
-import { Search, User, Heart, ShoppingCart, Menu, X, ShieldCheck, ShoppingBag, Package, Bell, CheckCircle2, AlertTriangle, Info, Mail, MapPin, ChevronDown, ChevronRight, Clock, Tag, Truck, XCircle, RefreshCw, Globe, Crown } from 'lucide-react';
+import { Search, User, Heart, ShoppingCart, Menu, X, ShieldCheck, ShoppingBag, Package, Bell, CheckCircle2, AlertTriangle, Info, Mail, MapPin, ChevronDown, ChevronRight, Clock, Tag, Truck, XCircle, RefreshCw, Globe, Crown, History } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import gmdLogo from '../../../assets/GMD_Logo.png';
@@ -7,6 +7,7 @@ import { useShop } from '../../../context/ShopContext';
 import { useAuth } from '../../../context/AuthContext';
 import * as authService from '../../../services/authService';
 import { ProductContext } from '../../../context/ProductContext/ProductContext';
+import { categorySubcategories } from '../../../data/categories';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCustomerNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '../../../services/notificationService';
 import CartDrawer from './CartDrawer';
@@ -17,8 +18,19 @@ const NavMain = ({ scrolled, isHome }) => {
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCategory, setSearchCategory] = useState('all');
+    const [searchHistory, setSearchHistory] = useState(() => {
+        try {
+            const saved = localStorage.getItem('shopping_history');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
+    const [shoppingHistoryOpen, setShoppingHistoryOpen] = useState(false);
     const [showAccountMenu, setShowAccountMenu] = useState(false);
     const [allMenuOpen, setAllMenuOpen] = useState(false);
+    const [expandedDept, setExpandedDept] = useState(null);
+    const [expandedMobileDept, setExpandedMobileDept] = useState(null);
     const [showFleaDropdown, setShowFleaDropdown] = useState(false);
     const fleaDropdownRef = useRef(null);
     const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -122,57 +134,6 @@ const NavMain = ({ scrolled, isHome }) => {
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
-    const categorySubcategories = {
-        'electronics': [
-            { label: 'Mobiles & Accessories', slug: 'mobiles' },
-            { label: 'Laptops & Tablets', slug: 'laptops' },
-            { label: 'Smart Wearables', slug: 'wearables' },
-            { label: 'Audio Devices', slug: 'audio' },
-            { label: 'Cameras & Photography', slug: 'cameras' },
-            { label: 'Gaming', slug: 'gaming' },
-        ],
-        'fashion': [
-            { label: "Men's Wear", slug: 'men' },
-            { label: "Women's Wear", slug: 'women' },
-            { label: 'Footwear', slug: 'footwear' },
-            { label: 'Accessories', slug: 'accessories' },
-            { label: 'Ethnic Wear', slug: 'ethnic' },
-            { label: 'Activewear', slug: 'activewear' },
-        ],
-        'home-living': [
-            { label: 'Furniture', slug: 'furniture' },
-            { label: 'Home Decor', slug: 'decor' },
-            { label: 'Kitchenware', slug: 'kitchen' },
-            { label: 'Bedding & Bath', slug: 'bedding' },
-            { label: 'Lighting', slug: 'lighting' },
-            { label: 'Garden & Outdoor', slug: 'garden' },
-        ],
-        'books': [
-            { label: 'Fiction & Novels', slug: 'fiction' },
-            { label: 'Non-Fiction', slug: 'non-fiction' },
-            { label: 'Stationery', slug: 'stationery' },
-            { label: 'Textbooks', slug: 'textbooks' },
-            { label: 'Comics & Manga', slug: 'comics' },
-            { label: 'Children Books', slug: 'children-books' },
-        ],
-        'beauty': [
-            { label: 'Skincare', slug: 'skincare' },
-            { label: 'Cosmetics', slug: 'cosmetics' },
-            { label: 'Fragrances', slug: 'fragrance' },
-            { label: 'Haircare', slug: 'haircare' },
-            { label: 'Men Grooming', slug: 'grooming' },
-            { label: 'Wellness', slug: 'wellness' },
-        ],
-        'sports-fitness': [
-            { label: 'Fitness Gear', slug: 'fitness' },
-            { label: 'Activewear', slug: 'activewear' },
-            { label: 'Outdoor & Camping', slug: 'outdoor' },
-            { label: 'Sports Equipment', slug: 'equipment' },
-            { label: 'Yoga & Pilates', slug: 'yoga' },
-            { label: 'Nutrition & Supplements', slug: 'nutrition' },
-        ],
-    };
-
     const searchCategories = [
         { value: 'all', label: 'All Departments' },
         { value: 'electronics', label: 'Electronics' },
@@ -181,6 +142,13 @@ const NavMain = ({ scrolled, isHome }) => {
         { value: 'books', label: 'Books' },
         { value: 'beauty', label: 'Beauty' },
         { value: 'sports-fitness', label: 'Sports & Fitness' },
+        { value: 'clothing', label: 'Clothing' },
+        { value: 'mens', label: 'Mens' },
+        { value: 'women', label: 'Women' },
+        { value: 'kids', label: 'Kids' },
+        { value: 'pooja-items', label: 'Pooja Items' },
+        { value: 'toys', label: 'Toys' },
+        { value: 'gifts', label: 'Gifts' },
     ];
 
     const fetchNotifications = async () => {
@@ -329,7 +297,16 @@ const NavMain = ({ scrolled, isHome }) => {
     const handleSearchSubmit = (e) => {
         if (e) e.preventDefault();
         setSearchOpen(false);
-        
+
+        if (searchQuery.trim()) {
+            setSearchHistory(prev => {
+                const query = searchQuery.trim();
+                const newHistory = [query, ...prev.filter(q => q !== query)].slice(0, 10);
+                localStorage.setItem('shopping_history', JSON.stringify(newHistory));
+                return newHistory;
+            });
+        }
+
         const targetUrl = `/?search=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(searchCategory)}`;
         
         if (location.pathname !== '/') {
@@ -664,6 +641,43 @@ const NavMain = ({ scrolled, isHome }) => {
                                     )}
                                 </motion.div>
                             )}
+                            {searchOpen && searchQuery.trim() === '' && searchHistory.length > 0 && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                    className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-[125%] max-w-2xl bg-white z-[150] shadow-[0_20px_50px_rgba(249,115,22,0.2)] border-2 border-orange-200 rounded-md overflow-hidden"
+                                >
+                                    <div className="px-5 py-4 border-b border-orange-100/60 bg-gradient-to-br from-white to-orange-50/30 flex items-center justify-between">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                                                <History size={12} strokeWidth={2.5} />
+                                            </div>
+                                            <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-955">Recent Searches</h3>
+                                        </div>
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto">
+                                        <div className="flex flex-col">
+                                            {searchHistory.map((query, idx) => (
+                                                <button 
+                                                    key={idx}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setSearchQuery(query);
+                                                        setSearchOpen(false);
+                                                        navigate(`/?search=${encodeURIComponent(query)}&category=${encodeURIComponent(searchCategory)}`);
+                                                    }}
+                                                    className="flex items-center gap-3 px-5 py-3 hover:bg-orange-50/50 border-b border-orange-50/40 last:border-0 transition-colors text-left"
+                                                >
+                                                    <History size={14} className="text-orange-400" />
+                                                    <span className="text-xs font-semibold text-orange-900 truncate">{query}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
                         </AnimatePresence>
                     </div>
 
@@ -927,6 +941,80 @@ const NavMain = ({ scrolled, isHome }) => {
                             </div>
                         )}
 
+                        {/* Shopping History */}
+                        <div className="relative flex items-center">
+                            <button 
+                                onClick={() => setShoppingHistoryOpen(!shoppingHistoryOpen)}
+                                className="w-9 h-9 rounded-full flex items-center justify-center border border-transparent hover:border-orange-100/80 hover:bg-white text-orange-955 hover:text-orange-600 hover:scale-105 hover:shadow-[0_4px_12px_rgba(249,115,22,0.06)] active:scale-95 transition-all duration-300 relative p-0 cursor-pointer"
+                                title="Shopping History"
+                            >
+                                <History size={20} strokeWidth={1.5} />
+                            </button>
+                            
+                            <AnimatePresence>
+                                {shoppingHistoryOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 12, scale: 0.95 }}
+                                        transition={{ duration: 0.2, ease: "easeOut" }}
+                                        className="absolute top-[calc(100%+12px)] right-0 w-[280px] bg-white border border-orange-200 rounded-2xl shadow-[0_20px_50px_rgba(249,115,22,0.15)] z-[150] overflow-hidden"
+                                    >
+                                        <div className="px-5 py-4 border-b border-orange-100/60 bg-gradient-to-br from-white to-orange-50/30 flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                                                    <History size={12} strokeWidth={2.5} />
+                                                </div>
+                                                <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-955">Shopping History</h3>
+                                            </div>
+                                            {searchHistory.length > 0 && (
+                                                <button 
+                                                    onClick={() => {
+                                                        setSearchHistory([]);
+                                                        localStorage.removeItem('shopping_history');
+                                                    }}
+                                                    className="text-[9px] uppercase tracking-wider font-bold text-orange-400 hover:text-orange-600 transition-colors"
+                                                >
+                                                    Clear All
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent">
+                                            {searchHistory.length > 0 ? (
+                                                <div className="flex flex-col">
+                                                    {searchHistory.map((query, idx) => (
+                                                        <button 
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                setSearchQuery(query);
+                                                                setShoppingHistoryOpen(false);
+                                                                navigate(`/?search=${encodeURIComponent(query)}&category=all`);
+                                                            }}
+                                                            className="flex items-center gap-3 px-5 py-3 hover:bg-orange-50/50 border-b border-orange-50/40 last:border-0 transition-colors text-left"
+                                                        >
+                                                            <Search size={14} className="text-orange-400" />
+                                                            <span className="text-xs font-semibold text-orange-900 truncate">{query}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="py-10 text-center space-y-3">
+                                                    <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center mx-auto border border-orange-100/60 shadow-sm">
+                                                        <History size={16} strokeWidth={1.5} className="text-orange-400" />
+                                                    </div>
+                                                    <div className="space-y-0.5">
+                                                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-orange-900">No History Yet</p>
+                                                        <p className="text-[9px] text-orange-500 font-semibold uppercase tracking-wide">Your recent searches will appear here.</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
                         {/* Wishlist */}
                         <button 
                             onClick={(e) => { e.preventDefault(); setWishlistDrawerOpen(true); }}
@@ -1045,15 +1133,30 @@ const NavMain = ({ scrolled, isHome }) => {
                             {t("best_sellers")}
                         </button>
 
+                        <Link 
+                            to="/deals" 
+                            className="px-4 py-2 rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_4px_12px_rgba(249,115,22,0.3)] hover:shadow-[0_6px_16px_rgba(249,115,22,0.4)]"
+                        >
+                            GMD Deals
+                        </Link>
+
                         <div className="w-[1px] h-4 bg-orange-200 self-center flex-shrink-0 mx-1" />
                         
                         {[
+                            { key: 'beauty', label: t('beauty'), slug: 'beauty' },
+                            { key: 'books', label: t('books'), slug: 'books' },
+                            { key: 'clothing', label: 'Clothing', slug: 'clothing' },
                             { key: 'electronics', label: t('electronics'), slug: 'electronics' },
                             { key: 'fashion', label: t('fashion'), slug: 'fashion' },
+                            { key: 'gifts', label: 'Gifts', slug: 'gifts' },
+                            { key: 'healthy-foods', label: 'Healthy Foods', slug: 'healthy-foods' },
                             { key: 'home-living', label: t('home_living'), slug: 'home-living' },
-                            { key: 'books', label: t('books'), slug: 'books' },
-                            { key: 'beauty', label: t('beauty'), slug: 'beauty' },
+                            { key: 'kids', label: 'Kids', slug: 'kids' },
+                            { key: 'mens', label: 'Mens', slug: 'mens' },
+                            { key: 'pooja-items', label: 'Pooja Items', slug: 'pooja-items' },
                             { key: 'sports-fitness', label: t('sports_fitness'), slug: 'sports-fitness' },
+                            { key: 'toys', label: 'Toys', slug: 'toys' },
+                            { key: 'women', label: 'Women', slug: 'women' },
                         ].map(cat => (
                             <div
                                 key={cat.key}
@@ -1106,6 +1209,13 @@ const NavMain = ({ scrolled, isHome }) => {
                                                 { key: 'books', label: t('books') },
                                                 { key: 'beauty', label: t('beauty') },
                                                 { key: 'sports-fitness', label: t('sports_fitness') },
+                                                { key: 'clothing', label: 'Clothing' },
+                                                { key: 'mens', label: 'Mens' },
+                                                { key: 'women', label: 'Women' },
+                                                { key: 'kids', label: 'Kids' },
+                                                { key: 'pooja-items', label: 'Pooja Items' },
+                                                { key: 'toys', label: 'Toys' },
+                                                { key: 'gifts', label: 'Gifts' },
                                             ].find(c => c.key === hoveredCat)?.label}
                                         </p>
                                     </div>
@@ -1277,30 +1387,60 @@ const NavMain = ({ scrolled, isHome }) => {
                                     Categories
                                 </h4>
                                 <div className="flex flex-col gap-1">
-                                    <Link to="/collection/electronics" onClick={() => setMobileMenuOpen(false)} className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group">
-                                        <span>Electronics</span>
-                                        <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
-                                    </Link>
-                                    <Link to="/collection/fashion" onClick={() => setMobileMenuOpen(false)} className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group">
-                                        <span>Fashion</span>
-                                        <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
-                                    </Link>
-                                    <Link to="/collection/home-living" onClick={() => setMobileMenuOpen(false)} className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group">
-                                        <span>Home & Living</span>
-                                        <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
-                                    </Link>
-                                    <Link to="/collection/books" onClick={() => setMobileMenuOpen(false)} className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group">
-                                        <span>Books & Stationery</span>
-                                        <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
-                                    </Link>
-                                    <Link to="/collection/beauty" onClick={() => setMobileMenuOpen(false)} className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group">
-                                        <span>Beauty & Grooming</span>
-                                        <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
-                                    </Link>
-                                    <Link to="/collection/sports-fitness" onClick={() => setMobileMenuOpen(false)} className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group">
-                                        <span>Sports & Fitness</span>
-                                        <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
-                                    </Link>
+                                    {[
+                                        { key: 'beauty', label: 'Beauty & Grooming' },
+                                        { key: 'books', label: 'Books & Stationery' },
+                                        { key: 'clothing', label: 'Clothing' },
+                                        { key: 'electronics', label: 'Electronics' },
+                                        { key: 'fashion', label: 'Fashion' },
+                                        { key: 'gifts', label: 'Gifts' },
+                                        { key: 'healthy-foods', label: 'Healthy Foods' },
+                                        { key: 'home-living', label: 'Home & Living' },
+                                        { key: 'kids', label: 'Kids' },
+                                        { key: 'mens', label: 'Mens' },
+                                        { key: 'pooja-items', label: 'Pooja Items' },
+                                        { key: 'sports-fitness', label: 'Sports & Fitness' },
+                                        { key: 'toys', label: 'Toys' },
+                                        { key: 'women', label: 'Women' },
+                                    ].map(dept => (
+                                        <div key={dept.key} className="flex flex-col">
+                                            <button 
+                                                onClick={() => setExpandedMobileDept(expandedMobileDept === dept.key ? null : dept.key)}
+                                                className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
+                                            >
+                                                <span>{dept.label}</span>
+                                                <ChevronDown size={14} className={`text-orange-300 transition-transform ${expandedMobileDept === dept.key ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            <AnimatePresence>
+                                                {expandedMobileDept === dept.key && categorySubcategories[dept.key] && (
+                                                    <motion.div 
+                                                        initial={{ height: 0, opacity: 0 }} 
+                                                        animate={{ height: 'auto', opacity: 1 }} 
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        className="flex flex-col pl-4 overflow-hidden"
+                                                    >
+                                                        {categorySubcategories[dept.key].map(sub => (
+                                                            <Link 
+                                                                key={sub.slug}
+                                                                to={`/collection/${sub.slug}`}
+                                                                onClick={() => setMobileMenuOpen(false)}
+                                                                className="py-1.5 px-3 text-[11px] font-semibold text-orange-900/60 hover:text-orange-600 hover:pl-4 transition-all duration-300"
+                                                            >
+                                                                {sub.label}
+                                                            </Link>
+                                                        ))}
+                                                        <Link
+                                                            to={`/collection/${dept.key}`}
+                                                            onClick={() => setMobileMenuOpen(false)}
+                                                            className="py-1.5 px-3 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:pl-4 transition-all duration-300"
+                                                        >
+                                                            View All {dept.label}
+                                                        </Link>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
@@ -1534,54 +1674,60 @@ const NavMain = ({ scrolled, isHome }) => {
                                         Departments
                                     </h4>
                                     <div className="flex flex-col gap-1">
-                                        <Link 
-                                            to="/collection/electronics" 
-                                            onClick={() => setAllMenuOpen(false)}
-                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                        >
-                                            <span>Electronics</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </Link>
-                                        <Link 
-                                            to="/collection/fashion" 
-                                            onClick={() => setAllMenuOpen(false)}
-                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                        >
-                                            <span>Fashion</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </Link>
-                                        <Link 
-                                            to="/collection/home-living" 
-                                            onClick={() => setAllMenuOpen(false)}
-                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                        >
-                                            <span>Home & Living</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </Link>
-                                        <Link 
-                                            to="/collection/books" 
-                                            onClick={() => setAllMenuOpen(false)}
-                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                        >
-                                            <span>Books</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </Link>
-                                        <Link 
-                                            to="/collection/beauty" 
-                                            onClick={() => setAllMenuOpen(false)}
-                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                        >
-                                            <span>Beauty</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </Link>
-                                        <Link 
-                                            to="/collection/sports-fitness" 
-                                            onClick={() => setAllMenuOpen(false)}
-                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                        >
-                                            <span>Sports & Fitness</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </Link>
+                                        {[
+                                            { key: 'beauty', label: 'Beauty' },
+                                            { key: 'books', label: 'Books' },
+                                            { key: 'clothing', label: 'Clothing' },
+                                            { key: 'electronics', label: 'Electronics' },
+                                            { key: 'fashion', label: 'Fashion' },
+                                            { key: 'gifts', label: 'Gifts' },
+                                            { key: 'healthy-foods', label: 'Healthy Foods' },
+                                            { key: 'home-living', label: 'Home & Living' },
+                                            { key: 'kids', label: 'Kids' },
+                                            { key: 'mens', label: 'Mens' },
+                                            { key: 'pooja-items', label: 'Pooja Items' },
+                                            { key: 'sports-fitness', label: 'Sports & Fitness' },
+                                            { key: 'toys', label: 'Toys' },
+                                            { key: 'women', label: 'Women' },
+                                        ].map(dept => (
+                                            <div key={dept.key} className="flex flex-col">
+                                                <button 
+                                                    onClick={() => setExpandedDept(expandedDept === dept.key ? null : dept.key)}
+                                                    className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
+                                                >
+                                                    <span>{dept.label}</span>
+                                                    <ChevronDown size={14} className={`text-orange-300 transition-transform ${expandedDept === dept.key ? 'rotate-180' : ''}`} />
+                                                </button>
+                                                <AnimatePresence>
+                                                    {expandedDept === dept.key && categorySubcategories[dept.key] && (
+                                                        <motion.div 
+                                                            initial={{ height: 0, opacity: 0 }} 
+                                                            animate={{ height: 'auto', opacity: 1 }} 
+                                                            exit={{ height: 0, opacity: 0 }}
+                                                            className="flex flex-col pl-4 overflow-hidden"
+                                                        >
+                                                            {categorySubcategories[dept.key].map(sub => (
+                                                                <Link 
+                                                                    key={sub.slug}
+                                                                    to={`/collection/${sub.slug}`}
+                                                                    onClick={() => setAllMenuOpen(false)}
+                                                                    className="py-1.5 px-3 text-[11px] font-semibold text-orange-900/60 hover:text-orange-600 hover:pl-4 transition-all duration-300"
+                                                                >
+                                                                    {sub.label}
+                                                                </Link>
+                                                            ))}
+                                                            <Link
+                                                                to={`/collection/${dept.key}`}
+                                                                onClick={() => setAllMenuOpen(false)}
+                                                                className="py-1.5 px-3 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:pl-4 transition-all duration-300"
+                                                            >
+                                                                View All {dept.label}
+                                                            </Link>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 

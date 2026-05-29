@@ -11,7 +11,7 @@ export class CouponService {
      */
     static async getActiveCoupons() {
         const result = await pool.query(
-            "SELECT coupon_id, code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until FROM coupons WHERE is_active = true AND (valid_until IS NULL OR (valid_until + interval '23 hours 59 minutes 59 seconds') >= NOW()) ORDER BY created_at DESC"
+            "SELECT coupon_id, code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, category FROM coupons WHERE is_active = true AND (valid_until IS NULL OR (valid_until + interval '23 hours 59 minutes 59 seconds') >= NOW()) ORDER BY created_at DESC"
         );
         return result.rows;
     }
@@ -23,7 +23,7 @@ export class CouponService {
      * @param {string} customerId 
      * @returns {Object} { isValid: boolean, coupon: Object, message: string }
      */
-    static async validateCoupon(code, subtotal, customerId = null) {
+    static async validateCoupon(code, subtotal, customerId = null, items = []) {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
@@ -44,6 +44,68 @@ export class CouponService {
             if (!coupon.is_active) {
                 await client.query('ROLLBACK');
                 return { isValid: false, message: "This coupon is currently inactive", statusCode: 400 };
+            }
+
+            // Category & Eligible Subtotal Check
+            let eligibleSubtotal = subtotal || 0;
+            if (coupon.category && coupon.category !== 'all') {
+                if (!items || items.length === 0) {
+                    await client.query('ROLLBACK');
+                    return { isValid: false, message: "Your cart is empty", statusCode: 400 };
+                }
+
+                const getCategoryMapping = (couponCategory) => {
+                    const mapping = {
+                        'electronics': ['electronics', 'mobiles and accessories', 'mobiles & accessories', 'laptops and tablets', 'laptops & tablets', 'smart wearables', 'audio devices', 'cameras and photography', 'cameras & photography', 'gaming'],
+                        'fashion': ['fashion', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'footwear', 'accessories', 'ethnic wear', 'activewear'],
+                        'clothing': ['clothing', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'ethnic wear', 'activewear'],
+                        'mens': ['men\'s wear', 'mens wear', 'footwear', 'accessories'],
+                        'women': ['women\'s wear', 'womens wear', 'footwear', 'accessories'],
+                        'kids': ['kids collection', 'children books', 'toys'],
+                        'toys': ['toys', 'kids collection'],
+                        'gifts': ['gifts', 'home decor', 'fragrances'],
+                        'home-living': ['home & living', 'home and living', 'furniture', 'home decor', 'kitchenware', 'bedding & bath', 'bedding and bath', 'lighting', 'garden & outdoor', 'garden and outdoor'],
+                        'books': ['books', 'fiction & novels', 'fiction and novels', 'non-fiction', 'stationery', 'textbooks', 'comics & manga', 'comics and manga', 'children books'],
+                        'beauty': ['beauty', 'skincare', 'cosmetics', 'fragrances', 'haircare', 'men grooming', 'wellness'],
+                        'sports-fitness': ['sports & fitness', 'sports and fitness', 'fitness gear', 'activewear', 'outdoor & camping', 'sports equipment', 'yoga & pilates', 'yoga and pilates', 'nutrition & supplements', 'nutrition and supplements'],
+                        'healthy-foods': ['daily essentials & groceries', 'daily essentials and groceries', 'grains & rice', 'grains and rice', 'lentils & dals', 'lentils and dals', 'healthy foods']
+                    };
+                    return mapping[couponCategory?.toLowerCase()] || [couponCategory?.toLowerCase()];
+                };
+
+                const isCategoryMatch = (itemCategory, itemParentCategory, couponCategory) => {
+                    if (!couponCategory || couponCategory.toLowerCase() === 'all') return true;
+                    if (!itemCategory) return false;
+
+                    const targetCategories = getCategoryMapping(couponCategory);
+                    const norm = (s) => s ? s.toLowerCase().replace(/[^a-z0-9]/g, '').trim() : '';
+                    const normalizedTargets = targetCategories.map(norm);
+                    
+                    const normItemCat = norm(itemCategory);
+                    const normItemParentCat = norm(itemParentCategory);
+                    
+                    return normalizedTargets.includes(normItemCat) || 
+                           normalizedTargets.includes(normItemParentCat) ||
+                           normItemCat.includes(norm(couponCategory)) ||
+                           normItemParentCat.includes(norm(couponCategory));
+                };
+
+                eligibleSubtotal = items.reduce((acc, item) => {
+                    const itemCategory = item.category || item.category_name || '';
+                    const itemParentCategory = item.parent_category || item.parent_category_name || '';
+                    if (isCategoryMatch(itemCategory, itemParentCategory, coupon.category)) {
+                        const itemPrice = parseFloat(item.price || item.discountPrice || 0);
+                        const itemQty = parseInt(item.quantity || 1);
+                        return acc + (itemPrice * itemQty);
+                    }
+                    return acc;
+                }, 0);
+
+                if (eligibleSubtotal <= 0) {
+                    await client.query('ROLLBACK');
+                    const formattedCategory = coupon.category.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    return { isValid: false, message: `This coupon is only valid for ${formattedCategory} products.`, statusCode: 400 };
+                }
             }
 
             // Expiry Check
@@ -72,16 +134,16 @@ export class CouponService {
                 );
                 if (usageCheck.rows.length > 0) {
                     await client.query('ROLLBACK');
-                    return { isValid: false, message: "You have already used this coupon", statusCode: 400 };
+                    return { isValid: false, message: "You already used this coupon", statusCode: 400 };
                 }
             }
 
-            // Min Order Value Check
-            if (subtotal && subtotal < parseFloat(coupon.min_order_value)) {
+            // Min Order Value Check (Against eligible items only)
+            if (eligibleSubtotal < parseFloat(coupon.min_order_value || 0)) {
                 await client.query('ROLLBACK');
                 return { 
                     isValid: false, 
-                    message: `Minimum order value of ₹${coupon.min_order_value} required for this coupon`,
+                    message: `Minimum eligible order value of ₹${coupon.min_order_value} required for this coupon`,
                     statusCode: 400
                 };
             }
@@ -102,20 +164,20 @@ export class CouponService {
     }
 
     static async createCoupon(data, adminId, isAdmin) {
-        const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active } = data;
+        const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category } = data;
         const db_admin_id = isAdmin ? adminId : null;
 
         const result = await pool.query(
-            `INSERT INTO coupons (coupon_id, code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, admin_id, created_at)
-             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+            `INSERT INTO coupons (coupon_id, code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, admin_id, created_at)
+             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
              RETURNING *`,
-            [code.toUpperCase(), type || 'percentage', discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active ?? true, db_admin_id]
+            [code.toUpperCase(), type || 'percentage', discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active ?? true, category || 'all', db_admin_id]
         );
         return result.rows[0];
     }
 
     static async updateCoupon(id, data, adminId, isAdmin) {
-        const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active } = data;
+        const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category } = data;
         const db_admin_id = isAdmin ? adminId : null;
 
         // Get old values for auditing
@@ -133,11 +195,12 @@ export class CouponService {
                  valid_until = COALESCE($7, valid_until),
                  max_usage = COALESCE($8, max_usage),
                  is_active = COALESCE($9, is_active),
-                 admin_id = COALESCE($10, admin_id),
+                 category = COALESCE($10, category),
+                 admin_id = COALESCE($11, admin_id),
                  updated_at = NOW()
-             WHERE coupon_id = $11
+             WHERE coupon_id = $12
              RETURNING *`,
-            [code?.toUpperCase(), type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, db_admin_id, id]
+            [code?.toUpperCase(), type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, db_admin_id, id]
         );
         return { old: oldRes.rows[0], updated: result.rows[0] };
     }

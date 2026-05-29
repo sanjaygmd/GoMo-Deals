@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Video, X, Check, Scale, AlertTriangle } from 'lucide-react';
+import { Video, X, Check, Scale, AlertTriangle, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { createMeeting } from '../../services/meetingService';
 
 const ScheduleModal = ({ product, onClose, onSuccess }) => {
   const [purpose, setPurpose] = useState('');
   const [kgAmount, setKgAmount] = useState(product?.minOrderKg || 10);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [meetingDate, setMeetingDate] = useState('');
@@ -15,35 +17,52 @@ const ScheduleModal = ({ product, onClose, onSuccess }) => {
 
   const minOrder = product?.minOrderKg || 10;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!termsAccepted) { setError('You must accept the terms and conditions to proceed.'); return; }
     if (kgAmount < minOrder) { setError(`Minimum order is ${minOrder} kg.`); return; }
     if (!meetingDate || !meetingTime) { setError('Please select a preferred date and time for the meeting.'); return; }
 
-    const tmr = new Date(`${meetingDate}T${meetingTime}`);
-    const scheduledTime = tmr.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const localDateTimeString = `${meetingDate}T${meetingTime}:00`;
+    const localDateObj = new Date(localDateTimeString);
+    const scheduledAt = localDateObj.toISOString();
 
-    // Save to localStorage (demo)
-    const booking = {
-      id: `bk_${Date.now()}`,
-      listingId: product.id || product.product_id,
-      listingTitle: product.title || product.name,
-      sellerName: product?.seller?.name || product?.brand || 'Seller',
-      kgAmount,
-      purpose,
-      scheduledTime,
-      status: 'scheduled',
-      createdAt: new Date().toISOString(),
-    };
-    const existing = JSON.parse(localStorage.getItem('gomo_flea_bookings') || '[]');
-    localStorage.setItem('gomo_flea_bookings', JSON.stringify([...existing, booking]));
-    
-    // Simulate sending notification to admin
-    console.log("NOTIFICATION TO ADMIN: A new video conference has been automatically scheduled for " + scheduledTime);
+    setLoading(true);
+    try {
+      // The FleaMarketPage prefixes real product UUIDs with 'fm_' for routing checks.
+      // We must strip this prefix before sending it to the backend or Postgres will throw an invalid UUID error.
+      let finalProductId = product.id || product.product_id;
+      if (finalProductId && finalProductId.startsWith('fm_')) {
+        finalProductId = finalProductId.substring(3);
+      }
 
-    setSubmitted(scheduledTime);
+      const res = await createMeeting(
+        finalProductId, 
+        kgAmount, 
+        purpose, 
+        scheduledAt
+      );
+
+      if (res.success) {
+        const tmr = new Date(scheduledAt);
+        const scheduledTime = tmr.toLocaleString(undefined, { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        setSubmitted(scheduledTime);
+      } else {
+        setError(res.error || 'Failed to schedule video conference.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('An unexpected error occurred while scheduling the conference.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -173,9 +192,19 @@ const ScheduleModal = ({ product, onClose, onSuccess }) => {
             </div>
           )}
 
-          <button type="submit"
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-500 text-white font-black text-[12px] uppercase tracking-widest hover:brightness-105 transition-all shadow-lg hover:shadow-green-500/25 flex items-center justify-center gap-2">
-            <Video size={16} /> Confirm Conference Request
+          <button type="submit" disabled={loading}
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-500 text-white font-black text-[12px] uppercase tracking-widest hover:brightness-105 transition-all shadow-lg hover:shadow-green-500/25 flex items-center justify-center gap-2 disabled:opacity-50">
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin" size={16} />
+                <span>Scheduling...</span>
+              </>
+            ) : (
+              <>
+                <Video size={16} />
+                <span>Confirm Conference Request</span>
+              </>
+            )}
           </button>
         </form>
       </motion.div>

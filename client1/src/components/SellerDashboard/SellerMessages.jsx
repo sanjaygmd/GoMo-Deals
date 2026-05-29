@@ -224,8 +224,8 @@ const SellerMessages = () => {
             </div>
             <span className="text-[9px] uppercase tracking-[0.35em] text-orange-600 font-extrabold">Boutique Correspondences</span>
           </div>
-          <h1 className="text-3xl font-serif text-orange-955 font-normal tracking-tight">
-            Client <span className="italic font-light text-orange-600">Message Lounge</span>
+          <h1 className="text-4xl font-semibold text-orange-950 tracking-tight">
+            Client <span className="font-bold text-orange-600">Message Lounge</span>
           </h1>
           <p className="text-[10px] text-orange-400 uppercase tracking-widest font-semibold">
             Negotiate bargains, custom requests, and express arrangements.

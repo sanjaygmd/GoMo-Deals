@@ -1,5 +1,5 @@
+import crypto from 'crypto';
 import { pool } from '../config/db.js';
-import { verifyRazorpaySignature } from '../utils/razorpay.js'; // assume helper exists
 
 /**
  * Subscribe a customer to a membership tier.
@@ -11,11 +11,26 @@ export const subscribe = async (req, res, next) => {
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !tier) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
-    // Verify signature (utility should throw on failure)
-    const isValid = verifyRazorpaySignature({ razorpay_order_id, razorpay_payment_id, razorpay_signature });
-    if (!isValid) {
-      return res.status(400).json({ success: false, message: 'Invalid payment signature.' });
+
+    const isMock = process.env.NODE_ENV !== 'production' && razorpay_order_id.startsWith('order_mock_');
+    if (!isMock) {
+      const secret = process.env.RAZORPAY_KEY_SECRET;
+      
+      if (!secret || secret === 'your_razorpay_secret_here') {
+        console.error("CRITICAL: Razorpay secret not configured. Blocking membership subscription.");
+        return res.status(500).json({ success: false, message: "Payment verification failed: razorpay secret not configured" });
+      }
+
+      const generated_signature = crypto
+        .createHmac('sha256', secret)
+        .update(razorpay_order_id + "|" + razorpay_payment_id)
+        .digest('hex');
+
+      if (generated_signature !== razorpay_signature) {
+        return res.status(400).json({ success: false, message: 'Invalid payment signature.' });
+      }
     }
+
     // Update customer's membership tier
     const result = await pool.query(
       `UPDATE customers SET membership = $1 WHERE customer_id = $2 RETURNING *`,

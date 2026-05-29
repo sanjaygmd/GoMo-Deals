@@ -167,6 +167,8 @@ export const getProducts = async (req, res) => {
         let query = `
             SELECT p.*, 
             c.name as category_name,
+            c.parent_category_id,
+            (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name,
             COALESCE((SELECT AVG(rating)::numeric(10,1) FROM reviews WHERE product_id = p.product_id), 0) as rating,
             (SELECT COUNT(*) FROM reviews WHERE product_id = p.product_id) as reviews_count,
             (SELECT json_agg(pi.* ORDER BY pi.sort_order) FROM product_images pi WHERE pi.product_id = p.product_id) as pi_images,
@@ -222,6 +224,8 @@ export const getProductsById = async (req, res) => {
         const result = await pool.query(`
             SELECT p.*, 
             c.name as category_name,
+            c.parent_category_id,
+            (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name,
             COALESCE((SELECT AVG(rating)::numeric(10,1) FROM reviews WHERE product_id = p.product_id), 0) as rating,
             (SELECT COUNT(*) FROM reviews WHERE product_id = p.product_id) as reviews_count,
             (SELECT json_agg(pi.* ORDER BY pi.sort_order) FROM product_images pi WHERE pi.product_id = p.product_id) as pi_images,
@@ -307,6 +311,8 @@ export const getProductBySlug = async (req, res) => {
         const result = await pool.query(`
             SELECT p.*, 
             c.name as category_name,
+            c.parent_category_id,
+            (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name,
             COALESCE((SELECT AVG(rating)::numeric(10,1) FROM reviews WHERE product_id = p.product_id), 0) as rating,
             (SELECT COUNT(*) FROM reviews WHERE product_id = p.product_id) as reviews_count,
             (SELECT json_agg(pi.* ORDER BY pi.sort_order) FROM product_images pi WHERE pi.product_id = p.product_id) as pi_images,
@@ -552,7 +558,7 @@ export const deleteProduct = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Unauthorized: You do not own this product' });
         }
 
-        const result = await pool.query('DELETE FROM products WHERE product_id = $1 RETURNING *', [product_id]);
+        const result = await pool.query('UPDATE products SET deleted_at = NOW(), is_active = false WHERE product_id = $1 RETURNING *', [product_id]);
 
         // Log the action
         await logAction(req, 'DELETE_PRODUCT', { product_id, product: result.rows[0] });
@@ -683,12 +689,16 @@ export const getAllAdminProducts = async (req, res) => {
     try {
         const query = `
             SELECT p.*, s.store_name as seller_name,
+            c.name as category_name,
+            c.parent_category_id,
+            (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name,
             COALESCE((SELECT AVG(rating)::numeric(10,1) FROM reviews WHERE product_id = p.product_id), 0) as rating,
             (SELECT COUNT(*) FROM reviews WHERE product_id = p.product_id) as reviews_count,
             (SELECT json_agg(pi.* ORDER BY pi.sort_order) FROM product_images pi WHERE pi.product_id = p.product_id) as pi_images,
             (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
             FROM products p 
             LEFT JOIN sellers s ON p.seller_id = s.seller_id
+            LEFT JOIN categories c ON p.category_id = c.category_id
             WHERE p.deleted_at IS NULL
             ORDER BY p.created_at DESC
         `;

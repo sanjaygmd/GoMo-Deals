@@ -29,7 +29,7 @@ export const loginCustomer = async (req, res) => {
     }
 
     const existingUser = await pool.query(
-      "SELECT customer_id, full_name, email, phone, is_active, block_reason, password_hash, profile_picture_url FROM customers WHERE email = $1", 
+      "SELECT customer_id, full_name, email, phone, is_active, block_reason, password_hash, profile_picture_url, membership FROM customers WHERE email = $1", 
       [email]
     )
     if (existingUser.rows.length === 0) {
@@ -74,11 +74,10 @@ export const loginCustomer = async (req, res) => {
         email: user.email,
         phone: user.phone,
         profile_picture_url: user.profile_picture_url,
+        membership: user.membership,
         sessionId: session.sessionId
       }
     })
-
-
 
   } catch (error) {
     console.error("CUSTOMER LOGIN ERROR:", error);
@@ -570,10 +569,10 @@ export const getMe = async (req, res) => {
     let result;
     switch (req.user.type) {
       case 'customer':
-        result = await pool.query(`SELECT customer_id as id, full_name as name, email, phone, date_of_birth, gender, profile_picture_url, is_active, created_at FROM customers WHERE customer_id = $1`, [req.user.id]);
+        result = await pool.query(`SELECT customer_id as id, full_name as name, email, phone, date_of_birth, gender, profile_picture_url, membership, has_agreed_to_flea_market_terms, is_active, created_at FROM customers WHERE customer_id = $1`, [req.user.id]);
         break;
       case 'seller':
-        result = await pool.query(`SELECT seller_id as id, full_name as name, email, phone, store_name, gstin, store_logo, store_description, onboarding_completed, is_verified, is_active, created_at FROM sellers WHERE seller_id = $1`, [req.user.id]);
+        result = await pool.query(`SELECT seller_id as id, full_name as name, email, phone, store_name, gstin, store_logo, store_description, onboarding_completed, has_agreed_to_flea_market_terms, seller_subscription, seller_subscription_expiry, is_verified, is_active, created_at FROM sellers WHERE seller_id = $1`, [req.user.id]);
         break;
       case 'admin':
         result = await pool.query(`SELECT admin_id as id, name, email, role, is_active, created_at FROM admins WHERE admin_id = $1`, [req.user.id]);
@@ -738,5 +737,23 @@ export const verifyOTP = async (req, res) => {
   } catch (error) {
     console.error("VERIFY OTP ERROR:", error.message);
     return res.status(500).json({ success: false, message: "Failed to verify OTP" });
+  }
+};
+
+export const agreeToFleaMarketTerms = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userType = req.user.type; // customer or seller
+    if (userType === 'customer') {
+      await pool.query("UPDATE customers SET has_agreed_to_flea_market_terms = TRUE WHERE customer_id = $1", [userId]);
+    } else if (userType === 'seller') {
+      await pool.query("UPDATE sellers SET has_agreed_to_flea_market_terms = TRUE WHERE seller_id = $1", [userId]);
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid user type." });
+    }
+    return res.json({ success: true, message: "Terms agreement recorded successfully." });
+  } catch (error) {
+    console.error("AGREE TO TERMS ERROR:", error);
+    return res.status(500).json({ success: false, message: "Failed to record terms agreement" });
   }
 };

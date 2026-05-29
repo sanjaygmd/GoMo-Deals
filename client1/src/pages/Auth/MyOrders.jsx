@@ -234,6 +234,49 @@ const MyOrders = () => {
                                             </div>
                                         </div>
 
+                                        {/* Products Details List inside Order Card */}
+                                        {order.items && order.items.length > 0 && (
+                                            <div className="mt-6 pt-6 border-t border-orange-50 space-y-4 text-left">
+                                                <p className="text-[9px] uppercase tracking-[0.25em] font-black text-orange-400 mb-3">Order Items</p>
+                                                <div className="divide-y divide-orange-50/55 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                                    {order.items.map((item, itemIdx) => (
+                                                        <div key={item.order_item_id || itemIdx} className="flex gap-4 items-center py-3.5 first:pt-0 last:pb-0 group/item">
+                                                            <div className="w-16 h-16 bg-orange-50 border border-orange-100 rounded-sm overflow-hidden shrink-0 transition-transform duration-300 group-hover/item:scale-105">
+                                                                <img 
+                                                                    src={item.thumbnail} 
+                                                                    alt={item.product_name} 
+                                                                    className="w-full h-full object-cover"
+                                                                    onError={(e) => { e.target.src = "https://via.placeholder.com/150"; }}
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="text-[11px] font-black text-orange-950 uppercase tracking-wider truncate cursor-pointer hover:text-orange-600 transition-colors" onClick={() => navigate(`/product/${item.product_id}`)}>
+                                                                    {item.product_name || "Boutique Item"}
+                                                                </h4>
+                                                                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                                                                    <span className="text-[9px] text-orange-400 uppercase tracking-widest font-black">Qty: {item.quantity}</span>
+                                                                    {item.variant_name && (
+                                                                        <>
+                                                                            <span className="text-orange-200">•</span>
+                                                                            <span className="px-2 py-0.5 bg-orange-50 text-orange-700 text-[8px] uppercase tracking-wider font-extrabold rounded-none">
+                                                                                {item.variant_name}: {item.variant_value}
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                    <span className="text-orange-200">•</span>
+                                                                    <span className="text-[9.5px] text-orange-600 font-extrabold uppercase tracking-wide">Status: {item.item_status || order.order_status}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <p className="text-xs font-black text-orange-900 font-sans">{formatPrice(item.unit_price)}</p>
+                                                                <p className="text-[9px] font-bold text-orange-400 uppercase tracking-widest mt-1 font-sans">Total: {formatPrice(item.total_price)}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {order.return_requests && order.return_requests.length > 0 && (
                                             <div className="mt-6 p-4 bg-orange-50/40 border border-orange-100 rounded-xl flex items-center justify-between">
                                                 <div className="flex items-center gap-3 text-left">

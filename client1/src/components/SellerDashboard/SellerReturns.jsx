@@ -171,8 +171,8 @@ const SellerReturns = () => {
             <RotateCcw size={14} className="text-orange-950 animate-spin-slow" />
             <span className="text-[10px] uppercase tracking-[0.4em] text-orange-500 font-black">Reverse Logistics Portal</span>
           </div>
-          <h1 className="text-4xl font-serif text-orange-950 tracking-tight">
-            Customer <span className="italic font-light">Returns</span>
+          <h1 className="text-4xl font-semibold text-orange-950 tracking-tight">
+            Customer <span className="font-bold text-orange-600">Returns</span>
           </h1>
           <p className="text-[11px] text-orange-500 uppercase tracking-[0.2em] max-w-lg">
             Review product return requests, assess refund eligibility, and process approvals securely.

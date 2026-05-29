@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ProductContext } from "../../context/ProductContext/ProductContext";
+import { useAuth } from "../../context/AuthContext";
 import * as productService from "../../services/productService";
 import { 
   X, 
@@ -21,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const AddProduct = ({ onClose }) => {
   const { addProduct, fetchProducts: fetchSellerProducts } = useContext(ProductContext);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [categories, setCategories] = useState([]);
@@ -252,6 +254,13 @@ const AddProduct = ({ onClose }) => {
     }
 
     // Comprehensive Validation for Final Step
+    const isFleaMarketProductSelected = isFleaMarketOverride || selectedCategory?.name?.toLowerCase().includes("flea market");
+    if (isFleaMarketProductSelected && user?.seller_subscription !== 'pro' && user?.seller_subscription !== 'enterprise') {
+      setValidationError("Pro or Enterprise subscription is required to list products on the B2B Flea Market Exchange. Please upgrade your subscription first.");
+      setCurrentStep(2); // Redirect to Details step
+      return;
+    }
+
     if (!form.name || !form.price || !form.category_id) {
       setValidationError("Basic information (Title, Category, Price) is required.");
       setCurrentStep(1); // Take them back to fix it
@@ -371,7 +380,7 @@ const AddProduct = ({ onClose }) => {
         {/* Progress Sidebar */}
         <div className="w-72 bg-orange-950 p-12 hidden lg:flex flex-col">
           <div className="mb-20">
-            <h2 className="text-white text-2xl font-serif italic tracking-tighter">GoMo Portal</h2>
+            <h2 className="text-white text-2xl font-semibold tracking-tighter">GoMo Portal</h2>
             <p className="text-white/30 text-[8px] uppercase tracking-[0.5em] mt-3 font-black">Publish Collection 2024</p>
           </div>
           
@@ -409,7 +418,7 @@ const AddProduct = ({ onClose }) => {
         <div className="flex-1 flex flex-col bg-white">
           <div className="px-12 py-10 flex justify-between items-center border-b-[0.5px] border-orange-100 bg-orange-50/30">
             <div>
-              <h3 className="text-xl font-serif text-orange-950 italic">{steps.find(s => s.id === currentStep).name} Details</h3>
+              <h3 className="text-xl font-semibold text-orange-950">{steps.find(s => s.id === currentStep).name} Details</h3>
               <p className="text-[9px] text-orange-500 uppercase tracking-[0.4em] mt-1.5 font-black">Step {currentStep} of 4</p>
             </div>
             <button onClick={onClose} className="p-3 text-orange-400 hover:text-orange-950 transition-colors">
@@ -568,7 +577,18 @@ const AddProduct = ({ onClose }) => {
                         <div className={`w-5 h-5 mt-0.5 rounded flex items-center justify-center border-2 transition-colors ${isFleaMarketOverride ? "bg-orange-600 border-orange-600" : "bg-white border-orange-300"}`}>
                           {isFleaMarketOverride && <CheckCircle2 size={14} className="text-white" />}
                         </div>
-                        <input type="checkbox" checked={isFleaMarketOverride} onChange={(e) => setIsFleaMarketOverride(e.target.checked)} className="hidden" />
+                        <input 
+                          type="checkbox" 
+                          checked={isFleaMarketOverride} 
+                          onChange={(e) => {
+                            if (e.target.checked && user?.seller_subscription !== 'pro' && user?.seller_subscription !== 'enterprise') {
+                              setValidationError("Pro or Enterprise subscription is required to list products on the B2B Flea Market Exchange. Please upgrade your subscription.");
+                              return;
+                            }
+                            setIsFleaMarketOverride(e.target.checked);
+                          }} 
+                          className="hidden" 
+                        />
                         <div>
                           <span className="text-[11px] font-black uppercase tracking-wider text-orange-950 block mb-1">List on B2B Flea Market Exchange</span>
                           <span className="text-[9px] text-orange-500 font-bold tracking-wide">Enable this if you are selling agricultural commodities, staples, or bulk items. This overrides the category default and lists your product directly in the Flea Market Exchange.</span>

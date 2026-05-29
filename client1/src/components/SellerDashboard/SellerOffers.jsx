@@ -13,12 +13,14 @@ import {
   ArrowRight, 
   RotateCcw,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  X
 } from "lucide-react";
 import * as offerService from "../../services/offerService";
 import { useAuth } from "../../context/AuthContext.jsx";
 
-const SellerOffers = () => {
+const SellerOffers = ({ onOfferUpdate }) => {
   const { user } = useAuth();
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +72,7 @@ const SellerOffers = () => {
         setSelectedOffer(null);
         setCounterPrice("");
         await fetchOffers(); // reload offers
+        if (onOfferUpdate) onOfferUpdate();
       } else {
         setErrorMsg(res.error || `Failed to perform action: ${action}`);
       }
@@ -139,22 +142,14 @@ const SellerOffers = () => {
   }
 
   return (
-    <div className="p-8 lg:p-12 space-y-12 max-w-[1600px] mx-auto animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn">
       
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 border-b border-orange-100">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Sparkles size={14} className="text-orange-500 animate-pulse" />
-            <span className="text-[10px] uppercase tracking-[0.4em] text-orange-500 font-black">Flex Market Negotiations</span>
-          </div>
-          <h1 className="text-4xl font-serif text-orange-950 tracking-tight">
-            Customer <span className="italic font-light">Bargains</span>
-          </h1>
-          <p className="text-[11px] text-orange-500 uppercase tracking-[0.2em]">
-            Review, Accept, or counter price offer requests directly from active shoppers.
-          </p>
-        </div>
+      {/* Header (Search & Title) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+        <h2 className="text-lg font-bold text-orange-950 flex items-center gap-2">
+          <Handshake size={18} className="text-orange-600" />
+          Manage Offers
+        </h2>
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative group">
             <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500 group-focus-within:text-orange-950 transition-colors" />
@@ -163,35 +158,31 @@ const SellerOffers = () => {
               placeholder="SEARCH BY PRODUCT OR CUSTOMER..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-6 py-3 bg-orange-50 border border-orange-100 text-[10px] uppercase tracking-widest outline-none focus:border-orange-955 focus:bg-white transition-all w-72 shadow-sm"
+              className="pl-10 pr-6 py-2.5 bg-orange-50 border border-orange-100 text-[10px] uppercase tracking-widest outline-none focus:border-orange-955 focus:bg-white transition-all w-72 shadow-sm rounded-lg"
             />
           </div>
         </div>
       </div>
 
-      {/* Stats Swatches */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { title: "Total Proposed", value: totalProposals, icon: Handshake, label: "Price Negotiations Received" },
-          { title: "Pending Review", value: pendingProposals, icon: Clock, label: "Awaiting Action" },
-          { title: "Accepted Offers", value: acceptedProposals, icon: CheckCircle2, label: "Approved Single-Use Tokens" },
-          { title: "Bargained Value", value: `₹${activeBargainRevenue.toLocaleString()}`, icon: Coins, label: "Total Revenue Generated" }
-        ].map((item, idx) => (
-          <div key={item.title} className="p-8 bg-white border border-orange-100 hover:border-orange-950 transition-all duration-300 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-orange-50 rounded-bl-full group-hover:bg-orange-100/60 transition-colors pointer-events-none"></div>
-            <div className="flex justify-between items-start mb-8 relative">
-              <div className="p-3 bg-orange-50 text-orange-500 group-hover:bg-orange-950 group-hover:text-white transition-all duration-500">
-                <item.icon size={18} strokeWidth={1.5} />
-              </div>
+      {/* Global Error Banner */}
+      <AnimatePresence>
+        {errorMsg && !selectedOffer && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="p-4 bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-between shadow-sm rounded-lg"
+          >
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={16} />
+              <p className="text-[10px] uppercase tracking-wider font-bold">{errorMsg}</p>
             </div>
-            <div className="relative">
-              <p className="text-[9px] uppercase tracking-[0.4em] text-orange-500 font-bold mb-1">{item.title}</p>
-              <h3 className="text-3xl font-serif text-orange-955 mb-2">{item.value}</h3>
-              <p className="text-[8px] uppercase tracking-widest text-orange-400 font-black">{item.label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+            <button onClick={() => setErrorMsg("")} className="text-rose-400 hover:text-rose-600">
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 border-b border-orange-100/50">

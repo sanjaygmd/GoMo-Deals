@@ -30,7 +30,8 @@ export default function CouponsPage() {
         min_order_value: '',
         valid_until: '',
         max_usage: '',
-        is_active: true
+        is_active: true,
+        category: 'all'
     });
 
     useEffect(() => {
@@ -78,7 +79,8 @@ export default function CouponsPage() {
                 min_order_value: coupon.min_order_value,
                 valid_until: coupon.valid_until ? new Date(coupon.valid_until).toISOString().split('T')[0] : '',
                 max_usage: coupon.max_usage || '',
-                is_active: coupon.is_active
+                is_active: coupon.is_active,
+                category: coupon.category || 'all'
             });
         } else {
             setEditingCoupon(null);
@@ -90,7 +92,8 @@ export default function CouponsPage() {
                 min_order_value: '',
                 valid_until: '',
                 max_usage: '',
-                is_active: true
+                is_active: true,
+                category: 'all'
             });
         }
         setIsModalOpen(true);
@@ -331,16 +334,41 @@ export default function CouponsPage() {
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="space-y-4">
                                     {/* Code Input */}
-                                    <div>
-                                        <label className={labelClass}>Promotional Code</label>
-                                        <input 
-                                            type="text" 
-                                            value={formData.code} 
-                                            onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
-                                            className="w-full h-12 px-4 rounded-xl border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-base font-black tracking-wide focus:bg-white focus:shadow-[0_0_15px_rgba(249,115,22,0.1)] outline-none transition-all placeholder:text-stone-400"
-                                            placeholder="OFFER2026"
-                                            required
-                                        />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className={labelClass}>Promotional Code</label>
+                                            <input 
+                                                type="text" 
+                                                value={formData.code} 
+                                                onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                                                className="w-full h-12 px-4 rounded-xl border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-base font-black tracking-wide focus:bg-white focus:shadow-[0_0_15px_rgba(249,115,22,0.1)] outline-none transition-all placeholder:text-stone-400"
+                                                placeholder="OFFER2026"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Category Target</label>
+                                            <select 
+                                                value={formData.category} 
+                                                onChange={(e) => setFormData({...formData, category: e.target.value})}
+                                                className="w-full h-12 px-4 rounded-xl border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-[10px] font-bold uppercase tracking-wider focus:bg-white focus:shadow-[0_0_15px_rgba(249,115,22,0.1)] outline-none transition-all"
+                                            >
+                                                <option value="all">All Departments</option>
+                                                <option value="electronics">Electronics</option>
+                                                <option value="fashion">Fashion</option>
+                                                <option value="home-living">Home & Living</option>
+                                                <option value="healthy-foods">Healthy Foods</option>
+                                                <option value="books">Books</option>
+                                                <option value="beauty">Beauty</option>
+                                                <option value="sports-fitness">Sports & Fitness</option>
+                                                <option value="clothing">Clothing</option>
+                                                <option value="mens">Mens</option>
+                                                <option value="women">Women</option>
+                                                <option value="kids">Kids</option>
+                                                <option value="toys">Toys</option>
+                                                <option value="gifts">Gifts</option>
+                                            </select>
+                                        </div>
                                     </div>
 
                                     {/* Dual Row */}

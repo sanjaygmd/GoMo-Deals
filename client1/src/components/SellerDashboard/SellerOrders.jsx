@@ -98,8 +98,8 @@ const SellerOrders = () => {
             <History size={14} className="text-orange-500" />
             <span className="text-[10px] uppercase tracking-[0.4em] text-orange-500 font-black">Order Fulfillment</span>
           </div>
-          <h1 className="text-4xl font-serif text-orange-950 tracking-tight">
-            Order <span className="italic font-light">History</span>
+          <h1 className="text-4xl font-semibold text-orange-950 tracking-tight">
+            Order <span className="font-bold text-orange-600">History</span>
           </h1>
           <p className="text-[11px] text-orange-500 uppercase tracking-[0.2em]">
             Managing {orders.length} total transactions from your store.

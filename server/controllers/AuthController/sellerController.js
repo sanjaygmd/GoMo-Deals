@@ -126,6 +126,7 @@ export const loginSeller = async (req, res) => {
         store_logo: user.store_logo,
         is_verified: user.is_verified,
         onboarding_completed: user.onboarding_completed,
+        seller_subscription: user.seller_subscription,
         type: 'seller',
         role: 'seller',
         sessionId: session.sessionId

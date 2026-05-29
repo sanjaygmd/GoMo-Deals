@@ -106,8 +106,8 @@ const SellerOverview = () => {
             <ShieldCheck size={14} className="text-orange-600" />
             <span className="text-[10px] uppercase tracking-[0.4em] text-orange-500 font-black">Verified Business Account</span>
           </div>
-          <h1 className="text-4xl font-serif text-orange-950 tracking-tight">
-            Welcome back, <span className="italic font-light">{user?.store_name || user?.full_name}</span>
+          <h1 className="text-4xl font-semibold text-orange-950 tracking-tight">
+            Welcome back, <span className="font-bold text-orange-600">{user?.store_name || user?.full_name}</span>
           </h1>
           <p className="text-[11px] text-orange-500 uppercase tracking-[0.2em] max-w-lg">
             Monitor your store's heartbeat. Here's your performance summary for the last 30 days.

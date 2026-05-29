@@ -6,14 +6,7 @@ import ProductCard from '../../../common/ProductCard';
 import { ProductContext } from '../../../../context/ProductContext/ProductContext';
 import { useShop } from '../../../../context/ShopContext';
 
-const categoryTree = {
-  fashion: ["Men's Wear", "Women's Wear", "Footwear", "Accessories"],
-  electronics: ["Gadgets", "Audio Devices", "Smart Home", "Accessories"],
-  'home-living': ["Kitchenware", "Home Decor", "Furniture", "Bedding"],
-  books: ["Fiction", "Self-Help", "Academic", "Biographies"],
-  beauty: ["Skincare", "Fragrances", "Cosmetics", "Haircare"],
-  'sports-fitness': ["Yoga & Pilates", "Hydration", "Gym Gear", "Accessories"]
-};
+import { categorySubcategories as categoryTree } from '../../../../data/categories';
 
 const ProductGrid = () => {
   const { products: sellerProducts, fetchProducts: fetchSellerProducts, loading } = useContext(ProductContext);
@@ -26,7 +19,15 @@ const ProductGrid = () => {
     'home-living': t('home_living'),
     books: t('books'),
     beauty: t('beauty'),
-    'sports-fitness': t('sports_fitness')
+    'sports-fitness': t('sports_fitness'),
+    clothing: 'Clothing',
+    mens: 'Mens',
+    women: 'Women',
+    kids: 'Kids',
+    'pooja-items': 'Pooja Items',
+    toys: 'Toys',
+    gifts: 'Gifts',
+    'healthy-foods': 'Healthy Foods'
   }), [t]);
   const location = useLocation();
   const navigate = useNavigate();
@@ -216,12 +217,28 @@ const ProductGrid = () => {
       if (filterCategory !== 'all') {
         const cat = filterCategory.toLowerCase();
         const catClean = cat.replace(/[^a-z0-9]/g, '');
+        
+        const subcats = categoryTree[cat] || [];
+        const matchSubcategoryTree = subcats.some(sub => 
+            fieldContains(p.category_name, sub.label) || 
+            fieldContains(p.category_name, sub.slug) ||
+            fieldContains(p.tags, sub.label) ||
+            fieldContains(p.tags, sub.slug) ||
+            fieldContains(p.room, sub.label) ||
+            fieldContains(p.room, sub.slug) ||
+            fieldContains(p.name, sub.label)
+        );
+
         matchCategory = fieldContains(p.category_name, cat) || 
+                        fieldContains(p.parent_category_name, cat) || 
                         (p.category_id?.toString() === cat) ||
+                        (p.parent_category_id?.toString() === cat) ||
                         fieldContains(p.tags, cat) ||
                         fieldContains(p.name, cat) ||
-                        (catClean === 'homeliving' && (fieldContains(p.category_name, 'home') || fieldContains(p.category_name, 'living'))) ||
-                        (catClean === 'sportsfitness' && (fieldContains(p.category_name, 'sports') || fieldContains(p.category_name, 'fitness'))) ||
+                        fieldContains(p.room, cat) ||
+                        matchSubcategoryTree ||
+                        (catClean === 'homeliving' && (fieldContains(p.category_name, 'home') || fieldContains(p.category_name, 'living') || fieldContains(p.parent_category_name, 'home') || fieldContains(p.parent_category_name, 'living'))) ||
+                        (catClean === 'sportsfitness' && (fieldContains(p.category_name, 'sports') || fieldContains(p.category_name, 'fitness') || fieldContains(p.parent_category_name, 'sports') || fieldContains(p.parent_category_name, 'fitness'))) ||
                         (catClean === 'fashion' && ['apparel', 'clothing', 'shirt', 'dress', 'him', 'her', 'girlfriend', 'boyfriend'].some(t => fieldContains(p.recipient, t) || fieldContains(p.name, t) || fieldContains(p.tags, t))) ||
                         (catClean === 'homeliving' && ['home', 'kitchen', 'decor', 'housewarming', 'living'].some(t => fieldContains(p.occasion, t) || fieldContains(p.name, t) || fieldContains(p.tags, t)));
       }
@@ -229,51 +246,13 @@ const ProductGrid = () => {
       // 2. Match Subcategory
       let matchSubcategory = true;
       if (filterSubcategory !== 'all') {
-        const sub = filterSubcategory.toLowerCase();
-        const nameDescTags = `${p.name || ''} ${p.description || ''} ${p.tags || ''} ${p.recipient || ''} ${p.occasion || ''}`.toLowerCase();
-        if (sub === "men's wear") {
-          matchSubcategory = ['him', 'men', 'boyfriend', 'husband', 'father', 'boots', 'chelsea'].some(t => nameDescTags.includes(t));
-        } else if (sub === "women's wear") {
-          matchSubcategory = ['her', 'women', 'girlfriend', 'wife', 'mother', 'silk', 'scarf', 'sweater', 'knitwear'].some(t => nameDescTags.includes(t)) && !(p.name || '').toLowerCase().includes('boots');
-        } else if (sub === "footwear") {
-          matchSubcategory = ['footwear', 'boots', 'shoes', 'sneakers'].some(t => nameDescTags.includes(t));
-        } else if (sub === "accessories") {
-          matchSubcategory = ['accessories', 'scarf', 'glove', 'belt', 'watch', 'smartwatch', 'wearable'].some(t => nameDescTags.includes(t));
-        } else if (sub === "gadgets") {
-          matchSubcategory = ['gadget', 'smartwatch', 'headphones', 'light bar', 'device'].some(t => nameDescTags.includes(t));
-        } else if (sub === "audio devices") {
-          matchSubcategory = ['audio', 'headphones', 'sound', 'speaker'].some(t => nameDescTags.includes(t));
-        } else if (sub === "smart home") {
-          matchSubcategory = ['light bar', 'smarthome', 'lighting', 'rgb'].some(t => nameDescTags.includes(t));
-        } else if (sub === "kitchenware") {
-          matchSubcategory = ['kitchen', 'pour-over', 'coffee', 'dripper', 'cup', 'carafe', 'mug'].some(t => nameDescTags.includes(t));
-        } else if (sub === "home decor") {
-          matchSubcategory = ['decor', 'diffuser', 'fragrance', 'candle', 'aroma', 'sand'].some(t => nameDescTags.includes(t)) && !(p.name || '').toLowerCase().includes('duvet');
-        } else if (sub === "bedding") {
-          matchSubcategory = ['bedding', 'duvet', 'linen', 'sheet', 'blanket'].some(t => nameDescTags.includes(t));
-        } else if (sub === "fiction") {
-          matchSubcategory = ['fiction', 'anthology', 'scifi', 'cyberpunk', 'novel'].some(t => nameDescTags.includes(t));
-        } else if (sub === "self-help") {
-          matchSubcategory = ['self-help', 'living', 'mindfulness', 'decluttering'].some(t => nameDescTags.includes(t));
-        } else if (sub === "academic") {
-          matchSubcategory = ['academic', 'textbook', 'study', 'education'].some(t => nameDescTags.includes(t));
-        } else if (sub === "biographies") {
-          matchSubcategory = ['biographies', 'biography', 'memoir', 'autobiography'].some(t => nameDescTags.includes(t));
-        } else if (sub === "skincare") {
-          matchSubcategory = ['skincare', 'serum', 'elixir', 'face', 'bakuchiol'].some(t => nameDescTags.includes(t));
-        } else if (sub === "fragrances") {
-          matchSubcategory = ['fragrance', 'perfume', 'eau de parfum', 'musk', 'rose'].some(t => nameDescTags.includes(t));
-        } else if (sub === "cosmetics") {
-          matchSubcategory = ['cosmetics', 'makeup', 'lipstick', 'eyeliner'].some(t => nameDescTags.includes(t));
-        } else if (sub === "haircare") {
-          matchSubcategory = ['haircare', 'shampoo', 'hair', 'conditioner'].some(t => nameDescTags.includes(t));
-        } else if (sub === "yoga & pilates") {
-          matchSubcategory = ['yoga', 'mat', 'pilates'].some(t => nameDescTags.includes(t));
-        } else if (sub === "hydration") {
-          matchSubcategory = ['hydration', 'flask', 'bottle', 'water'].some(t => nameDescTags.includes(t));
-        } else if (sub === "gym gear") {
-          matchSubcategory = ['gym', 'workout', 'dumbbells', 'resistance', 'gear'].some(t => nameDescTags.includes(t));
-        }
+        const subClean = filterSubcategory.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        matchSubcategory = fieldContains(p.category_name, subClean) || 
+                           fieldContains(p.tags, subClean) || 
+                           fieldContains(p.name, subClean) || 
+                           fieldContains(p.description, subClean) ||
+                           fieldContains(p.recipient, subClean) ||
+                           fieldContains(p.occasion, subClean);
       }
 
       // 3. Match Price Range
@@ -479,7 +458,8 @@ const ProductGrid = () => {
     ].filter(Boolean).length;
   }, [filterCategory, filterSubcategory, priceRange, filterDeal, filterRecipient, filterOccasion, minRating, filterBrand, availability, filterGender, filterColor, filterSize, filterDiscount]);
 
-  const categories = ['all', 'electronics', 'fashion', 'home-living', 'books', 'beauty', 'sports-fitness'];
+  const regularCategories = ['all', 'beauty', 'books', 'clothing', 'electronics', 'fashion', 'gifts', 'home-living', 'kids', 'mens', 'pooja-items', 'sports-fitness', 'toys', 'women'];
+  const categories = filterCategory === 'healthy-foods' ? ['all', 'healthy-foods'] : regularCategories;
   const dealFilters = ['all', 'top deals', 'new arrivals', 'best sellers', 'top rated'];
 
   const renderSidebarContent = () => (
@@ -557,19 +537,19 @@ const ProductGrid = () => {
                             </button>
                             {categoryTree[c].map(sub => (
                               <button
-                                key={sub}
+                                key={sub.slug}
                                 onClick={() => {
                                   setFilterCategory(c);
-                                  setFilterSubcategory(sub);
+                                  setFilterSubcategory(sub.slug);
                                 }}
                                 className={`w-full text-left py-1.5 text-xs flex items-center justify-between transition-colors ${
-                                  filterSubcategory === sub && isSelected
+                                  filterSubcategory === sub.slug && isSelected
                                     ? 'text-orange-950 font-black'
                                     : 'text-orange-500 hover:text-orange-900 font-medium'
                                 }`}
                               >
-                                <span>{sub}</span>
-                                {filterSubcategory === sub && isSelected && <Check size={12} strokeWidth={3} className="text-orange-955" />}
+                                <span>{sub.label}</span>
+                                {filterSubcategory === sub.slug && isSelected && <Check size={12} strokeWidth={3} className="text-orange-955" />}
                               </button>
                             ))}
                           </motion.div>
@@ -1289,7 +1269,7 @@ const ProductGrid = () => {
             {filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-8 sm:gap-y-12">
                 <AnimatePresence mode='popLayout'>
-                  {filteredProducts.map((product) => (
+                  {(activeFiltersCount === 0 ? filteredProducts.slice(0, 12) : filteredProducts).map((product) => (
                     <motion.div
                       layout
                       initial={{ opacity: 0, scale: 0.95 }}

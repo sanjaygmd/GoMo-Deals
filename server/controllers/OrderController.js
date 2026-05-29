@@ -22,6 +22,14 @@ export const createOrder = async (req, res, next) => {
       offer_token = null
     } = req.body;
 
+    // Validate UUID to prevent purchasing mock products
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    for (const item of items) {
+      if (!uuidRegex.test(item.product_id)) {
+        return res.status(400).json({ success: false, message: "Sample products cannot be purchased. Please add real products to your cart." });
+      }
+    }
+
     const customer_id = req.user.id;
 
     // Security Fix: Razorpay Signature Verification
@@ -115,15 +123,19 @@ export const createOrder = async (req, res, next) => {
 
       let dbPrice = 0;
       let dbSellerId = null;
+      let categoryName = null;
+      let parentCategoryName = null;
 
       if (vId) {
         const vCheck = await client.query(
-          "SELECT pv.price, p.seller_id, pv.stock_quantity, p.name as product_name, pv.variant_name, pv.variant_value FROM product_variants pv JOIN products p ON pv.product_id = p.product_id WHERE pv.variant_id = $1 FOR UPDATE",
+          "SELECT pv.price, p.seller_id, pv.stock_quantity, p.name as product_name, c.name as category_name, (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name, pv.variant_name, pv.variant_value FROM product_variants pv JOIN products p ON pv.product_id = p.product_id LEFT JOIN categories c ON p.category_id = c.category_id WHERE pv.variant_id = $1 FOR UPDATE OF pv, p",
           [vId]
         );
         if (vCheck.rows.length === 0) throw new Error(`Product variant not found.`);
         
         const row = vCheck.rows[0];
+        categoryName = row.category_name;
+        parentCategoryName = row.parent_category_name;
         const itemName = `${row.product_name} (${row.variant_name}: ${row.variant_value})`;
         
         if (row.stock_quantity < qty) throw new Error(`Insufficient stock for ${itemName}. Available: ${row.stock_quantity}`);
@@ -135,12 +147,14 @@ export const createOrder = async (req, res, next) => {
         if (updateRes.rowCount === 0) throw new Error(`Insufficient stock for ${itemName}.`);
       } else {
         const pCheck = await client.query(
-          "SELECT price, seller_id, stock_quantity, name as product_name FROM products WHERE product_id = $1 FOR UPDATE",
+          "SELECT p.price, p.seller_id, p.stock_quantity, p.name as product_name, c.name as category_name, (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name FROM products p LEFT JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = $1 FOR UPDATE OF p",
           [item.product_id]
         );
         if (pCheck.rows.length === 0) throw new Error(`Product not found.`);
         
         const row = pCheck.rows[0];
+        categoryName = row.category_name;
+        parentCategoryName = row.parent_category_name;
         if (row.stock_quantity < qty) throw new Error(`Insufficient stock for ${row.product_name}. Available: ${row.stock_quantity}`);
 
         dbSellerId = row.seller_id;
@@ -186,7 +200,9 @@ export const createOrder = async (req, res, next) => {
         seller_id: dbSellerId,
         quantity: qty,
         unit_price: dbPrice,
-        total_price: itemTotal
+        total_price: itemTotal,
+        category_name: categoryName,
+        parent_category_name: parentCategoryName
       });
     }
 
@@ -198,32 +214,83 @@ export const createOrder = async (req, res, next) => {
     let serverDiscountAmount = 0;
     if (coupon_id && coupon_id !== 'null' && coupon_id !== 'undefined') {
       const couponCheck = await client.query(
-        "SELECT type, discount_percent, discount_amount, max_discount, min_order_value, max_usage, used_count FROM coupons WHERE coupon_id = $1 FOR UPDATE",
+        "SELECT type, discount_percent, discount_amount, max_discount, min_order_value, max_usage, used_count, category FROM coupons WHERE coupon_id = $1 FOR UPDATE",
         [coupon_id]
       );
 
       if (couponCheck.rows.length > 0) {
         const coupon = couponCheck.rows[0];
+
+        // Security Fix: Server-side category validation for coupons
+        let eligibleSubtotal = 0;
+        let hasEligibleItem = false;
+
+        const getCategoryMapping = (couponCategory) => {
+            const mapping = {
+                'electronics': ['electronics', 'mobiles and accessories', 'mobiles & accessories', 'laptops and tablets', 'laptops & tablets', 'smart wearables', 'audio devices', 'cameras and photography', 'cameras & photography', 'gaming'],
+                'fashion': ['fashion', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'footwear', 'accessories', 'ethnic wear', 'activewear'],
+                'clothing': ['clothing', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'ethnic wear', 'activewear'],
+                'mens': ['men\'s wear', 'mens wear', 'footwear', 'accessories'],
+                'women': ['women\'s wear', 'womens wear', 'footwear', 'accessories'],
+                'kids': ['kids collection', 'children books', 'toys'],
+                'toys': ['toys', 'kids collection'],
+                'gifts': ['gifts', 'home decor', 'fragrances'],
+                'home-living': ['home & living', 'home and living', 'furniture', 'home decor', 'kitchenware', 'bedding & bath', 'bedding and bath', 'lighting', 'garden & outdoor', 'garden and outdoor'],
+                'books': ['books', 'fiction & novels', 'fiction and novels', 'non-fiction', 'stationery', 'textbooks', 'comics & manga', 'comics and manga', 'children books'],
+                'beauty': ['beauty', 'skincare', 'cosmetics', 'fragrances', 'haircare', 'men grooming', 'wellness'],
+                'sports-fitness': ['sports & fitness', 'sports and fitness', 'fitness gear', 'activewear', 'outdoor & camping', 'sports equipment', 'yoga & pilates', 'yoga and pilates', 'nutrition & supplements', 'nutrition and supplements'],
+                'healthy-foods': ['daily essentials & groceries', 'daily essentials and groceries', 'grains & rice', 'grains and rice', 'lentils & dals', 'lentils and dals', 'healthy foods']
+            };
+            return mapping[couponCategory?.toLowerCase()] || [couponCategory?.toLowerCase()];
+        };
+
+        const isCategoryMatch = (itemCategory, itemParentCategory, couponCategory) => {
+            if (!couponCategory || couponCategory.toLowerCase() === 'all') return true;
+            if (!itemCategory) return false;
+
+            const targetCategories = getCategoryMapping(couponCategory);
+            const norm = (s) => s ? s.toLowerCase().replace(/[^a-z0-9]/g, '').trim() : '';
+            const normalizedTargets = targetCategories.map(norm);
+            
+            const normItemCat = norm(itemCategory);
+            const normItemParentCat = norm(itemParentCategory);
+            
+            return normalizedTargets.includes(normItemCat) || 
+                   normalizedTargets.includes(normItemParentCat) ||
+                   normItemCat.includes(norm(couponCategory)) ||
+                   normItemParentCat.includes(norm(couponCategory));
+        };
+
+        for (const pItem of processedItems) {
+            if (isCategoryMatch(pItem.category_name, pItem.parent_category_name, coupon.category)) {
+                eligibleSubtotal += pItem.total_price;
+                hasEligibleItem = true;
+            }
+        }
+
+        if (!hasEligibleItem && coupon.category && coupon.category !== 'all') {
+             throw new Error(`This coupon is not valid for any items in your cart.`);
+        }
         
-        if (serverCalculatedSubtotal < parseFloat(coupon.min_order_value || 0)) {
-          throw new Error(`Minimum order value for this coupon is ₹${coupon.min_order_value}`);
+        if (eligibleSubtotal < parseFloat(coupon.min_order_value || 0)) {
+          throw new Error(`Minimum eligible order value for this coupon is ₹${coupon.min_order_value}`);
         }
 
         const customerUsage = await client.query(
           "SELECT 1 FROM coupon_usage WHERE coupon_id = $1 AND customer_id = $2",
           [coupon_id, customer_id]
         );
-        if (customerUsage.rows.length > 0) throw new Error("Coupon already used.");
+        if (customerUsage.rows.length > 0) throw new Error("You already used this coupon");
         if (coupon.max_usage && coupon.used_count >= coupon.max_usage) throw new Error("Coupon expired.");
 
         if (coupon.type === 'percentage') {
-          serverDiscountAmount = (serverCalculatedSubtotal * parseFloat(coupon.discount_percent)) / 100;
+          serverDiscountAmount = (eligibleSubtotal * parseFloat(coupon.discount_percent)) / 100;
           if (coupon.max_discount) {
             serverDiscountAmount = Math.min(serverDiscountAmount, parseFloat(coupon.max_discount));
           }
         } else {
-          // Security Fix: Fetch fixed discount amount from database
           serverDiscountAmount = parseFloat(coupon.discount_amount || 0);
+          serverDiscountAmount = Math.min(serverDiscountAmount, eligibleSubtotal);
         }
       }
     }
@@ -364,7 +431,7 @@ export const createOrder = async (req, res, next) => {
     }
 
     // Security Fix: Mask raw technical errors but allow through known business errors
-    const businessErrors = ["Insufficient stock", "Minimum order value", "Coupon already used", "Coupon expired", "Invalid payment signature", "Administrators are restricted", "Invalid quantity", "Product not found"];
+    const businessErrors = ["Insufficient stock", "Minimum order value", "Coupon already used", "You already used this coupon", "Coupon expired", "Invalid payment signature", "Administrators are restricted", "Invalid quantity", "Product not found"];
     const isBusinessError = businessErrors.some(msg => error.message?.includes(msg));
     const userMessage = isBusinessError ? error.message : "Failed to place order. Please try again later.";
     res.status(isBusinessError ? 400 : 500).json({ success: false, message: userMessage });
@@ -381,7 +448,31 @@ export const getMyOrders = async (req, res) => {
 
     const result = await pool.query(
       `SELECT o.*, 
-             (SELECT json_agg(oi.*) FROM order_items oi WHERE oi.order_id = o.order_id) as items,
+             (
+               SELECT json_agg(
+                 json_build_object(
+                   'order_item_id', oi.order_item_id,
+                   'product_id', oi.product_id,
+                   'variant_id', oi.variant_id,
+                   'quantity', oi.quantity,
+                   'unit_price', oi.unit_price,
+                   'total_price', oi.total_price,
+                   'item_status', oi.item_status,
+                   'product_name', p.name,
+                   'slug', p.slug,
+                   'thumbnail', COALESCE(
+                       (SELECT image_url FROM product_images WHERE product_id = p.product_id ORDER BY sort_order LIMIT 1),
+                       'https://via.placeholder.com/150'
+                   ),
+                   'variant_name', pv.variant_name,
+                   'variant_value', pv.variant_value
+                 )
+               ) 
+               FROM order_items oi 
+               LEFT JOIN products p ON oi.product_id = p.product_id
+               LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
+               WHERE oi.order_id = o.order_id
+             ) as items,
              COALESCE((SELECT json_agg(rr.*) FROM return_requests rr WHERE rr.order_id = o.order_id), '[]'::json) as return_requests
              FROM orders o 
              WHERE o.customer_id = $1 
@@ -499,6 +590,16 @@ export const updateOrderStatus = async (req, res, next) => {
     if (req.user.type === 'customer' && orderCheck.rows[0].customer_id !== req.user.id) {
       console.warn("Update blocked: Ownership mismatch", { orderCust: orderCheck.rows[0].customer_id, user: req.user.id });
       return res.status(403).json({ success: false, message: "Unauthorized access" });
+    }
+
+    const currentStatus = orderCheck.rows[0].order_status;
+    if (status.trim() === 'Cancelled') {
+      if (currentStatus === 'Delivered' || currentStatus === 'Cancelled') {
+        return res.status(400).json({ success: false, message: `Cannot cancel an order that is already ${currentStatus}.` });
+      }
+      if (req.user.type === 'customer' && currentStatus === 'Shipped') {
+        return res.status(400).json({ success: false, message: "Cannot cancel an order that has already been shipped. Please request a return upon delivery." });
+      }
     }
 
     if (req.user.type === 'seller') {

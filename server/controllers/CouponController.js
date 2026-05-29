@@ -13,10 +13,10 @@ export const getActiveCoupons = async (req, res, next) => {
 
 // Validate and get coupon by code
 export const validateCoupon = async (req, res, next) => {
-    const { code, subtotal } = req.body;
+    const { code, subtotal, items } = req.body;
     try {
         const customerId = req.user ? req.user.id : null;
-        const result = await CouponService.validateCoupon(code, subtotal, customerId);
+        const result = await CouponService.validateCoupon(code, subtotal, customerId, items);
 
         if (!result.isValid) {
             return res.status(result.statusCode).json({ success: false, message: result.message });

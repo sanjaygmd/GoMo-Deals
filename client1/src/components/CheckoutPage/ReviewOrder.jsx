@@ -15,10 +15,60 @@ const ReviewOrder = ({ onBack, paymentMethod, total, userDetails, items, applied
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const subtotalValue = items.reduce((acc, item) => acc + (Number(item.price) || 0) * (item.quantity || 1), 0);
+
+  const eligibleSubtotal = (() => {
+    if (!appliedCoupon || !appliedCoupon.category || appliedCoupon.category === 'all') return subtotalValue;
+
+    const getCategoryMapping = (couponCategory) => {
+      const mapping = {
+        'electronics': ['electronics', 'mobiles and accessories', 'mobiles & accessories', 'laptops and tablets', 'laptops & tablets', 'smart wearables', 'audio devices', 'cameras and photography', 'cameras & photography', 'gaming'],
+        'fashion': ['fashion', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'footwear', 'accessories', 'ethnic wear', 'activewear'],
+        'clothing': ['clothing', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'ethnic wear', 'activewear'],
+        'mens': ['men\'s wear', 'mens wear', 'footwear', 'accessories'],
+        'women': ['women\'s wear', 'womens wear', 'footwear', 'accessories'],
+        'kids': ['kids collection', 'children books', 'toys'],
+        'toys': ['toys', 'kids collection'],
+        'gifts': ['gifts', 'home decor', 'fragrances'],
+        'home-living': ['home & living', 'home and living', 'furniture', 'home decor', 'kitchenware', 'bedding & bath', 'bedding and bath', 'lighting', 'garden & outdoor', 'garden and outdoor'],
+        'books': ['books', 'fiction & novels', 'fiction and novels', 'non-fiction', 'stationery', 'textbooks', 'comics & manga', 'comics and manga', 'children books'],
+        'beauty': ['beauty', 'skincare', 'cosmetics', 'fragrances', 'haircare', 'men grooming', 'wellness'],
+        'sports-fitness': ['sports & fitness', 'sports and fitness', 'fitness gear', 'activewear', 'outdoor & camping', 'sports equipment', 'yoga & pilates', 'yoga and pilates', 'nutrition & supplements', 'nutrition and supplements'],
+        'healthy-foods': ['daily essentials & groceries', 'daily essentials and groceries', 'grains & rice', 'grains and rice', 'lentils & dals', 'lentils and dals', 'healthy foods']
+      };
+      return mapping[couponCategory?.toLowerCase()] || [couponCategory?.toLowerCase()];
+    };
+
+    const isCategoryMatch = (itemCategory, itemParentCategory, couponCategory) => {
+      if (!couponCategory || couponCategory.toLowerCase() === 'all') return true;
+      if (!itemCategory) return false;
+
+      const targetCategories = getCategoryMapping(couponCategory);
+      const norm = (s) => s ? s.toLowerCase().replace(/[^a-z0-9]/g, '').trim() : '';
+      const normalizedTargets = targetCategories.map(norm);
+      
+      const normItemCat = norm(itemCategory);
+      const normItemParentCat = norm(itemParentCategory);
+      
+      return normalizedTargets.includes(normItemCat) || 
+             normalizedTargets.includes(normItemParentCat) ||
+             normItemCat.includes(norm(couponCategory)) ||
+             normItemParentCat.includes(norm(couponCategory));
+    };
+
+    return items.reduce((acc, item) => {
+      const itemCategory = item.category || item.category_name || '';
+      const itemParentCategory = item.parent_category || item.parent_category_name || '';
+      if (isCategoryMatch(itemCategory, itemParentCategory, appliedCoupon.category)) {
+        return acc + ((Number(item.price) || 0) * (item.quantity || 1));
+      }
+      return acc;
+    }, 0);
+  })();
+
   const discountValue = appliedCoupon
     ? (appliedCoupon.type === 'flat' || appliedCoupon.type === 'fixed' || parseFloat(appliedCoupon.discount_amount || 0) > 0)
-      ? parseFloat(appliedCoupon.discount_amount)
-      : Math.min((subtotalValue * (appliedCoupon.discount_percent || 0)) / 100, appliedCoupon.max_discount || Infinity)
+      ? Math.min(parseFloat(appliedCoupon.discount_amount), eligibleSubtotal)
+      : Math.min((eligibleSubtotal * (appliedCoupon.discount_percent || 0)) / 100, appliedCoupon.max_discount || Infinity)
     : 0;
 
   const triggerOrderEmail = async (orderId) => {

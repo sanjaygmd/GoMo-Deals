@@ -67,6 +67,8 @@ export const getCart = async (req, res) => {
                 p.color,
                 p.seller_id,
                 cat.name AS category_name,
+                cat.parent_category_id,
+                (SELECT name FROM categories WHERE category_id = cat.parent_category_id) AS parent_category_name,
                 COALESCE(
                     (SELECT image_url FROM product_images 
                      WHERE product_id = p.product_id 
@@ -204,6 +206,8 @@ export const addToCart = async (req, res) => {
                 p.color,
                 p.seller_id,
                 cat.name AS category_name,
+                cat.parent_category_id,
+                (SELECT name FROM categories WHERE category_id = cat.parent_category_id) AS parent_category_name,
                 COALESCE(
                     (SELECT image_url FROM product_images 
                      WHERE product_id = p.product_id 

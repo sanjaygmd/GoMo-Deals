@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, X, Mail, Phone, LogOut, Menu, Home, LayoutDashboard, Package, ShoppingCart, Users, CreditCard, RotateCcw, FileBarChart, Settings, Store, Ticket, Shield, MessageSquare, ShieldCheck } from "lucide-react";
+import { Bell, X, Mail, Phone, LogOut, Menu, Home, LayoutDashboard, Package, ShoppingCart, Users, CreditCard, RotateCcw, FileBarChart, Settings, Store, Ticket, Shield, MessageSquare, ShieldCheck, Info, Tag, Truck, CheckCircle2, XCircle, RefreshCw, ShoppingBag, Clock } from "lucide-react";
 import { useNavigate, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { cn } from "../../../lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../../services/api";
 
 export function DashboardHeader() {
@@ -62,6 +63,28 @@ export function DashboardHeader() {
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      const unread = notifications.filter(n => !n.is_read);
+      const promises = unread.map(n => api.patch(`/notifications/read/${n.notification_id}`));
+      await Promise.all(promises);
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+  };
+
+  const handleDelete = async (notifId) => {
+    try {
+      const resp = await api.delete(`/notifications/${notifId}`);
+      if (resp.data.success) {
+        setNotifications(prev => prev.filter(n => n.notification_id !== notifId));
+      }
+    } catch (err) {
+      console.error("Failed to delete notification:", err);
+    }
+  };
+
   const getTitle = () => {
     const path = location.pathname;
     if (path === "/admin") return "Overview";
@@ -80,6 +103,7 @@ export function DashboardHeader() {
   };
 
   const initials = (user?.name || "AD").split(" ").map(n => n[0]).join("").toUpperCase();
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const navItems = [
     { title: "Dashboard", path: "/admin", icon: LayoutDashboard },
@@ -135,59 +159,176 @@ export function DashboardHeader() {
                 <Home size={18} className="transition-transform group-hover:scale-110" strokeWidth={1.5} />
               </button>
 
-              {/* Notification Toggle */}
-              <div className="relative" ref={notifRef}>
+              {/* Notifications */}
+              <div className="relative">
                 <button
                   onClick={() => { setShowNotifications(!showNotifications); setShowProfile(false); }}
-                  className="p-2.5 hover:bg-orange-50 transition-all text-orange-500 hover:text-orange-950 relative group rounded-xl"
+                  className="w-9 h-9 rounded-full flex items-center justify-center border border-transparent hover:border-orange-100/80 hover:bg-white text-orange-955 hover:text-orange-600 hover:scale-105 hover:shadow-[0_4px_12px_rgba(249,115,22,0.06)] active:scale-95 transition-all duration-300 relative p-0 cursor-pointer animate-in fade-in hover-bell-shake"
                 >
-                  <Bell size={18} className="transition-transform group-hover:scale-110" strokeWidth={1.5} />
-                  {notifications.some(n => !n.is_read) && (
-                    <span className="absolute right-2.5 top-2.5 h-2 w-2 bg-orange-500 border border-white rounded-full shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+                  <Bell size={20} strokeWidth={1.5} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white animate-pulse shadow-[0_2px_4px_rgba(234,88,12,0.25)]">
+                      {unreadCount}
+                    </span>
                   )}
                 </button>
 
-                {showNotifications && (
-                  <div className="absolute right-0 mt-3 w-80 glass-card border border-orange-500/10 shadow-xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="p-4 border-b border-orange-500/10 flex items-center justify-between bg-orange-50/20 backdrop-blur-md">
-                      <h3 className="font-bold text-[10px] uppercase tracking-[0.2em] text-orange-950">Notifications</h3>
-                      <button onClick={() => setShowNotifications(false)} className="text-orange-400 hover:text-orange-950 transition-colors"><X size={14} /></button>
-                    </div>
-                    <div className="max-h-[360px] overflow-y-auto p-1.5">
-                      {loadingNotifs ? (
-                        <div className="p-8 text-center">
-                          <div className="h-4 w-4 border border-orange-200 border-t-orange-500 rounded-full animate-spin mx-auto mb-2" />
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 12, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="absolute top-full right-[-16px] sm:right-0 mt-2.5 w-[calc(100vw-32px)] sm:w-96 bg-white border border-orange-100 z-[200] overflow-hidden rounded-2xl shadow-[0_12px_30px_rgba(234,88,12,0.08),0_4px_12px_rgba(0,0,0,0.03)] text-neutral-800 animate-in fade-in"
+                    >
+                      {/* Header */}
+                      <div className="p-4 border-b border-orange-100/60 flex justify-between items-center bg-white">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-neutral-900">Updates</span>
+                          {unreadCount > 0 && (
+                            <span className="bg-orange-50 text-orange-600 text-[9px] px-2 py-0.5 font-bold rounded-full border border-orange-100/80">
+                              {unreadCount} new
+                            </span>
+                          )}
                         </div>
-                      ) : notifications.length === 0 ? (
-                        <div className="p-8 text-center">
-                          <p className="text-[10px] font-bold text-orange-400 uppercase tracking-[0.1em]">No notifications</p>
+                        <div className="flex items-center gap-3">
+                          {notifications.length > 0 && (
+                            <button 
+                              onClick={handleMarkAllAsRead}
+                              className="text-[9.5px] uppercase tracking-wider font-extrabold text-orange-600 hover:text-orange-700 transition-colors cursor-pointer hover:underline font-sans"
+                            >
+                              Mark all read
+                            </button>
+                          )}
+                          <button onClick={() => setShowNotifications(false)} className="text-neutral-400 hover:text-neutral-700 transition-colors p-1 rounded-full hover:bg-neutral-50 cursor-pointer">
+                            <X size={14} />
+                          </button>
                         </div>
-                      ) : (
-                        notifications.map((notif) => (
-                          <div
-                            key={notif.notification_id}
-                            onClick={() => !notif.is_read && handleMarkAsRead(notif.notification_id)}
-                            className={cn(
-                              "p-3.5 border-b border-orange-500/5 hover:bg-orange-50/50 rounded-xl transition-all cursor-pointer group mb-1 last:mb-0",
-                              !notif.is_read ? "bg-orange-50/20" : "opacity-70"
-                            )}
-                          >
-                            <div className="flex gap-4">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-[10px] text-orange-950 uppercase tracking-wider mb-1">
-                                  {notif.type.replace(/_/g, ' ')}
-                                </p>
-                                <p className="text-[11px] text-orange-950/70 leading-relaxed">{notif.message}</p>
-                                <p className="text-[9px] font-bold text-orange-400 uppercase tracking-widest mt-2">{new Date(notif.created_at).toLocaleString()}</p>
+                      </div>
+                      
+                      {/* Cards list */}
+                      <div className="max-h-[380px] overflow-y-auto py-2.5 px-3.5 custom-scrollbar bg-white space-y-2 no-scrollbar">
+                        {loadingNotifs ? (
+                          <div className="py-12 text-center">
+                            <div className="h-5 w-5 border border-orange-200 border-t-orange-500 rounded-full animate-spin mx-auto" />
+                          </div>
+                        ) : notifications.length > 0 ? (
+                          notifications.map((notification) => {
+                            const isUnread = !notification.is_read;
+                            
+                            // Determine dynamic icon, title, and color scheme based on notification.type
+                            let IconComponent = Info;
+                            let iconBgColor = "bg-amber-50 text-amber-600 border-amber-100";
+                            let typeLabel = "Info";
+                            
+                            if (notification.type === 'offer_update' || notification.type === 'new_offer') {
+                              IconComponent = Tag;
+                              iconBgColor = "bg-orange-50 text-orange-600 border-orange-100";
+                              typeLabel = "Bargain offer";
+                            } else if (notification.type === 'order_shipped' || notification.type === 'shipment_update') {
+                              IconComponent = Truck;
+                              iconBgColor = "bg-blue-50 text-blue-600 border-blue-100";
+                              typeLabel = "Shipped";
+                            } else if (notification.type === 'order_delivered') {
+                              IconComponent = CheckCircle2;
+                              iconBgColor = "bg-emerald-50 text-emerald-600 border-emerald-100";
+                              typeLabel = "Delivered";
+                            } else if (notification.type === 'order_cancelled') {
+                              IconComponent = XCircle;
+                              iconBgColor = "bg-rose-50 text-rose-600 border-rose-100";
+                              typeLabel = "Cancelled";
+                            } else if (notification.type === 'return_update' || notification.type === 'return_request') {
+                              IconComponent = RefreshCw;
+                              iconBgColor = "bg-purple-50 text-purple-600 border-purple-100";
+                              typeLabel = "Return request";
+                            } else if (notification.type === 'order_update' || notification.type === 'new_order') {
+                              IconComponent = ShoppingBag;
+                              iconBgColor = "bg-orange-50 text-orange-600 border-orange-100";
+                              typeLabel = "Order update";
+                            }
+                            
+                            return (
+                              <div 
+                                key={notification.notification_id} 
+                                onClick={() => isUnread && handleMarkAsRead(notification.notification_id)}
+                                className={`p-3 rounded-xl border transition-all duration-200 relative group flex gap-3 text-left cursor-pointer ${
+                                  isUnread 
+                                    ? 'bg-orange-50/40 hover:bg-orange-50/70 border-orange-100/70 border-l-[3.5px] border-l-orange-500 shadow-sm' 
+                                    : 'bg-white hover:bg-neutral-50/50 border-neutral-100 border-l-[3.5px] border-l-neutral-200 shadow-none'
+                                }`}
+                              >
+                                {/* Left side: Icon */}
+                                <div className="flex-shrink-0">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-transform duration-300 group-hover:scale-105 ${iconBgColor}`}>
+                                    <IconComponent size={13} strokeWidth={2} />
+                                  </div>
+                                </div>
+
+                                {/* Right side: Message & Actions */}
+                                <div className="flex-grow space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className={`text-[8.5px] uppercase tracking-wider font-extrabold ${isUnread ? 'text-orange-600' : 'text-neutral-400'}`}>
+                                      {typeLabel}
+                                    </span>
+                                    {isUnread && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                    )}
+                                  </div>
+                                  <p className={`text-[12px] leading-relaxed transition-colors duration-200 ${isUnread ? 'font-bold text-neutral-900' : 'text-neutral-500 font-medium'}`}>
+                                    {notification.message}
+                                  </p>
+                                  <div className="flex items-center justify-between pt-1.5 border-t border-neutral-100/80 mt-1.5">
+                                    <span className="text-[8.5px] text-neutral-400 font-semibold uppercase tracking-wider flex items-center gap-1">
+                                      <Clock size={9} className="text-neutral-400" />
+                                      {new Date(notification.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={(e) => e.stopPropagation()}>
+                                      {isUnread && (
+                                        <button 
+                                          onClick={() => handleMarkAsRead(notification.notification_id)}
+                                          className="text-[9px] uppercase tracking-wider font-extrabold text-orange-600 hover:text-orange-700 transition-colors cursor-pointer hover:underline font-sans"
+                                        >
+                                          Mark Read
+                                        </button>
+                                      )}
+                                      <button 
+                                        onClick={() => handleDelete(notification.notification_id)}
+                                        className="text-[9px] uppercase tracking-wider font-extrabold text-neutral-400 hover:text-rose-600 transition-colors cursor-pointer hover:underline"
+                                      >
+                                        Clear
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                              {!notif.is_read && <div className="h-1.5 w-1.5 bg-orange-500 rounded-full self-center shrink-0 shadow-[0_0_4px_rgba(249,115,22,0.6)]" />}
+                            );
+                          })
+                        ) : (
+                          <div className="py-12 text-center space-y-3">
+                            <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto border border-orange-100/60 shadow-sm">
+                              <Bell size={20} strokeWidth={1.5} className="text-orange-500" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-800">All caught up!</p>
+                              <p className="text-[9.5px] text-neutral-400 font-semibold uppercase tracking-wide">No new updates</p>
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="p-3 bg-neutral-50/50 border-t border-orange-100/50 text-center">
+                        <button 
+                          onClick={() => { setShowNotifications(false); navigate('/admin/settings'); }}
+                          className="w-full py-2 rounded-lg border border-orange-200 bg-white hover:bg-orange-50/50 text-[10px] font-extrabold uppercase tracking-widest text-orange-600 hover:text-orange-700 transition-all shadow-sm cursor-pointer active:scale-98"
+                        >
+                          Notification Settings
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 

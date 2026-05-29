@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { FLEA_MARKET_PRODUCTS } from "../data/fleaMarketProducts";
+import { SAMPLE_PRODUCTS } from "../data/sampleProducts";
 
 export const addProduct = async (productData) => {
     try {
@@ -25,7 +26,7 @@ export const getProducts = async (sellerId = null) => {
         const res = await api.get(url);
         if (res.data.success) {
             // Map the first image from pi_images to a 'thumbnail' property for easy access in UI
-            res.data.data = res.data.data.map(product => {
+            let allProducts = res.data.data.map(product => {
                 const baseImages = product.pi_images?.filter(img => !img.variant_id) || [];
                 const thumbnail = baseImages[0]?.image_url || product.pi_images?.[0]?.image_url || product.images?.[0] || 'https://via.placeholder.com/150?text=No+Image';
                 return {
@@ -33,6 +34,8 @@ export const getProducts = async (sellerId = null) => {
                     thumbnail
                 };
             });
+            allProducts = [...allProducts, ...SAMPLE_PRODUCTS];
+            res.data.data = allProducts;
         }
         return res.data
     } catch (error) {
@@ -47,6 +50,14 @@ export const getProductsBySeller = async (sellerId) => {
 export const getProductById = async (id) => {
     if (id && String(id).startsWith('fm')) {
         const product = FLEA_MARKET_PRODUCTS.find(p => String(p.id) === String(id));
+        if (product) return { success: true, data: product };
+    }
+    
+    const sampleProduct = SAMPLE_PRODUCTS.find(p => String(p.id) === String(id) || String(p.product_id) === String(id));
+    if (sampleProduct) return { success: true, data: sampleProduct };
+
+    if (id && String(id).startsWith('sp_')) {
+        const product = SAMPLE_PRODUCTS.find(p => String(p.id) === String(id));
         if (product) return { success: true, data: product };
     }
     

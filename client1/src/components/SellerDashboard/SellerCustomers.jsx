@@ -62,8 +62,8 @@ const SellerCustomers = () => {
             <Users size={14} className="text-orange-500" />
             <span className="text-[10px] uppercase tracking-[0.4em] text-orange-500 font-black">Customer Relationship</span>
           </div>
-          <h1 className="text-4xl font-serif text-orange-950 tracking-tight">
-            Client <span className="italic font-light">Directory</span>
+          <h1 className="text-4xl font-semibold text-orange-950 tracking-tight">
+            Client <span className="font-bold text-orange-600">Directory</span>
           </h1>
           <p className="text-[11px] text-orange-500 uppercase tracking-[0.2em]">
             Managing {customers.length} total shoppers who trust your boutique.

@@ -9,9 +9,9 @@ export const getActiveCoupons = async () => {
     }
 };
 
-export const validateCoupon = async (code, subtotal) => {
+export const validateCoupon = async (code, subtotal, items = []) => {
     try {
-        const res = await api.post('/coupons/validate', { code, subtotal });
+        const res = await api.post('/coupons/validate', { code, subtotal, items });
         return res.data;
     } catch (error) {
         return error.response?.data || { success: false, message: "Network error" };

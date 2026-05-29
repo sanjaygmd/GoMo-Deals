@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool } from '../config/db.js';
-import { loginCustomer, registerCustomer, sendOTP, verifyOTP, logout, getMe, customerOnboarding, getCustomerAddresses, updateCustomer } from '../controllers/AuthController/customerController.js';
+import { loginCustomer, registerCustomer, sendOTP, verifyOTP, logout, getMe, customerOnboarding, getCustomerAddresses, updateCustomer, agreeToFleaMarketTerms } from '../controllers/AuthController/customerController.js';
 import { 
     loginSeller, 
     logoutSeller,
@@ -96,6 +96,7 @@ authRoutes.post('/admin/verify-password-reset', otpLimiter, verifyAdminPasswordR
 
 // Protected Routes
 authRoutes.get('/me', requireAuth(['customer', 'seller', 'admin', 'super_admin']), getMe);
+authRoutes.put('/agree-terms', requireAuth(['customer', 'seller']), agreeToFleaMarketTerms);
 authRoutes.post('/customer/logout', requireAuth(['customer', 'seller', 'admin', 'super_admin']), logout);
 authRoutes.post('/seller/logout', requireAuth(['customer', 'seller', 'admin', 'super_admin']), logoutSeller);
 authRoutes.post('/customer-onboarding/:id', requireAuth(['customer']), customerOnboarding);

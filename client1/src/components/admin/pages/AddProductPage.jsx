@@ -24,6 +24,7 @@ export default function AddProductPage() {
   const { toast } = useToast();
 
   const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +45,7 @@ export default function AddProductPage() {
     discount_percent: 0,
     brand: "",
     category_id: "",
+    subcategory_id: "",
     seller_id: "",
     recipient: "",
     occasion: "",
@@ -97,6 +99,17 @@ export default function AddProductPage() {
         }
 
         if (existing) {
+          const allCatsRes = await api.get('/products/categories');
+          let catId = existing.category_id || "";
+          let subcatId = "";
+          if (allCatsRes.data.success && catId) {
+            const currentCatObj = allCatsRes.data.data.find(c => String(c.category_id) === String(catId));
+            if (currentCatObj && currentCatObj.parent_category_id) {
+              subcatId = catId;
+              catId = currentCatObj.parent_category_id;
+            }
+          }
+
           setForm({
             name: existing.name || "",
             description: existing.description || "",
@@ -109,7 +122,8 @@ export default function AddProductPage() {
             breadth: existing.breadth || "",
             height: existing.height || "",
             brand: existing.brand || "",
-            category_id: existing.category_id || "",
+            category_id: catId,
+            subcategory_id: subcatId,
             seller_id: existing.seller_id || "",
             recipient: existing.recipient || "",
             occasion: existing.occasion || "",
@@ -147,6 +161,25 @@ export default function AddProductPage() {
 
     loadProductData();
   }, [id, products, isEditMode]);
+
+  useEffect(() => {
+    const fetchSubs = async () => {
+      if (!form.category_id) {
+        setSubcategories([]);
+        return;
+      }
+      try {
+        const res = await api.get('/products/categories');
+        if (res.data.success) {
+          const subs = res.data.data.filter(cat => cat.parent_category_id && String(cat.parent_category_id) === String(form.category_id));
+          setSubcategories(subs);
+        }
+      } catch (err) {
+        console.error("Failed to fetch subcategories:", err);
+      }
+    };
+    fetchSubs();
+  }, [form.category_id]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -263,6 +296,7 @@ export default function AddProductPage() {
 
     const payload = {
       ...form,
+      category_id: form.subcategory_id || form.category_id,
       price: Number(form.price),
       mrp: Number(form.mrp || form.price),
       stock_quantity: Number(form.stock_quantity),
@@ -583,13 +617,27 @@ export default function AddProductPage() {
                  </div>
                  <div>
                     <label className={labelClass}>Category *</label>
-                    <select name="category_id" value={form.category_id} onChange={handleChange} className={selectClass}>
+                    <select name="category_id" value={form.category_id} onChange={(e) => {
+                       handleChange(e);
+                       setForm(prev => ({ ...prev, subcategory_id: "" }));
+                    }} className={selectClass}>
                        <option value="">Select Category</option>
                        {categories.map((cat) => (
                          <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
                        ))}
                     </select>
                  </div>
+                 {form.category_id && subcategories.length > 0 && (
+                    <div>
+                       <label className={labelClass}>Subcategory</label>
+                       <select name="subcategory_id" value={form.subcategory_id} onChange={handleChange} className={selectClass}>
+                          <option value="">Select Subcategory</option>
+                          {subcategories.map((sub) => (
+                            <option key={sub.category_id} value={sub.category_id}>{sub.name}</option>
+                          ))}
+                       </select>
+                    </div>
+                 )}
                  <div>
                     <label className={labelClass}>Target Recipient</label>
                     <select name="recipient" value={form.recipient} onChange={handleChange} className={selectClass}>

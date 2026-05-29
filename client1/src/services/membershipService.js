@@ -36,10 +36,7 @@ export const confirmMembershipSubscription = async ({
         });
         return response.data;
     } catch (error) {
-        // If backend endpoint doesn't exist yet, return a simulated success
-        // so the frontend tier update still works during development.
-        console.warn('[MEMBERSHIP] Backend endpoint not ready — simulating success');
-        return { success: true, simulated: true };
+        throw new Error(error.response?.data?.message || error.message || 'Failed to activate membership.');
     }
 };
 
@@ -51,8 +48,7 @@ export const scheduleMembershipDowngrade = async ({ targetTier }) => {
         const response = await api.post(`/membership/downgrade`, { target_tier: targetTier });
         return response.data;
     } catch (error) {
-        console.warn('[MEMBERSHIP] Downgrade API not ready — simulating');
-        return { success: true, simulated: true, effective_date: getEndOfMonth() };
+        throw new Error(error.response?.data?.message || error.message || 'Failed to schedule downgrade.');
     }
 };
 
@@ -64,8 +60,7 @@ export const cancelMembership = async () => {
         const response = await api.post(`/membership/cancel`);
         return response.data;
     } catch (error) {
-        console.warn('[MEMBERSHIP] Cancel API not ready — simulating');
-        return { success: true, simulated: true, effective_date: getEndOfMonth() };
+        throw new Error(error.response?.data?.message || error.message || 'Failed to cancel membership.');
     }
 };
 

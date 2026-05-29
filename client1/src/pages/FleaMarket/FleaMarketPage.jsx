@@ -9,6 +9,8 @@ import {
   Scale, Truck, Award, Info, Lock
 } from 'lucide-react';
 import FleaMarketTermsModal from '../../components/common/FleaMarketTermsModal';
+import ScheduleModal from '../../components/common/ScheduleModal';
+import { getCustomerMeetings, cancelMeeting } from '../../services/meetingService';
 import { ProductContext } from '../../context/ProductContext/ProductContext';
 import { FLEA_MARKET_PRODUCTS as MOCK_LISTINGS } from '../../data/fleaMarketProducts';
 
@@ -28,22 +30,6 @@ const CATEGORIES = [
   { slug: 'cumin',        label: 'Cumin',             emoji: '🟫' },
   { slug: 'sugar',        label: 'Sugar',             emoji: '🍬' },
 ];
-
-import { FLEA_MARKET_PRODUCTS as LISTINGS } from '../../data/fleaMarketProducts';
-
-// ─── Time slots ──────────────────────────────────────────────────────────────
-const TIME_SLOTS = [
-  '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
-  '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM',
-  '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM',
-];
-
-// ─── Helper: get min date (tomorrow) ─────────────────────────────────────────
-const getTomorrow = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
-};
 
 // ─── Membership Gate Modal ────────────────────────────────────────────────────
 const MembershipGateModal = ({ onClose }) => {
@@ -80,192 +66,6 @@ const MembershipGateModal = ({ onClose }) => {
             Maybe later
           </button>
         </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-// ─── Schedule Video Conference Modal ─────────────────────────────────────────
-const ScheduleModal = ({ listing, onClose, onSuccess }) => {
-  const [purpose, setPurpose] = useState('');
-  const [kgAmount, setKgAmount] = useState(listing.minOrderKg);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState('');
-
-  const [meetingDate, setMeetingDate] = useState('');
-  const [meetingTime, setMeetingTime] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError('');
-    if (!termsAccepted) { setError('You must accept the terms and conditions to proceed.'); return; }
-    if (kgAmount < listing.minOrderKg) { setError(`Minimum order is ${listing.minOrderKg} kg.`); return; }
-    if (!meetingDate || !meetingTime) { setError('Please select a preferred date and time for the meeting.'); return; }
-
-    const tmr = new Date(`${meetingDate}T${meetingTime}`);
-    const scheduledTime = tmr.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    // Save to localStorage (demo)
-    const booking = {
-      id: `bk_${Date.now()}`,
-      listingId: listing.id,
-      listingTitle: listing.title,
-      sellerName: listing.seller.name,
-      kgAmount,
-      purpose,
-      scheduledTime,
-      status: 'scheduled',
-      createdAt: new Date().toISOString(),
-    };
-    const existing = JSON.parse(localStorage.getItem('gomo_flea_bookings') || '[]');
-    localStorage.setItem('gomo_flea_bookings', JSON.stringify([...existing, booking]));
-    
-    // Simulate sending notification to admin
-    console.log("NOTIFICATION TO ADMIN: A new video conference has been automatically scheduled for " + scheduledTime);
-
-    setSubmitted(scheduledTime);
-  };
-
-  if (submitted) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} onClick={e => e.stopPropagation()}
-          className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Check size={32} className="text-green-600" />
-          </div>
-          <h3 className="text-xl font-black text-gray-900 mb-2">Conference Scheduled!</h3>
-          <p className="text-[12px] text-gray-500 mb-2">Your video conference with</p>
-          <p className="text-[14px] font-bold text-amber-700 mb-6">{listing.seller.name}</p>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left mb-6">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Automatic Scheduling Confirmed</p>
-            <p className="text-[11px] text-amber-800 leading-relaxed mb-2">
-              Your meeting has been automatically scheduled for <strong className="font-black text-amber-900">{submitted}</strong>.
-            </p>
-            <p className="text-[11px] text-amber-800 leading-relaxed">
-              The GoMo Admin team has been notified. You will find the meeting link in your dashboard shortly before the scheduled time.
-            </p>
-          </div>
-          <button onClick={onClose}
-            className="w-full py-3 rounded-xl bg-gray-900 text-white font-bold text-[12px] uppercase tracking-wider hover:bg-gray-800 transition-colors">
-            Done
-          </button>
-        </motion.div>
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
-      <motion.div initial={{ scale: 0.93, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.93, y: 20 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden my-4" onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="bg-gray-900 px-7 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
-              <Video size={20} className="text-green-400" />
-            </div>
-            <div>
-              <p className="text-white text-[14px] font-black">Schedule Video Conference</p>
-              <p className="text-gray-400 text-[10px] uppercase tracking-wider">{listing.seller.name}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors">
-            <X size={13} />
-          </button>
-        </div>
-
-        {/* Listing Summary */}
-        <div className="mx-6 mt-5 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3">
-          <img src={listing.image} alt="" className="w-14 h-14 rounded-xl object-cover border border-amber-100 flex-shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[11px] font-black text-gray-900 uppercase tracking-wider line-clamp-1">{listing.title}</p>
-            <p className="text-[10px] text-amber-600 font-bold mt-0.5">₹{listing.pricePerKg}/kg · Min {listing.minOrderKg}kg</p>
-            <p className="text-[9px] text-gray-500 mt-0.5 uppercase tracking-wider">{listing.origin}</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          {/* Quantity */}
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1.5">
-              Quantity Required (kg) — Min {listing.minOrderKg} kg
-            </label>
-            <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-amber-500 transition-colors">
-              <Scale size={14} className="ml-4 text-gray-400 flex-shrink-0" />
-              <input type="number" min={listing.minOrderKg} value={kgAmount}
-                onChange={e => setKgAmount(Number(e.target.value))}
-                className="flex-1 px-3 py-3 text-[13px] font-bold text-gray-900 outline-none bg-transparent"
-                placeholder={`Min ${listing.minOrderKg} kg`}
-              />
-              <span className="pr-4 text-[11px] text-gray-400 font-semibold">kg</span>
-            </div>
-          </div>
-
-          {/* Date and Time */}
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1.5">
-                Meeting Date
-              </label>
-              <input type="date" value={meetingDate} onChange={e => setMeetingDate(e.target.value)} min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-[13px] font-bold text-gray-900 outline-none focus:border-amber-500 transition-colors" />
-            </div>
-            <div className="flex-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1.5">
-                Meeting Time
-              </label>
-              <input type="time" value={meetingTime} onChange={e => setMeetingTime(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-[13px] font-bold text-gray-900 outline-none focus:border-amber-500 transition-colors" />
-            </div>
-          </div>
-
-          {/* Purpose */}
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1.5">
-              Conference Purpose (Optional)
-            </label>
-            <textarea rows={2} value={purpose} onChange={e => setPurpose(e.target.value)}
-              placeholder="e.g. Discuss bulk pricing, quality documentation, shipping terms..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-[12px] text-gray-700 outline-none focus:border-amber-500 transition-colors resize-none bg-gray-50/50"
-            />
-          </div>
-
-          {/* Terms Checkbox */}
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <div onClick={() => setTermsAccepted(p => !p)}
-                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
-                  termsAccepted ? 'bg-amber-500 border-amber-500' : 'border-gray-300 bg-white hover:border-amber-400'
-                }`}>
-                {termsAccepted && <Check size={11} className="text-white" />}
-              </div>
-              <span className="text-[11px] text-gray-600 leading-relaxed">
-                I agree to the{' '}
-                <Link to="/flea-market/terms" target="_blank" className="text-amber-600 hover:underline font-bold">
-                  Flea Market Terms & Conditions
-                </Link>
-                . I understand that sharing personal contact information during the conference is strictly prohibited, all transactions must be completed through GoMo platform, and the minimum order quantity is {listing.minOrderKg} kg.
-              </span>
-            </label>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
-              <AlertTriangle size={13} className="flex-shrink-0" /> {error}
-            </div>
-          )}
-
-          <button type="submit"
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-500 text-white font-black text-[12px] uppercase tracking-widest hover:brightness-105 transition-all shadow-lg hover:shadow-green-500/25 flex items-center justify-center gap-2">
-            <Video size={16} /> Confirm Conference Request
-          </button>
-        </form>
       </motion.div>
     </motion.div>
   );
@@ -383,6 +183,43 @@ const FleaMarketPage = () => {
   const [scheduleModal, setScheduleModal] = useState(null);
   const [membershipGate, setMembershipGate] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  
+  const [meetings, setMeetings] = useState([]);
+  const [fetchingMeetings, setFetchingMeetings] = useState(false);
+
+  const fetchUserMeetings = async () => {
+    if (!user) return;
+    setFetchingMeetings(true);
+    try {
+      const res = await getCustomerMeetings();
+      if (res.success) {
+        setMeetings(res.meetings);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFetchingMeetings(false);
+    }
+  };
+
+  const handleCancelMeeting = async (meetingId) => {
+    if (!window.confirm("Are you sure you want to cancel this scheduled video conference?")) return;
+    try {
+      const res = await cancelMeeting(meetingId);
+      if (res.success) {
+        fetchUserMeetings();
+      } else {
+        alert(res.error || "Failed to cancel conference booking.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error cancelling conference.");
+    }
+  };
+
+  useEffect(() => {
+    fetchUserMeetings();
+  }, [user]);
 
   useEffect(() => {
     if (typeof fetchProducts === 'function') {
@@ -554,6 +391,93 @@ const FleaMarketPage = () => {
         </div>
       </div>
 
+      {/* ── Upcoming B2B Conferences ── */}
+      {user && meetings.filter(m => m.status === 'Scheduled').length > 0 && (
+        <section className="w-full max-w-[1920px] px-4 md:px-10 mx-auto pt-8">
+          <div className="bg-amber-955 text-white rounded-[24px] p-6 lg:p-8 border border-amber-800 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-500/30">
+                <Video className="text-amber-400" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-serif tracking-tight text-white">Your Scheduled <span className="italic font-light text-amber-300">Video Conferences</span></h3>
+                <p className="text-[10px] text-amber-400 uppercase tracking-widest font-bold mt-0.5">Flea Market B2B Negotiations</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {meetings.filter(m => m.status === 'Scheduled').map(m => (
+                <div key={m.meeting_id} className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col justify-between hover:bg-white/10 transition-all duration-300 relative group">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-lg overflow-hidden shrink-0">
+                        <img 
+                          src={m.product_thumbnail || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000"} 
+                          alt="" 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000"; }}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-amber-100 uppercase tracking-wider truncate">{m.product_name}</p>
+                        <p className="text-[9px] text-amber-400 uppercase tracking-widest mt-0.5 font-bold">Seller: {m.seller_store_name || m.seller_name}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-gray-300 bg-white/5 p-2 rounded-lg border border-white/5">
+                      <Calendar size={12} className="text-amber-400" />
+                      <span className="font-semibold">
+                        {new Date(m.scheduled_at).toLocaleString("en-IN", { 
+                          weekday: 'short', month: 'short', day: 'numeric', 
+                          hour: '2-digit', minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+
+                    {m.purpose && (
+                      <p className="text-[10.5px] text-gray-400 italic line-clamp-2">" {m.purpose} "</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-5 border-t border-white/5 pt-4">
+                    {(() => {
+                      const now = new Date();
+                      const meetingTime = new Date(m.scheduled_at);
+                      const diffMinutes = (now - meetingTime) / (1000 * 60);
+                      const canJoin = diffMinutes >= -5 && diffMinutes <= 40;
+                      return (
+                        <a href={canJoin ? m.meeting_link : '#'} 
+                          target={canJoin ? "_blank" : undefined} 
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            if (!canJoin) {
+                              e.preventDefault();
+                              alert('You can only join the video conference 5 minutes before or up to 40 minutes after the scheduled time.');
+                            }
+                          }}
+                          className={`flex-1 py-2.5 rounded-xl text-white font-bold text-[11px] uppercase tracking-wider transition-colors text-center flex items-center justify-center gap-2 ${
+                            canJoin 
+                              ? 'bg-amber-500 hover:bg-amber-600' 
+                              : 'bg-white/10 text-white/40 cursor-not-allowed'
+                          }`}>
+                          <Video size={13} /> {canJoin ? 'Join Call' : 'Wait'}
+                        </a>
+                      );
+                    })()}
+                    <button onClick={() => handleCancelMeeting(m.meeting_id)}
+                      className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-rose-950/40 border border-white/10 hover:border-rose-900/40 text-gray-400 hover:text-rose-400 text-[10px] uppercase tracking-wider font-bold transition-all">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Listings Grid ── */}
       <section className="w-full max-w-[1920px] px-4 md:px-10 mx-auto py-10">
         <div className="flex items-center justify-between mb-6">
@@ -629,7 +553,7 @@ const FleaMarketPage = () => {
         {membershipGate && <MembershipGateModal onClose={() => setMembershipGate(false)} />}
         {scheduleModal && (
           <ScheduleModal
-            listing={scheduleModal}
+            product={scheduleModal}
             onClose={() => setScheduleModal(null)}
             onSuccess={() => { setScheduleModal(null); }}
           />

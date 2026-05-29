@@ -116,3 +116,5 @@ export const logoutUser = customerLogout;
 
 export const customerOnboarding = (customerId, data) =>
     handleApiCall('post', `/customer-onboarding/${customerId}`, data);
+
+export const agreeToTerms = () => handleApiCall('put', '/agree-terms');

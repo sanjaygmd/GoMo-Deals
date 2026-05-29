@@ -1,12 +1,14 @@
 import React, { useState, useContext, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ProductContext } from "../../context/ProductContext/ProductContext";
+import { useAuth } from "../../context/AuthContext";
 import * as productService from "../../services/productService";
 import { X, Save, AlertCircle, Gift, Target, Sparkles, Palette } from "lucide-react";
 import { motion } from "framer-motion";
 
 const EditProduct = ({ product, onClose }) => {
   const { updateProduct, updateVariant, fetchProducts: fetchSellerProducts } = useContext(ProductContext);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   
@@ -162,6 +164,11 @@ const EditProduct = ({ product, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const isFleaMarketProductSelected = isFleaMarketOverride || selectedCategory?.name?.toLowerCase().includes("flea market");
+    if (isFleaMarketProductSelected && user?.seller_subscription !== 'pro' && user?.seller_subscription !== 'enterprise') {
+      setValidationError("Pro or Enterprise subscription is required to list products on the B2B Flea Market Exchange. Please upgrade your subscription first.");
+      return;
+    }
     if (isClothing && !apparelType) {
       setValidationError("Apparel Type is required for clothing products.");
       return;
@@ -178,26 +185,26 @@ const EditProduct = ({ product, onClose }) => {
           other: "[Tags: fashion]"
         };
         const tagsToAppend = tagsMap[apparelType] || "[Tags: fashion]";
-        submissionForm.description = `${form.description || ""}\n\n${tagsToAppend}`;
+        sanitizedForm.description = `${form.description || ""}\n\n${tagsToAppend}`;
       } else if (!isMarketProduct) {
-        submissionForm.size = "";
+        sanitizedForm.size = "";
       }
 
       if (isFleaMarketOverride) {
-        submissionForm.description = `${submissionForm.description || ""}\n\n[Tags: flea market, commodity, bulk]`;
+        sanitizedForm.description = `${sanitizedForm.description || ""}\n\n[Tags: flea market, commodity, bulk]`;
       }
 
       ['price', 'mrp', 'stock_quantity', 'weight', 'length', 'breadth', 'height'].forEach(key => {
-        if (submissionForm[key] === "" || submissionForm[key] === undefined) {
-          submissionForm[key] = null;
+        if (sanitizedForm[key] === "" || sanitizedForm[key] === undefined) {
+          sanitizedForm[key] = null;
         }
       });
 
       let res;
       if (product.isVariant) {
-        res = await updateVariant(product.variantId, submissionForm);
+        res = await updateVariant(product.variantId, sanitizedForm);
       } else {
-        res = await updateProduct(product.product_id || product.id, submissionForm);
+        res = await updateProduct(product.product_id || product.id, sanitizedForm);
       }
 
       if (res.success) {
@@ -237,7 +244,7 @@ const EditProduct = ({ product, onClose }) => {
         {/* Header */}
          <div className="flex justify-between items-center px-12 py-8 border-b border-orange-100 bg-orange-50/30">
           <div>
-            <h2 className="text-2xl font-serif text-orange-900 tracking-tight italic">Refine Collection</h2>
+            <h2 className="text-2xl font-semibold text-orange-900 tracking-tight">Refine Collection</h2>
             <p className="text-[10px] text-orange-500 uppercase tracking-[0.3em] mt-1 font-black">Updating gift identity</p>
           </div>
           <button onClick={onClose} className="p-3 hover:bg-white transition-colors text-orange-400 hover:text-orange-950">
@@ -329,7 +336,18 @@ const EditProduct = ({ product, onClose }) => {
                 <div className="md:col-span-2 mt-2">
                   <label className="flex items-start gap-4 cursor-pointer p-5 border border-orange-200 bg-orange-50/50 hover:bg-orange-100/50 transition-colors rounded-xl">
                     <div className={`w-5 h-5 mt-0.5 rounded flex items-center justify-center border-2 transition-colors ${isFleaMarketOverride ? "bg-orange-600 border-orange-600" : "bg-white border-orange-300"}`}>
-                      <input type="checkbox" checked={isFleaMarketOverride} onChange={(e) => setIsFleaMarketOverride(e.target.checked)} className="hidden" />
+                      <input 
+                        type="checkbox" 
+                        checked={isFleaMarketOverride} 
+                        onChange={(e) => {
+                          if (e.target.checked && user?.seller_subscription !== 'pro' && user?.seller_subscription !== 'enterprise') {
+                            setValidationError("Pro or Enterprise subscription is required to list products on the B2B Flea Market Exchange. Please upgrade your subscription.");
+                            return;
+                          }
+                          setIsFleaMarketOverride(e.target.checked);
+                        }} 
+                        className="hidden" 
+                      />
                       {isFleaMarketOverride && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                     </div>
                     <div>

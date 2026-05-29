@@ -2,7 +2,8 @@ import { NavLink, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, Package, ShoppingCart, Users,
   Ticket, Shield, CreditCard, BarChart3, Store,
-  MessageSquare, Landmark, ShieldCheck, RotateCcw
+  MessageSquare, Landmark, ShieldCheck, RotateCcw,
+  Video
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useAuth } from "../../../context/AuthContext";
@@ -17,6 +18,7 @@ const navItems = [
   { title: "Coupons", path: "/admin/coupons", icon: Ticket },
   { title: "Finance", path: "/admin/finance", icon: Landmark },
   { title: "Payouts", path: "/admin/payouts", icon: CreditCard },
+  { title: "Mediator", path: "/admin/mediator", icon: Video },
   { title: "Analytics", path: "/admin/analytics", icon: BarChart3 },
   { title: "Logs", path: "/admin/logs", icon: Shield },
 ];

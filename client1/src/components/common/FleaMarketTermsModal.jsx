@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Shield, AlertTriangle, Check, X } from 'lucide-react';
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from 'react-router-dom';
+import { agreeToTerms } from '../../services/authService';
 
 const FleaMarketTermsModal = ({ onClose, onSuccess }) => {
   const { user, updateUser } = useAuth();
@@ -10,21 +11,37 @@ const FleaMarketTermsModal = ({ onClose, onSuccess }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
 
-  const handleAgree = () => {
+  const handleAgree = async () => {
     if (!agreed) return;
     setIsProcessing(true);
-    
-    setTimeout(() => {
-      // Update the user context / local storage mock DB
-      updateUser({ ...user, hasAgreedToFleaMarketTerms: true });
-      setIsProcessing(false);
+    try {
+      // Execute backend API call to persist the terms agreement
+      await agreeToTerms();
+      
+      // Update the in-memory context/user session state
+      updateUser({ 
+        ...user, 
+        hasAgreedToFleaMarketTerms: true,
+        has_agreed_to_flea_market_terms: true 
+      });
+      
       if (onSuccess) onSuccess();
-    }, 800);
+    } catch (error) {
+      console.error("Failed to persist terms agreement:", error);
+      alert(error?.response?.data?.message || error.message || "Failed to submit agreement. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleCancel = () => {
     if (onClose) onClose();
-    navigate('/'); // Redirect to home if they decline
+    // Dynamic redirect based on user role
+    if (user?.role === 'seller' || user?.type === 'seller') {
+      navigate('/seller-dashboard');
+    } else {
+      navigate('/');
+    }
   };
 
   return (

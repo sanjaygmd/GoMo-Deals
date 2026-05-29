@@ -5,6 +5,7 @@ import { ShoppingBag, RotateCcw, ArrowLeft, Star, ChevronDown, SlidersHorizontal
 import ProductCard from '../../components/common/ProductCard';
 import { ProductContext } from '../../context/ProductContext/ProductContext';
 import { useShop } from '../../context/ShopContext';
+import { categorySubcategories } from '../../data/categories';
 
 const CategoryPage = () => {
   const { type } = useParams();
@@ -85,13 +86,28 @@ const CategoryPage = () => {
         fieldContains(p.recipient, typeLower) ||
         fieldContains(p.occasion, typeLower);
 
+      const subcats = categorySubcategories[typeLower] || [];
+      const matchSubcategory = subcats.some(sub => 
+          fieldContains(p.category_name, sub.label) || 
+          fieldContains(p.category_name, sub.slug) ||
+          fieldContains(p.tags, sub.label) ||
+          fieldContains(p.tags, sub.slug) ||
+          fieldContains(p.room, sub.label) ||
+          fieldContains(p.room, sub.slug) ||
+          fieldContains(p.name, sub.label)
+      );
+
       const matchCategory =
         fieldContains(p.category_name, typeLower) ||
+        fieldContains(p.parent_category_name, typeLower) ||
         (p.category_id?.toString() === typeLower) ||
+        (p.parent_category_id?.toString() === typeLower) ||
         fieldContains(p.tags, typeLower) ||
         fieldContains(p.name, typeLower) ||
-        (cleanType === 'homeliving' && (fieldContains(p.category_name, 'home') || fieldContains(p.category_name, 'living') || fieldContains(p.category_name, 'kitchen'))) ||
-        (cleanType === 'sportsfitness' && (fieldContains(p.category_name, 'sports') || fieldContains(p.category_name, 'fitness') || fieldContains(p.category_name, 'gym') || fieldContains(p.category_name, 'yoga')));
+        fieldContains(p.room, typeLower) ||
+        matchSubcategory ||
+        (cleanType === 'homeliving' && (fieldContains(p.category_name, 'home') || fieldContains(p.category_name, 'living') || fieldContains(p.category_name, 'kitchen') || fieldContains(p.parent_category_name, 'home') || fieldContains(p.parent_category_name, 'living') || fieldContains(p.parent_category_name, 'kitchen'))) ||
+        (cleanType === 'sportsfitness' && (fieldContains(p.category_name, 'sports') || fieldContains(p.category_name, 'fitness') || fieldContains(p.category_name, 'gym') || fieldContains(p.category_name, 'yoga') || fieldContains(p.parent_category_name, 'sports') || fieldContains(p.parent_category_name, 'fitness') || fieldContains(p.parent_category_name, 'gym') || fieldContains(p.parent_category_name, 'yoga')));
 
       return matchOccasionOrRecipient || matchCategory;
     });
@@ -151,9 +167,22 @@ const CategoryPage = () => {
       result = bestSellers;
     }
 
-    // 1.5. Apply subcategory filter for market products
+    // 1.5. Apply subcategory filter
     if (selectedSubcategory !== 'all') {
-      result = result.filter(p => p.category_name === selectedSubcategory);
+      const subClean = selectedSubcategory.toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const fieldContains = (field, search) => {
+        if (!field || !search) return false;
+        return field.toLowerCase().replace(/[^a-z0-9-]/g, '').includes(search);
+      };
+      
+      result = result.filter(p => 
+        fieldContains(p.category_name, subClean) || 
+        fieldContains(p.tags, subClean) || 
+        fieldContains(p.name, subClean) || 
+        fieldContains(p.description, subClean) ||
+        fieldContains(p.room, subClean) ||
+        (p.category_name && p.category_name.toLowerCase().replace(/[^a-z0-9-]/g, '') === subClean)
+      );
     }
 
     // 2. Apply Brand filter
@@ -242,6 +271,13 @@ const CategoryPage = () => {
       case 'sports-fitness':
       case 'sports':
         return 'Sports & Fitness';
+      case 'clothing': return 'Clothing';
+      case 'mens': return 'Mens Collection';
+      case 'women': return 'Womens Collection';
+      case 'kids': return 'Kids Collection';
+      case 'pooja-items': return 'Pooja Items';
+      case 'toys': return 'Toys';
+      case 'gifts': return 'Gifts';
       default: return 'Collection';
     }
   };
@@ -263,6 +299,13 @@ const CategoryPage = () => {
       case 'sports-fitness':
       case 'sports':
         return 'High-performance gym gear, yoga essentials, and accessories.';
+      case 'clothing': return 'Discover the latest trends in clothing for all occasions.';
+      case 'mens': return 'Premium apparel, watches, and accessories for men.';
+      case 'women': return 'Elegant clothes, watches, and accessories for women.';
+      case 'kids': return 'Comfortable and fun clothing and toys for kids.';
+      case 'pooja-items': return 'Authentic pooja items and spiritual accessories.';
+      case 'toys': return 'Educational and fun toys for children of all ages.';
+      case 'gifts': return 'Thoughtful gifts for every special occasion.';
       default: return 'Handpicked selections for life\'s most cherished moments.';
     }
   };
@@ -279,37 +322,94 @@ const CategoryPage = () => {
     
     return (
       <div className="space-y-6 text-left">
-        {/* Staples Category Filter (Only for Flea Market) */}
-        {isFleaMarket && (
+        {/* Categories Sidebar section */}
+        {type?.toLowerCase() !== 'healthy-foods' && (
           <div className="space-y-2.5">
             <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-955 border-b border-orange-100 pb-2">
-              Staples Category
+              Categories
             </h4>
             <div className="space-y-2">
               {[
-                { value: 'all', label: 'All Staples' },
-                { value: 'Grains & Rice', label: 'Grains & Rice' },
-                { value: 'Lentils & Dals', label: 'Lentils & Dals' }
+                { value: 'electronics', label: 'Electronics' },
+                { value: 'fashion', label: 'Fashion' },
+                { value: 'home-living', label: 'Home & Living' },
+                { value: 'books', label: 'Books' },
+                { value: 'beauty', label: 'Beauty' },
+                { value: 'sports-fitness', label: 'Sports & Fitness' },
+                { value: 'clothing', label: 'Clothing' },
+                { value: 'mens', label: 'Mens' },
+                { value: 'women', label: 'Women' },
+                { value: 'kids', label: 'Kids' },
+                { value: 'pooja-items', label: 'Pooja Items' },
+                { value: 'toys', label: 'Toys' },
+                { value: 'gifts', label: 'Gifts' },
               ].map(cat => (
+                <Link 
+                  key={cat.value}
+                  to={`/collection/${cat.value}`}
+                  className="flex items-center gap-2.5 text-xs font-semibold text-orange-900/90 hover:text-orange-955 cursor-pointer select-none group"
+                >
+                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${
+                    type?.toLowerCase() === cat.value
+                      ? 'border-orange-950 bg-orange-950 text-white ring-2 ring-orange-250/20'
+                      : 'border-orange-200 bg-white group-hover:border-orange-400'
+                  }`}>
+                    {type?.toLowerCase() === cat.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </div>
+                  <span>{cat.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Subcategory Filter */}
+        {categorySubcategories[type?.toLowerCase()] && (
+          <div className="space-y-2.5">
+            <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-955 border-b border-orange-100 pb-2">
+              Subcategories
+            </h4>
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+              <label 
+                className="flex items-center gap-2.5 text-xs font-semibold text-orange-900/90 hover:text-orange-955 cursor-pointer select-none group"
+              >
+                <input
+                  type="radio"
+                  name="subcategory"
+                  checked={selectedSubcategory === 'all'}
+                  onChange={() => setSelectedSubcategory('all')}
+                  className="sr-only"
+                />
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${
+                  selectedSubcategory === 'all'
+                    ? 'border-orange-950 bg-orange-950 text-white ring-2 ring-orange-250/20'
+                    : 'border-orange-200 bg-white group-hover:border-orange-400'
+                }`}>
+                  {selectedSubcategory === 'all' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </div>
+                <span>All {getTitle()}</span>
+              </label>
+              
+              {categorySubcategories[type?.toLowerCase()].map(sub => (
                 <label 
-                  key={cat.value} 
+                  key={sub.slug} 
                   className="flex items-center gap-2.5 text-xs font-semibold text-orange-900/90 hover:text-orange-955 cursor-pointer select-none group"
                 >
                   <input
                     type="radio"
                     name="subcategory"
-                    checked={selectedSubcategory === cat.value}
-                    onChange={() => setSelectedSubcategory(cat.value)}
+                    checked={selectedSubcategory === sub.slug}
+                    onChange={() => setSelectedSubcategory(sub.slug)}
                     className="sr-only"
                   />
                   <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${
-                    selectedSubcategory === cat.value
+                    selectedSubcategory === sub.slug
                       ? 'border-orange-950 bg-orange-950 text-white ring-2 ring-orange-250/20'
                       : 'border-orange-200 bg-white group-hover:border-orange-400'
                   }`}>
-                    {selectedSubcategory === cat.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    {selectedSubcategory === sub.slug && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                   </div>
-                  <span>{cat.label}</span>
+                  <span>{sub.label}</span>
                 </label>
               ))}
             </div>
@@ -587,7 +687,7 @@ const CategoryPage = () => {
           {/* Right Product Grid Area */}
           <div className="flex-grow w-full">
             {initialLoading || loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-8 sm:gap-y-12">
                 {[...Array(6)].map((_, index) => (
                   <div
                     key={index}
@@ -627,7 +727,7 @@ const CategoryPage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.3 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12"
+                  className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-8 sm:gap-y-12"
                 >
                   {filteredProducts.map((product, index) => (
                     <motion.div

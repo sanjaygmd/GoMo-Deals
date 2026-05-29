@@ -27,6 +27,9 @@ import reviewRoutes from './routes/ReviewRoutes.js';
 import chatbotRoutes from './routes/ChatbotRoutes.js';
 import webhookRoutes from './routes/WebhookRoutes.js';
 import offerRoutes from './routes/OfferRoutes.js';
+import meetingRoutes from './routes/MeetingRoutes.js';
+import membershipRoutes from './routes/MembershipRoutes.js';
+import sellerSubscriptionRoutes from './routes/SellerSubscriptionRoutes.js';
 
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -126,6 +129,9 @@ app.use('/api/payouts', payoutRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/offers', offerRoutes);
+app.use('/api/meetings', meetingRoutes);
+app.use('/api/membership', membershipRoutes);
+app.use('/api/seller-subscription', sellerSubscriptionRoutes);
 
 // Centralized error handling middleware
 app.use(errorHandler);

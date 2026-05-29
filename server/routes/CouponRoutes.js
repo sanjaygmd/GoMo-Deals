@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get('/active', requireAuth(['customer']), getActiveCoupons);
+router.get('/active', getActiveCoupons);
 router.post('/validate', requireAuth(['customer']), validateCoupon);
 router.get('/all', requireAuth(['admin', 'super_admin']), getAllCoupons);
 router.post('/create', requireAuth(['admin', 'super_admin']), createCoupon);
