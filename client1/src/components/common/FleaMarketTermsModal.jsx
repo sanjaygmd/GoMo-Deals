@@ -4,12 +4,14 @@ import { Shield, AlertTriangle, Check, X } from 'lucide-react';
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from 'react-router-dom';
 import { agreeToTerms } from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 
 const FleaMarketTermsModal = ({ onClose, onSuccess }) => {
   const { user, updateUser } = useAuth();
   const [agreed, setAgreed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleAgree = async () => {
     if (!agreed) return;
@@ -28,7 +30,7 @@ const FleaMarketTermsModal = ({ onClose, onSuccess }) => {
       if (onSuccess) onSuccess();
     } catch (error) {
       console.error("Failed to persist terms agreement:", error);
-      alert(error?.response?.data?.message || error.message || "Failed to submit agreement. Please try again.");
+      toast({ title: 'Error', description: error?.response?.data?.message || error.message || "Failed to submit agreement. Please try again.", variant: 'destructive' });
     } finally {
       setIsProcessing(false);
     }

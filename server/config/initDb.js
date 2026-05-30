@@ -274,6 +274,11 @@ export const initSchema = async () => {
 
         // Order Items Table
         await pool.query(`
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_split VARCHAR(50) DEFAULT 'full';
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS pending_balance DECIMAL(15,2) DEFAULT 0;
+        `);
+
+        await pool.query(`
             CREATE TABLE IF NOT EXISTS order_items (
                 order_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 order_id UUID REFERENCES orders(order_id) ON DELETE CASCADE,
@@ -825,11 +830,19 @@ export const initSchema = async () => {
                 customer_id UUID NOT NULL REFERENCES customers(customer_id) ON DELETE CASCADE,
                 offered_price DECIMAL(15,2) NOT NULL,
                 seller_counter_price DECIMAL(15,2) DEFAULT NULL,
+                agreed_quantity DECIMAL(15,2) DEFAULT NULL,
                 status VARCHAR(50) DEFAULT 'Pending', -- 'Pending', 'Accepted', 'Rejected', 'Countered', 'Expired'
                 offer_token VARCHAR(255) UNIQUE DEFAULT NULL,
                 expires_at TIMESTAMP DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+
+        // Migration for agreed_quantity, contract_terms, and is_stock_reserved
+        await pool.query(`
+            ALTER TABLE product_offers ADD COLUMN IF NOT EXISTS agreed_quantity DECIMAL(15,2) DEFAULT NULL;
+            ALTER TABLE product_offers ADD COLUMN IF NOT EXISTS contract_terms TEXT DEFAULT NULL;
+            ALTER TABLE product_offers ADD COLUMN IF NOT EXISTS is_stock_reserved BOOLEAN DEFAULT FALSE;
         `);
 
         await pool.query(`

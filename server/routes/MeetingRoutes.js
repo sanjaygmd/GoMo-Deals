@@ -5,7 +5,10 @@ import {
     getCustomerMeetings, 
     cancelMeeting,
     getAdminMeetings,
-    completeMeeting
+    completeMeeting,
+    endMeeting,
+    recordMeetingOutcome,
+    rescheduleMeeting
 } from '../controllers/MeetingController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
@@ -26,7 +29,16 @@ meetingRoutes.get('/admin', requireAuth(['admin', 'super_admin']), getAdminMeeti
 // Cancel a scheduled conference (Authenticated participant required)
 meetingRoutes.put('/:id/cancel', requireAuth(['customer', 'seller', 'admin', 'super_admin']), cancelMeeting);
 
+// Reschedule a conference (Authenticated participant required)
+meetingRoutes.put('/:id/reschedule', requireAuth(['customer', 'seller', 'admin', 'super_admin']), rescheduleMeeting);
+
 // Complete a meeting (Seller required)
 meetingRoutes.put('/seller/:id/complete', requireAuth(['seller']), completeMeeting);
+
+// End a meeting (Participant or Admin required)
+meetingRoutes.put('/:id/end', requireAuth(['customer', 'seller', 'admin', 'super_admin']), endMeeting);
+
+// Admin records the outcome of a meeting
+meetingRoutes.post('/:id/admin/record-outcome', requireAuth(['admin', 'super_admin']), recordMeetingOutcome);
 
 export default meetingRoutes;

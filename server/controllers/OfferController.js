@@ -131,6 +131,22 @@ export const getCustomerOffers = async (req, res, next) => {
             ORDER BY o.created_at DESC
         `, [customerId]);
 
+        // Auto-expire and restore stock if necessary
+        const now = new Date();
+        for (const row of result.rows) {
+            if (row.status === 'Accepted' && row.expires_at && new Date(row.expires_at) < now) {
+                await pool.query("UPDATE product_offers SET status = 'Expired' WHERE offer_id = $1", [row.offer_id]);
+                if (row.is_stock_reserved && row.agreed_quantity) {
+                    await pool.query(
+                        "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE product_id = $2",
+                        [row.agreed_quantity, row.product_id]
+                    );
+                    await pool.query("UPDATE product_offers SET is_stock_reserved = false WHERE offer_id = $1", [row.offer_id]);
+                }
+                row.status = 'Expired'; // Update locally for response
+            }
+        }
+
         // Map and extract thumbnail
         const formattedOffers = result.rows.map(row => {
             let thumbnail = 'https://via.placeholder.com/150';
@@ -296,6 +312,13 @@ export const validateOfferToken = async (req, res, next) => {
         if (offer.expires_at && new Date(offer.expires_at) < new Date()) {
             // Update status to Expired
             await pool.query("UPDATE product_offers SET status = 'Expired' WHERE offer_id = $1", [offer.offer_id]);
+            if (offer.is_stock_reserved && offer.agreed_quantity) {
+                await pool.query(
+                    "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE product_id = $2",
+                    [offer.agreed_quantity, offer.product_id]
+                );
+                await pool.query("UPDATE product_offers SET is_stock_reserved = false WHERE offer_id = $1", [offer.offer_id]);
+            }
             return res.status(410).json({ success: false, message: "This checkout token has expired. Accepted bargains are valid for 24 hours." });
         }
 
@@ -313,10 +336,77 @@ export const validateOfferToken = async (req, res, next) => {
             bargainedPrice: offer.offered_price,
             sellerId: offer.seller_id,
             productThumbnail: thumbnail,
-            expiresAt: offer.expires_at
+            expiresAt: offer.expires_at,
+            agreedQuantity: offer.agreed_quantity
         });
 
     } catch (error) {
         next(error);
+    }
+};
+
+/**
+ * Allows a customer to reject an accepted offer (recorded deal),
+ * restoring the reserved stock and updating the meeting notes.
+ * PUT /api/offers/:id/cancel
+ */
+export const cancelCustomerOffer = async (req, res, next) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params; // Offer UUID
+        const customerId = req.user.id;
+
+        await client.query('BEGIN');
+
+        // Fetch the offer and lock the row
+        const offerRes = await client.query(`
+            SELECT * FROM product_offers 
+            WHERE offer_id = $1 AND customer_id = $2 
+            FOR UPDATE
+        `, [id, customerId]);
+
+        if (offerRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: "Offer not found." });
+        }
+
+        const offer = offerRes.rows[0];
+
+        if (offer.status !== 'Accepted') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: `Cannot cancel an offer that is currently ${offer.status}.` });
+        }
+
+        // Restore the reserved stock
+        if (offer.is_stock_reserved && offer.agreed_quantity) {
+            await client.query(
+                "UPDATE products SET stock_quantity = stock_quantity + $1 WHERE product_id = $2",
+                [offer.agreed_quantity, offer.product_id]
+            );
+        }
+
+        // Mark the offer as Rejected
+        await client.query(
+            "UPDATE product_offers SET status = 'Rejected', is_stock_reserved = false WHERE offer_id = $1",
+            [id]
+        );
+
+        // Update the meeting notes so admin and seller are informed
+        // Append a clear tag to the meeting_notes of the associated completed meeting
+        await client.query(`
+            UPDATE flea_market_meetings 
+            SET meeting_notes = COALESCE(meeting_notes, '') || ' [CANCELLED BY CUSTOMER]'
+            WHERE customer_id = $1 AND product_id = $2 AND status = 'Completed'
+        `, [customerId, offer.product_id]);
+
+        await client.query('COMMIT');
+
+        return res.json({ success: true, message: "Deal rejected. Stock has been restored." });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        next(error);
+    } finally {
+        client.release();
     }
 };

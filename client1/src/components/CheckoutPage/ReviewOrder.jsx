@@ -9,6 +9,11 @@ const ReviewOrder = ({ onBack, paymentMethod, total, userDetails, items, applied
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [isPlacing, setIsPlacing] = useState(false);
+  
+  // Advance Payment State (Only enabled for Flea Market Deals > ₹10,000)
+  const isEligibleForAdvance = offerToken && total >= 10000;
+  const [paymentSplit, setPaymentSplit] = useState('full'); // 'full' or 'advance_20'
+
   const { user } = useAuth();
   const { cart, formatPrice, t } = useShop();
 
@@ -110,8 +115,11 @@ const ReviewOrder = ({ onBack, paymentMethod, total, userDetails, items, applied
         membership_discount: membershipDiscountAmount,
         membership_tier: membershipTier,
         total_amount: total,
-        offer_token: offerToken
+        offer_token: offerToken,
+        payment_split: paymentSplit
       };
+
+      const amountToCharge = paymentSplit === 'advance_20' ? total * 0.20 : total;
 
       if (paymentMethod === "cod") {
         const response = await createOrder(orderData);
@@ -122,29 +130,51 @@ const ReviewOrder = ({ onBack, paymentMethod, total, userDetails, items, applied
           setError(response.message || t("Failed to place order. Please try again."));
         }
       } else {
-        // Fetch a valid Razorpay order ID before payment
-        const razorpayOrderRes = await createRazorpayOrder(total);
+        // Fetch a valid Razorpay order ID before payment (charge only advance amount if selected)
+        const razorpayOrderRes = await createRazorpayOrder(amountToCharge);
         if (!razorpayOrderRes.success || !razorpayOrderRes.order?.id) {
           setError(razorpayOrderRes.message || t("Failed to initiate secure online payment. Please try again."));
           setIsPlacing(false);
           return;
         }
 
+        if (razorpayOrderRes.isMock) {
+          // Simulate a successful payment immediately without loading Razorpay widget
+          try {
+            const dbResponse = await createOrder({
+              ...orderData,
+              payment_id: `pay_mock_${Math.random().toString(36).substr(2, 9)}`,
+              razorpay_order_id: razorpayOrderRes.order.id,
+              razorpay_signature: "mock_signature_bypass"
+            });
+            if (dbResponse.success) {
+              triggerOrderEmail(dbResponse.order_id).catch(() => {});
+              navigate("/order-success", { state: { orderId: dbResponse.order_id } });
+            } else {
+              setError(dbResponse.message || t("Payment recorded but order registration failed. Contact support."));
+              setIsPlacing(false);
+            }
+          } catch (err) {
+            setError(t("Payment successful but order registration failed. Please contact support."));
+            setIsPlacing(false);
+          }
+          return;
+        }
+
         const options = {
           key: import.meta.env.VITE_RAZORPAY_KEY,
-          amount: total * 100,
+          amount: amountToCharge * 100,
           currency: "INR",
           name: "GoMo Deals Boutique",
           description: "Boutique Order",
-          // Conditionally include order_id only if it is NOT a mock order
-          ...(razorpayOrderRes.isMock ? {} : { order_id: razorpayOrderRes.order.id }),
+          order_id: razorpayOrderRes.order.id,
           handler: async function (response) {
             try {
               const dbResponse = await createOrder({
                 ...orderData,
-                payment_id: response.razorpay_payment_id || `pay_mock_${Math.random().toString(36).substr(2, 9)}`,
-                razorpay_order_id: response.razorpay_order_id || razorpayOrderRes.order.id,
-                razorpay_signature: response.razorpay_signature || "mock_signature_bypass"
+                payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature
               });
               if (dbResponse.success) {
                 triggerOrderEmail(dbResponse.order_id).catch(() => {});
@@ -244,6 +274,48 @@ const ReviewOrder = ({ onBack, paymentMethod, total, userDetails, items, applied
         </div>
         <span className="text-3xl font-light tracking-tighter">{formatPrice(total)}</span>
       </div>
+
+      {/* Flea Market Escrow / Advance Payment UI */}
+      {isEligibleForAdvance && paymentMethod !== "cod" && (
+        <div className="p-6 rounded-sm bg-orange-50/50 border border-orange-200/60 space-y-4">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-[10px] uppercase tracking-[0.3em] font-black text-orange-955">B2B Payment Terms</span>
+          </div>
+          <p className="text-xs text-orange-700 leading-relaxed mb-4">
+            Because this is a large Flea Market bulk deal, you have the option to secure this contract with a 20% advance payment. The remaining balance will be requested upon delivery/dispatch.
+          </p>
+          <div className="space-y-3">
+            <label className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all ${paymentSplit === 'full' ? 'bg-orange-955 border-orange-955 text-white' : 'bg-white border-orange-200'}`}>
+              <input 
+                type="radio" 
+                name="paymentSplit" 
+                value="full"
+                checked={paymentSplit === 'full'} 
+                onChange={() => setPaymentSplit('full')} 
+                className="w-4 h-4 accent-white" 
+              />
+              <div className="flex-1">
+                <p className={`text-xs font-black uppercase tracking-widest ${paymentSplit === 'full' ? 'text-white' : 'text-orange-955'}`}>Pay Full Amount</p>
+                <p className={`text-[10px] uppercase tracking-widest ${paymentSplit === 'full' ? 'text-white/70' : 'text-orange-500'}`}>{formatPrice(total)}</p>
+              </div>
+            </label>
+            <label className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all ${paymentSplit === 'advance_20' ? 'bg-orange-955 border-orange-955 text-white' : 'bg-white border-orange-200'}`}>
+              <input 
+                type="radio" 
+                name="paymentSplit" 
+                value="advance_20"
+                checked={paymentSplit === 'advance_20'} 
+                onChange={() => setPaymentSplit('advance_20')} 
+                className="w-4 h-4 accent-white" 
+              />
+              <div className="flex-1">
+                <p className={`text-xs font-black uppercase tracking-widest ${paymentSplit === 'advance_20' ? 'text-white' : 'text-orange-955'}`}>20% Advance Booking</p>
+                <p className={`text-[10px] uppercase tracking-widest ${paymentSplit === 'advance_20' ? 'text-white/70' : 'text-orange-500'}`}>Pay {formatPrice(total * 0.20)} now</p>
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* Error */}
       {error && (

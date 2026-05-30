@@ -19,7 +19,8 @@ export const createOrder = async (req, res, next) => {
       shipping_charges = 0,
       discount_amount = 0,
       coupon_id = null,
-      offer_token = null
+      offer_token = null,
+      payment_split = 'full'
     } = req.body;
 
     // Validate UUID to prevent purchasing mock products
@@ -115,7 +116,7 @@ export const createOrder = async (req, res, next) => {
     }
 
     for (const item of items) {
-      const qty = parseInt(item.quantity);
+      let qty = parseInt(item.quantity);
       if (isNaN(qty) || qty <= 0) throw new Error(`Invalid quantity for one or more items.`);
 
       const rawVId = item.variant_id || item.variantId;
@@ -163,13 +164,16 @@ export const createOrder = async (req, res, next) => {
         let isBargained = false;
         if (offer_token) {
           const offerCheck = await client.query(
-            "SELECT offered_price, expires_at, status FROM product_offers WHERE offer_token = $1 AND product_id = $2 AND customer_id = $3 AND status = 'Accepted'",
+            "SELECT offered_price, agreed_quantity, expires_at, status FROM product_offers WHERE offer_token = $1 AND product_id = $2 AND customer_id = $3 AND status = 'Accepted'",
             [offer_token, item.product_id, customer_id]
           );
           if (offerCheck.rows.length > 0) {
             const offer = offerCheck.rows[0];
             if (!offer.expires_at || new Date(offer.expires_at) > new Date()) {
               dbPrice = parseFloat(offer.offered_price);
+              if (offer.agreed_quantity) {
+                  qty = parseInt(offer.agreed_quantity); // Overrides frontend quantity with mediated agreed quantity
+              }
               isBargained = true;
             } else {
               throw new Error("Bargain offer token has expired.");
@@ -301,17 +305,25 @@ export const createOrder = async (req, res, next) => {
     const final_cod_fee = payment_method === 'cod' ? 50 : 0;
     const final_total_amount = serverCalculatedSubtotal + calculatedShipping + final_tax_amount + final_platform_fee + final_cod_fee - serverDiscountAmount;
 
+    let pending_balance = 0;
+    let actual_paid_amount = final_total_amount;
+    
+    if (payment_split === 'advance_20') {
+      actual_paid_amount = final_total_amount * 0.20;
+      pending_balance = final_total_amount - actual_paid_amount;
+    }
+
     // 6. Insert into orders
     await client.query(
       `INSERT INTO orders (
         order_id, customer_id, address_id, subtotal, shipping_charges, 
         tax_amount, total_amount, discount_amount, coupon_id, platform_fee, 
-        cod_fee, order_status, payment_status, payment_method
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Pending', $12, $13)`,
+        cod_fee, order_status, payment_status, payment_method, payment_split, pending_balance
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Pending', $12, $13, $14, $15)`,
       [
         order_id, customer_id, address_id, serverCalculatedSubtotal, calculatedShipping, 
         final_tax_amount, final_total_amount, serverDiscountAmount, coupon_id, final_platform_fee, 
-        final_cod_fee, payment_status, payment_method
+        final_cod_fee, payment_status, payment_method, payment_split, pending_balance
       ]
     );
 
@@ -349,7 +361,7 @@ export const createOrder = async (req, res, next) => {
       `INSERT INTO payments (payment_id, customer_id, order_id, amount, payment_method, payment_status, transaction_id, paid_at)
        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
        RETURNING payment_id`,
-      [customer_id, order_id, final_total_amount, payment_method, payment_status, payment_id || null, payment_status === 'Paid' ? new Date() : null]
+      [customer_id, order_id, actual_paid_amount, payment_method, payment_status, payment_id || null, payment_status === 'Paid' ? new Date() : null]
     );
     const internal_payment_id = paymentRes.rows[0].payment_id;
 
@@ -357,7 +369,7 @@ export const createOrder = async (req, res, next) => {
       await client.query(
         `INSERT INTO finance_transactions (finance_transactions_id, order_id, payment_id, transaction_type, amount, created_at)
          VALUES (gen_random_uuid(), $1, $2, 'order_payment', $3, NOW())`,
-        [order_id, internal_payment_id, final_total_amount]
+        [order_id, internal_payment_id, actual_paid_amount]
       );
     }
 

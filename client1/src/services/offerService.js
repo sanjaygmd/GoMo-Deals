@@ -65,3 +65,16 @@ export const validateOfferToken = async (token) => {
         return { success: false, error: error?.response?.data?.message || error.message };
     }
 };
+
+/**
+ * Allows a customer to reject an accepted offer (recorded deal) and restore stock.
+ * @param {string} offerId - Offer UUID
+ */
+export const cancelCustomerOffer = async (offerId) => {
+    try {
+        const res = await api.put(`/offers/${offerId}/cancel`);
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+};

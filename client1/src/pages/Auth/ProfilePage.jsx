@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useShop } from '../../context/ShopContext';
-import { User, Mail, Phone, Calendar, Shield, MapPin, ShoppingBag, Heart, LogOut, Edit2, Plus, ChevronRight, Truck, ArrowLeft, Tag, Clock, Crown } from 'lucide-react';
+import { User, Mail, Phone, Calendar, Shield, MapPin, ShoppingBag, Heart, LogOut, Edit2, Plus, ChevronRight, Truck, ArrowLeft, Tag, Clock, Crown, Video } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as cartService from '../../services/cartService';
 import * as wishlistService from '../../services/wishlistService';
@@ -9,6 +9,7 @@ import * as authService from '../../services/authService';
 import * as offerService from '../../services/offerService';
 import { api } from '../../services/api';
 import { useNavigate, useLocation } from 'react-router-dom';
+import CustomerConferences from './CustomerConferences';
 
 const ProfilePage = () => {
     const { user, logout, updateUser } = useAuth();
@@ -381,6 +382,19 @@ const ProfilePage = () => {
                             </div>
                         </div>
 
+                        {/* Customer Conferences Panel */}
+                        <div className="bg-white border border-orange-100 shadow-sm overflow-hidden">
+                            <div className="px-8 py-6 border-b border-orange-50 flex justify-between items-center bg-orange-50/30">
+                                <div className="flex items-center gap-2">
+                                    <Video size={14} className="text-orange-505" />
+                                    <h3 className="text-xs uppercase tracking-[0.3em] font-bold text-orange-900 font-sans">Scheduled Conferences</h3>
+                                </div>
+                            </div>
+                            <div className="p-8">
+                                <CustomerConferences />
+                            </div>
+                        </div>
+
                         {/* Dynamic Bargains Panel */}
                         <div id="my-bargains-section" className="bg-white border border-orange-100 shadow-sm overflow-hidden">
                             <div className="px-8 py-6 border-b border-orange-50 flex justify-between items-center bg-orange-50/30">
@@ -413,6 +427,11 @@ const ProfilePage = () => {
                                                             <p className="text-[8px] text-orange-400 uppercase tracking-widest mt-1 font-sans">
                                                                 Store: {offer.store_name}
                                                             </p>
+                                                            {offer.agreed_quantity && (
+                                                                <p className="text-[8px] text-emerald-600 font-bold uppercase tracking-widest mt-1 font-sans">
+                                                                    Mediated Quantity: {offer.agreed_quantity} kg
+                                                                </p>
+                                                            )}
                                                             <div className="flex items-center gap-3 mt-2 font-sans">
                                                                 <span className="text-[10px] text-orange-400 line-through">{formatPrice(originalPrice)}</span>
                                                                 <span className="text-xs font-extrabold text-orange-900">Offered: {formatPrice(offeredPrice)}</span>

@@ -3,7 +3,8 @@ import {
   Video, ShieldAlert, Calendar, Clock, CheckCircle, XCircle, Search, AlertCircle, Eye, RefreshCw
 } from "lucide-react";
 import { StatCard } from "../components/StatCard";
-import { getAdminMeetings, cancelMeeting } from "../../../services/meetingService";
+import { getAdminMeetings, cancelMeeting, endMeeting } from "../../../services/meetingService";
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function FleaMarketMediator() {
   const [loading, setLoading] = useState(true);
@@ -12,6 +13,7 @@ export default function FleaMarketMediator() {
   const [statusFilter, setStatusFilter] = useState("All"); // All, Scheduled, Cancelled
   const [successMessage, setSuccessMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', id: null });
 
   const fetchMeetings = async () => {
     setLoading(true);
@@ -35,8 +37,7 @@ export default function FleaMarketMediator() {
     fetchMeetings();
   }, []);
 
-  const handleCancelMeeting = async (meetingId) => {
-    if (!window.confirm("Are you sure you want to cancel this B2B video conference as a mediator?")) return;
+  const executeCancelMeeting = async (meetingId) => {
     try {
       const res = await cancelMeeting(meetingId);
       if (res.success) {
@@ -44,12 +45,38 @@ export default function FleaMarketMediator() {
         setTimeout(() => setSuccessMessage(null), 5000);
         fetchMeetings();
       } else {
-        alert(res.error || "Failed to cancel scheduled B2B conference.");
+        setErrorMessage(res.error || "Failed to cancel scheduled B2B conference.");
+        setTimeout(() => setErrorMessage(null), 5000);
       }
     } catch (err) {
       console.error(err);
-      alert("An error occurred while cancelling the B2B call.");
+      setErrorMessage("An error occurred while cancelling the B2B call.");
+      setTimeout(() => setErrorMessage(null), 5000);
     }
+  };
+
+  const executeEndMeeting = async (meetingId) => {
+    try {
+      const res = await endMeeting(meetingId);
+      if (res.success) {
+        setSuccessMessage("B2B video conference ended successfully.");
+        setTimeout(() => setSuccessMessage(null), 5000);
+        fetchMeetings();
+      } else {
+        setErrorMessage(res.error || "Failed to end B2B video conference.");
+        setTimeout(() => setErrorMessage(null), 5000);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMessage("An error occurred while ending the B2B call.");
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmModal.type === 'cancel') executeCancelMeeting(confirmModal.id);
+    if (confirmModal.type === 'end') executeEndMeeting(confirmModal.id);
+    setConfirmModal({ ...confirmModal, isOpen: false });
   };
 
   // Filter meetings by search term and status
@@ -309,7 +336,14 @@ export default function FleaMarketMediator() {
                               <Eye size={12} /> Monitor & Mediate
                             </a>
                             <button 
-                              onClick={() => handleCancelMeeting(m.meeting_id)}
+                              onClick={() => setConfirmModal({ isOpen: true, type: 'end', id: m.meeting_id })}
+                              className="px-3 py-2.5 bg-orange-100 hover:bg-orange-200 text-orange-800 border border-orange-200 hover:border-orange-300 text-[9px] uppercase tracking-widest font-black transition-all cursor-pointer rounded-xl active:scale-98 shrink-0"
+                              title="End Meeting"
+                            >
+                              End
+                            </button>
+                            <button 
+                              onClick={() => setConfirmModal({ isOpen: true, type: 'cancel', id: m.meeting_id })}
                               className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 hover:border-rose-300 text-[9px] uppercase tracking-widest font-black transition-all cursor-pointer rounded-xl active:scale-98 shrink-0"
                             >
                               Cancel

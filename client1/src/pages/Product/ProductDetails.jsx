@@ -632,35 +632,37 @@ const ProductDetails = () => {
 
                   {/* Actions Grid */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <button 
-                      disabled={activeStock <= 0 && !isInCart(product.product_id, selectedVariant?.variant_value || null)}
-                      onClick={() => {
-                        if (!user) {
-                          navigate('/login');
-                          return;
-                        }
-                        const variantVal = selectedVariant?.variant_value || null;
-                        if (isInCart(product.product_id, variantVal)) {
-                          removeFromCart(product.product_id, variantVal);
-                        } else {
-                          addToCart(product, quantity, variantVal);
-                        }
-                      }}
-                      className={`flex-1 h-14 text-[11px] uppercase tracking-[0.3em] font-extrabold transition-all duration-300 flex items-center justify-center gap-3 rounded-none border ${
-                        activeStock <= 0 && !isInCart(product.product_id, selectedVariant?.variant_value || null)
-                          ? 'bg-orange-50 text-orange-300 border-orange-100 cursor-not-allowed'
-                          : isInCart(product.product_id, selectedVariant?.variant_value || null)
-                            ? 'bg-orange-100 text-orange-900 border-orange-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100'
-                            : 'bg-transparent text-orange-955 border-orange-955 hover:bg-orange-955 hover:text-white'
-                      }`}
-                    >
-                      <ShoppingBag size={14} /> 
-                      {activeStock <= 0 && !isInCart(product.product_id, selectedVariant?.variant_value || null)
-                        ? t("out_of_stock")
-                        : isInCart(product.product_id, selectedVariant?.variant_value || null) 
-                          ? t("remove_from_cart") 
-                          : t("add_to_cart")}
-                    </button>
+                    {!isFleaMarketItem && (
+                      <button 
+                        disabled={activeStock <= 0 && !isInCart(product.product_id, selectedVariant?.variant_value || null)}
+                        onClick={() => {
+                          if (!user) {
+                            navigate('/login');
+                            return;
+                          }
+                          const variantVal = selectedVariant?.variant_value || null;
+                          if (isInCart(product.product_id, variantVal)) {
+                            removeFromCart(product.product_id, variantVal);
+                          } else {
+                            addToCart(product, quantity, variantVal);
+                          }
+                        }}
+                        className={`flex-1 h-14 text-[11px] uppercase tracking-[0.3em] font-extrabold transition-all duration-300 flex items-center justify-center gap-3 rounded-none border ${
+                          activeStock <= 0 && !isInCart(product.product_id, selectedVariant?.variant_value || null)
+                            ? 'bg-orange-50 text-orange-300 border-orange-100 cursor-not-allowed'
+                            : isInCart(product.product_id, selectedVariant?.variant_value || null)
+                              ? 'bg-orange-100 text-orange-900 border-orange-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100'
+                              : 'bg-transparent text-orange-955 border-orange-955 hover:bg-orange-955 hover:text-white'
+                        }`}
+                      >
+                        <ShoppingBag size={14} /> 
+                        {activeStock <= 0 && !isInCart(product.product_id, selectedVariant?.variant_value || null)
+                          ? t("out_of_stock")
+                          : isInCart(product.product_id, selectedVariant?.variant_value || null) 
+                            ? t("remove_from_cart") 
+                            : t("add_to_cart")}
+                      </button>
+                    )}
                     
                     {!isFleaMarketItem && (
                       <>
@@ -805,29 +807,52 @@ const ProductDetails = () => {
                   )}
                   
                   {isFleaMarketItem && (
-                    <button
-                      onClick={() => {
-                        if (!user) {
-                          navigate('/login');
-                          return;
-                        }
-                        const membership = user?.membership || 'free';
-                        if (membership === 'free') {
-                          toast({
-                            title: "Premium Feature Required",
-                            description: "Video scheduling is a premium benefit. Please upgrade your plan to schedule a video conference!",
-                            variant: "destructive"
-                          });
-                          navigate('/membership');
-                          return;
-                        }
-                        setIsScheduleModalOpen(true);
-                      }}
-                      className="w-full mt-3 h-14 text-[11px] uppercase tracking-[0.3em] font-extrabold transition-all duration-300 flex items-center justify-center gap-3 rounded-none border border-emerald-600 text-emerald-700 bg-transparent hover:bg-emerald-600 hover:text-white"
-                    >
-                      <Video size={13} />
-                      <span>Schedule Video Conference</span>
-                    </button>
+                    <>
+                      {activeAcceptedOffer ? (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-emerald-50 border border-emerald-200 p-4 rounded-none flex flex-col sm:flex-row items-center justify-between gap-4 mt-4"
+                        >
+                          <div className="text-left">
+                            <span className="text-[9px] uppercase tracking-widest text-emerald-800 font-extrabold block mb-1 font-sans">Recorded Deal</span>
+                            <p className="text-emerald-955 font-bold text-xs font-sans">
+                              Mediated at {formatPrice(activeAcceptedOffer.offered_price)}/kg for {activeAcceptedOffer.agreed_quantity} kg
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => navigate(`/checkout?offerToken=${activeAcceptedOffer.offer_token}`)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] uppercase tracking-widest font-black py-2.5 px-5 rounded-none shadow-md transition-colors shrink-0 font-sans"
+                          >
+                            Checkout Deal
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (!user) {
+                              navigate('/login');
+                              return;
+                            }
+                            const membership = user?.membership || 'free';
+                            if (membership === 'free') {
+                              toast({
+                                title: "Premium Feature Required",
+                                description: "Video scheduling is a premium benefit. Please upgrade your plan to schedule a video conference!",
+                                variant: "destructive"
+                              });
+                              navigate('/membership');
+                              return;
+                            }
+                            setIsScheduleModalOpen(true);
+                          }}
+                          className="w-full mt-3 h-14 text-[11px] uppercase tracking-[0.3em] font-extrabold transition-all duration-300 flex items-center justify-center gap-3 rounded-none border border-emerald-600 text-emerald-700 bg-transparent hover:bg-emerald-600 hover:text-white"
+                        >
+                          <Video size={13} />
+                          <span>Schedule Video Conference</span>
+                        </button>
+                      )}
+                    </>
                   )}
 
                 {/* Inline Premium Trust Hairline Grid */}

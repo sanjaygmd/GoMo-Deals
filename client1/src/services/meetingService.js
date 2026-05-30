@@ -78,3 +78,44 @@ export const completeSellerMeeting = async (meetingId, data) => {
         return { success: false, error: error?.response?.data?.message || error.message };
     }
 };
+
+/**
+ * End a scheduled video conference manually.
+ * @param {string} meetingId - Meeting UUID
+ */
+export const endMeeting = async (meetingId) => {
+    try {
+        const res = await api.put(`/meetings/${meetingId}/end`);
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+};
+
+/**
+ * Record a meeting outcome as Admin (Creates an accepted offer).
+ * @param {string} meetingId - Meeting UUID
+ * @param {object} data - { final_price, final_quantity }
+ */
+export const recordMeetingOutcome = async (meetingId, data) => {
+    try {
+        const res = await api.post(`/meetings/${meetingId}/admin/record-outcome`, data);
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+};
+
+/**
+ * Reschedule a video conference.
+ * @param {string} meetingId - Meeting UUID
+ * @param {string} newScheduledAt - ISO Date-Time string for new time
+ */
+export const rescheduleMeeting = async (meetingId, newScheduledAt) => {
+    try {
+        const res = await api.put(`/meetings/${meetingId}/reschedule`, { new_scheduled_at: newScheduledAt });
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+};

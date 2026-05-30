@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSellerOffers } from "../../services/offerService";
-import { getSellerMeetings, cancelMeeting as cancelSellerMeeting } from "../../services/meetingService";
+import { getSellerMeetings, cancelMeeting as cancelSellerMeeting, endMeeting, rescheduleMeeting } from "../../services/meetingService";
 import SellerOffers from "./SellerOffers";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useShop } from "../../context/ShopContext.jsx";
+import { useToast } from "../../context/ToastContext.jsx";
 import FleaMarketTermsModal from "../common/FleaMarketTermsModal";
+import ConfirmModal from "../common/ConfirmModal";
 import { 
   Handshake, 
   Search, 
@@ -34,6 +36,8 @@ const SellerFleaMarket = () => {
   const sellerId = user?.seller_id || user?.id;
 
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', id: null });
+  const { toast } = useToast();
   const [offers, setOffers] = useState([]);
 
   useEffect(() => {
@@ -52,6 +56,35 @@ const SellerFleaMarket = () => {
   const [meetings, setMeetings] = useState([]);
   const [fetchingMeetings, setFetchingMeetings] = useState(false);
   const [meetingsError, setMeetingsError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const [rescheduleMeetingId, setRescheduleMeetingId] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [isRescheduling, setIsRescheduling] = useState(false);
+
+  const handleRescheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!rescheduleDate || !rescheduleTime) return;
+    setIsRescheduling(true);
+    try {
+      const newDateTime = new Date(`${rescheduleDate}T${rescheduleTime}:00`);
+      const res = await rescheduleMeeting(rescheduleMeetingId, newDateTime.toISOString());
+      if (res.success) {
+        setSuccessMessage("Conference rescheduled successfully.");
+        setRescheduleMeetingId(null);
+        setRescheduleDate("");
+        setRescheduleTime("");
+        fetchFleaMarketData();
+      } else {
+        setResolveError(res.error || res.message || "Failed to reschedule.");
+      }
+    } catch (err) {
+      setResolveError(err.message || "An error occurred while rescheduling.");
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
 
   const fetchFleaMarketData = async () => {
     if (!sellerId) return;
@@ -64,7 +97,8 @@ const SellerFleaMarket = () => {
       ]);
       
       if (meetingsRes.success) {
-        setMeetings(meetingsRes.meetings);
+        const sortedMeetings = (meetingsRes.meetings || []).sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
+        setMeetings(sortedMeetings);
       } else {
         setMeetingsError(meetingsRes.error || "Failed to load scheduled B2B conferences.");
       }
@@ -81,8 +115,7 @@ const SellerFleaMarket = () => {
     }
   };
 
-  const handleCancelSellerMeeting = async (meetingId) => {
-    if (!window.confirm("Are you sure you want to cancel this scheduled B2B video conference?")) return;
+  const executeCancelMeeting = async (meetingId) => {
     try {
       const res = await cancelSellerMeeting(meetingId);
       if (res.success) {
@@ -95,6 +128,27 @@ const SellerFleaMarket = () => {
       console.error(err);
       setResolveError("An error occurred while cancelling the B2B call.");
     }
+  };
+
+  const executeEndMeeting = async (meetingId) => {
+    try {
+      const res = await endMeeting(meetingId);
+      if (res.success) {
+        setSuccessMessage("B2B conference has been successfully ended.");
+        fetchFleaMarketData();
+      } else {
+        setResolveError(res.error || "Failed to end B2B conference.");
+      }
+    } catch (err) {
+      console.error(err);
+      setResolveError("An error occurred while ending the B2B call.");
+    }
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmModal.type === 'cancel') executeCancelMeeting(confirmModal.id);
+    if (confirmModal.type === 'end') executeEndMeeting(confirmModal.id);
+    setConfirmModal({ ...confirmModal, isOpen: false });
   };
 
   useEffect(() => {
@@ -187,6 +241,19 @@ const SellerFleaMarket = () => {
           />
         )}
       </AnimatePresence>
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.type === 'cancel' ? 'Cancel Conference' : 'End Conference'}
+        message={
+          confirmModal.type === 'cancel' 
+            ? 'Are you sure you want to cancel this scheduled B2B video conference?' 
+            : 'Are you sure you want to end this B2B video conference?'
+        }
+        isDestructive={true}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={handleConfirmAction}
+      />
 
       {/* Success Banner */}
       <AnimatePresence>
@@ -343,30 +410,70 @@ const SellerFleaMarket = () => {
       )}
 
       {activeSection === "Conferences" && (
-      <div className="bg-white border border-orange-100 shadow-sm overflow-hidden animate-fadeIn">
-        {fetchingMeetings ? (
-          <div className="py-24 text-center">
-            <div className="w-8 h-8 border-2 border-orange-200 border-t-orange-955 rounded-full animate-spin mx-auto"></div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-orange-500 font-bold mt-4">Loading scheduled calendar...</p>
+        <div className="space-y-6 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 border border-orange-100 shadow-sm">
+            <div>
+              <h2 className="text-xl font-bold text-orange-950 tracking-tight">Scheduled Conferences</h2>
+              <p className="text-[10px] uppercase tracking-widest text-orange-500 font-bold mt-1">Manage your B2B video calls</p>
+            </div>
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Search by product or customer..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full sm:w-64 pl-10 pr-4 py-2 border border-orange-200 text-xs text-orange-955 focus:outline-none focus:border-orange-500 placeholder-orange-300"
+              />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </div>
+            </div>
           </div>
-        ) : meetings.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-orange-100 bg-orange-50/50">
-                  <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Product</th>
-                  <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Customer Details</th>
-                  <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500 text-center">Requested Qty</th>
-                  <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Meeting Date & Time</th>
-                  <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500 text-center">Status</th>
-                  <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Purpose</th>
-                  <th className="px-8 py-5 text-right text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-orange-100">
-                {meetings.map((m) => (
-                  <tr key={m.meeting_id} className={`transition-colors ${m.status !== 'Scheduled' ? 'opacity-60 bg-stone-50/20' : 'hover:bg-orange-50/30'}`}>
-                    <td className="px-8 py-6">
+          
+          <div className="bg-white border border-orange-100 shadow-sm overflow-hidden">
+            {fetchingMeetings ? (
+              <div className="py-24 text-center">
+                <div className="w-8 h-8 border-2 border-orange-200 border-t-orange-955 rounded-full animate-spin mx-auto"></div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-orange-500 font-bold mt-4">Loading scheduled calendar...</p>
+              </div>
+            ) : meetings.length === 0 ? (
+              <div className="p-16 bg-white border border-orange-100 text-center space-y-4 shadow-sm flex flex-col items-center">
+                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center border border-orange-100/60 mb-2">
+                  <Video size={28} className="text-orange-400 opacity-60" />
+                </div>
+                <p className="text-[11px] text-orange-955 font-bold uppercase tracking-widest">No Scheduled Conferences</p>
+                <p className="text-[10px] text-orange-500 uppercase tracking-widest max-w-sm">When customers schedule B2B calls for your bulk listings, they will appear here.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-orange-100 bg-orange-50/50">
+                      <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Product</th>
+                      <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Customer Details</th>
+                      <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500 text-center">Requested Qty</th>
+                      <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Meeting Date & Time</th>
+                      <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500 text-center">Status</th>
+                      <th className="px-8 py-5 text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Purpose</th>
+                      <th className="px-8 py-5 text-right text-[9px] uppercase tracking-[0.3em] font-black text-orange-500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-orange-100">
+                    {meetings.filter(m => 
+                      m.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                      m.customer_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    ).length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="px-8 py-12 text-center">
+                          <p className="text-[11px] text-orange-500 font-bold uppercase tracking-widest">No conferences match your search</p>
+                        </td>
+                      </tr>
+                    ) : meetings.filter(m => 
+                      m.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                      m.customer_name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    ).map((m) => (
+                      <tr key={m.meeting_id} className={`transition-colors ${m.status !== 'Scheduled' ? 'opacity-60 bg-stone-50/20' : 'hover:bg-orange-50/30'}`}>
+                        <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-orange-50 border border-orange-100/70 overflow-hidden shrink-0">
                           <img 
@@ -402,15 +509,32 @@ const SellerFleaMarket = () => {
                           hour: '2-digit', minute: '2-digit' 
                         })}
                       </div>
+                      {m.status === 'Scheduled' && (
+                        <div className="mt-2 text-center">
+                          <LiveCountdown scheduledAt={m.scheduled_at} />
+                        </div>
+                      )}
                     </td>
                     <td className="px-8 py-6 text-center">
-                      <span className={`px-2.5 py-1 text-[9px] uppercase tracking-widest font-black rounded ${
-                        m.status === 'Scheduled' ? 'bg-amber-100 text-amber-700' :
-                        m.status === 'Expired' ? 'bg-stone-200 text-stone-600' :
-                        'bg-rose-100 text-rose-700'
-                      }`}>
-                        {m.status}
-                      </span>
+                      <div className="flex flex-col items-center gap-2">
+                        <span className={`px-2.5 py-1 text-[9px] uppercase tracking-widest font-black rounded ${
+                          m.status === 'Scheduled' ? 'bg-amber-100 text-amber-700' :
+                          m.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                          m.status === 'Expired' ? 'bg-stone-200 text-stone-600' :
+                          'bg-rose-100 text-rose-700'
+                        }`}>
+                          {m.status}
+                        </span>
+                        {m.meeting_notes && (
+                          <span className={`text-[8.5px] uppercase tracking-widest px-2 py-1 border font-bold rounded mt-1 block ${
+                            m.meeting_notes.includes('CANCELLED') 
+                              ? 'text-rose-700 bg-rose-50 border-rose-200' 
+                              : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                          }`}>
+                            {m.meeting_notes}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-8 py-6">
                       <p className="text-[10px] text-orange-800 leading-relaxed line-clamp-2 max-w-[200px]">
@@ -423,7 +547,7 @@ const SellerFleaMarket = () => {
                           const now = new Date();
                           const meetingTime = new Date(m.scheduled_at);
                           const diffMinutes = (now - meetingTime) / (1000 * 60);
-                          const canJoin = diffMinutes >= -5 && diffMinutes <= 40;
+                          const canJoin = diffMinutes >= 0 && diffMinutes <= 40;
                           return (
                             <>
                               <a 
@@ -438,15 +562,30 @@ const SellerFleaMarket = () => {
                                 onClick={(e) => {
                                   if (!canJoin) {
                                     e.preventDefault();
-                                    alert('You can only join the video conference 5 minutes before or up to 40 minutes after the scheduled time.');
+                                    toast({ title: 'Access Restricted', description: 'You can only join the video conference during the assigned time (up to 40 minutes after scheduled time).', variant: 'destructive' });
                                   }
                                 }}
                               >
                                 <Video size={13} /> {canJoin ? 'Join Call' : 'Wait'}
                               </a>
                               <button 
-                                onClick={() => handleCancelSellerMeeting(m.meeting_id)}
+                                onClick={() => setConfirmModal({ isOpen: true, type: 'end', id: m.meeting_id })}
+                                className="px-4 py-2.5 bg-orange-100 text-orange-800 hover:bg-orange-200 text-[10px] uppercase tracking-wider font-bold rounded-lg transition-all"
+                                title="End Meeting"
+                              >
+                                End
+                              </button>
+                              <button 
+                                onClick={() => setRescheduleMeetingId(m.meeting_id)}
+                                className="px-4 py-2.5 bg-stone-100 text-stone-800 hover:bg-stone-200 text-[10px] uppercase tracking-wider font-bold rounded-lg transition-all"
+                                title="Reschedule"
+                              >
+                                Reschedule
+                              </button>
+                              <button 
+                                onClick={() => setConfirmModal({ isOpen: true, type: 'cancel', id: m.meeting_id })}
                                 className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                                title="Cancel Meeting"
                               >
                                 <X size={14} />
                               </button>
@@ -462,19 +601,103 @@ const SellerFleaMarket = () => {
               </tbody>
             </table>
           </div>
-        ) : (
-          <div className="py-24 text-center">
-            <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-orange-100/50">
-              <Calendar size={24} className="text-orange-400" />
-            </div>
-            <p className="text-[12px] font-black text-orange-950 uppercase tracking-widest mb-1">No conferences</p>
-            <p className="text-[10px] text-orange-500 font-medium">You don't have any scheduled B2B video calls.</p>
-          </div>
         )}
       </div>
+      </div>
+      )}
+      
+      {/* Reschedule Modal */}
+      {rescheduleMeetingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-orange-955/40 backdrop-blur-sm">
+          <div className="bg-orange-50 w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-orange-200 flex flex-col">
+            <div className="px-6 py-5 border-b border-orange-200 flex items-center justify-between bg-white">
+              <h3 className="text-sm font-black uppercase tracking-widest text-orange-955 flex items-center gap-2">
+                <Calendar size={16} className="text-orange-500" /> Reschedule
+              </h3>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    setRescheduleMeetingId(null);
+                    setRescheduleDate("");
+                    setRescheduleTime("");
+                  }}
+                  className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <form onSubmit={handleRescheduleSubmit} className="p-6 space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-orange-900">New Date <span className="text-rose-500">*</span></label>
+                <input 
+                  type="date" 
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-orange-200 rounded-xl text-sm font-black text-orange-955 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-orange-900">New Time <span className="text-rose-500">*</span></label>
+                <input 
+                  type="time" 
+                  required
+                  value={rescheduleTime}
+                  onChange={(e) => setRescheduleTime(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-orange-200 rounded-xl text-sm font-black text-orange-955 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  disabled={isRescheduling}
+                  className="w-full py-3.5 bg-orange-955 hover:bg-orange-850 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-md active:scale-98 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isRescheduling ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <><CheckCircle2 size={14} /> Confirm Time</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
+};
+
+// Inline component for Live Countdown
+const LiveCountdown = ({ scheduledAt }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+  
+  useEffect(() => {
+    const calcTime = () => {
+      const now = new Date();
+      const meetTime = new Date(scheduledAt);
+      const diffMs = meetTime - now;
+      if (diffMs <= 0 && diffMs > -40 * 60 * 1000) return 'IN PROGRESS';
+      if (diffMs <= -40 * 60 * 1000) return 'LOCKED';
+      
+      const h = Math.floor((diffMs / 1000) / 3600);
+      const m = Math.floor(((diffMs / 1000) % 3600) / 60);
+      const s = Math.floor((diffMs / 1000) % 60);
+      
+      if (h > 24) return `IN ${Math.floor(h/24)} DAYS`;
+      if (h > 0) return `IN ${h}h ${m}m`;
+      return `IN ${m}m ${s}s`;
+    };
+    setTimeLeft(calcTime());
+    const interval = setInterval(() => setTimeLeft(calcTime()), 1000);
+    return () => clearInterval(interval);
+  }, [scheduledAt]);
+
+  return <span className={`font-black tracking-widest text-[9px] ${timeLeft === 'IN PROGRESS' ? 'text-green-600 animate-pulse' : 'text-orange-500'}`}>{timeLeft}</span>;
 };
 
 export default SellerFleaMarket;

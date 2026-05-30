@@ -67,6 +67,7 @@ const Wishlist = React.lazy(() => import('./pages/Wishlist/Wishlist'));
 const MembershipPage = React.lazy(() => import('./pages/Membership/MembershipPage'));
 const FleaMarketPage = React.lazy(() => import('./pages/FleaMarket/FleaMarketPage'));
 const FleaMarketTerms = React.lazy(() => import('./pages/FleaMarket/FleaMarketTerms'));
+const CustomerConferenceRoom = React.lazy(() => import('./pages/FleaMarket/CustomerConferenceRoom'));
 
 import { useAuth } from './context/AuthContext';
 
@@ -131,6 +132,7 @@ function App() {
             <Route path="/seller" element={<Navigate to="/seller-dashboard" replace />} />
             <Route path="/admin-login" element={<AdminAuthPage />} />
             <Route path="/admin-register" element={<AdminSignupPage />} />
+            <Route path="/flea-market/conference/:id" element={<CustomerConferenceRoom />} />
 
             {/* Customer Routes */}
             <Route element={<CustomerLayout />}>

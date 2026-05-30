@@ -4,6 +4,7 @@ import {
     getCustomerOffers, 
     getSellerOffers, 
     respondToOffer, 
+    cancelCustomerOffer,
     validateOfferToken 
 } from '../controllers/OfferController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
@@ -15,6 +16,9 @@ offerRoutes.post('/', requireAuth(['customer', 'admin', 'super_admin']), createO
 
 // Get active and past bargains for a customer (Customer only)
 offerRoutes.get('/customer', requireAuth(['customer', 'admin', 'super_admin']), getCustomerOffers);
+
+// Customer cancels an accepted offer (recorded deal)
+offerRoutes.put('/:id/cancel', requireAuth(['customer', 'admin', 'super_admin']), cancelCustomerOffer);
 
 // Get received bargains for a seller (Seller only)
 offerRoutes.get('/seller', requireAuth(['seller', 'admin', 'super_admin']), getSellerOffers);

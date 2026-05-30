@@ -79,7 +79,7 @@ const CheckoutPage = () => {
         originalPrice: bargainOffer.originalPrice,
         thumbnail: bargainOffer.productThumbnail,
         image: bargainOffer.productThumbnail,
-        quantity: 1,
+        quantity: bargainOffer.agreedQuantity ? parseInt(bargainOffer.agreedQuantity) : 1,
         seller_id: bargainOffer.sellerId
       }]
     : (buyNowProduct ? [buyNowProduct] : (checkoutItems || cart));
@@ -172,7 +172,7 @@ const CheckoutPage = () => {
   const codFee = paymentMethod === 'cod' ? 50 : 0;
   const gst = Math.round(subtotal * 0.05);
   
-  const eligibleSubtotal = React.useMemo(() => {
+  const eligibleSubtotal = (() => {
     if (!appliedCoupon || !appliedCoupon.category || appliedCoupon.category === 'all') return subtotal;
 
     const getCategoryMapping = (couponCategory) => {
@@ -219,7 +219,7 @@ const CheckoutPage = () => {
       }
       return acc;
     }, 0);
-  }, [items, appliedCoupon, subtotal]);
+  })();
 
   const couponDiscountAmount = appliedCoupon 
     ? (appliedCoupon.type === 'flat' || appliedCoupon.type === 'fixed' || parseFloat(appliedCoupon.discount_amount || 0) > 0)

@@ -4,13 +4,16 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Video, Calendar, Clock, Globe, Package, Shield,
-  ChevronDown, ChevronRight, X, Check, Star, Crown,
+  ChevronDown, ChevronRight, X, Check, CheckCircle, Star, Crown,
   AlertTriangle, Loader2, Filter, Search, ArrowRight,
-  Scale, Truck, Award, Info, Lock
+  Scale, Truck, Award, Info, Lock, StopCircle
 } from 'lucide-react';
 import FleaMarketTermsModal from '../../components/common/FleaMarketTermsModal';
 import ScheduleModal from '../../components/common/ScheduleModal';
-import { getCustomerMeetings, cancelMeeting } from '../../services/meetingService';
+import ConfirmModal from '../../components/common/ConfirmModal';
+import { getCustomerMeetings, cancelMeeting, endMeeting } from '../../services/meetingService';
+import { getCustomerOffers, cancelCustomerOffer } from '../../services/offerService';
+import { useToast } from '../../context/ToastContext';
 import { ProductContext } from '../../context/ProductContext/ProductContext';
 import { FLEA_MARKET_PRODUCTS as MOCK_LISTINGS } from '../../data/fleaMarketProducts';
 
@@ -72,7 +75,7 @@ const MembershipGateModal = ({ onClose }) => {
 };
 
 // ─── Listing Card ─────────────────────────────────────────────────────────────
-const ListingCard = ({ listing, isMember, onSchedule, onGate }) => {
+const ListingCard = ({ listing, isMember, onSchedule, onGate, onCheckout }) => {
   const navigate = useNavigate();
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
@@ -159,9 +162,18 @@ const ListingCard = ({ listing, isMember, onSchedule, onGate }) => {
             </div>
           </div>
           
-          <button className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all duration-300 shadow-sm hover:shadow-orange-600/30">
-             <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-          </button>
+          {onCheckout ? (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onCheckout(); }}
+              className="px-4 h-10 rounded-xl bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest shadow-md hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 z-20"
+            >
+               Checkout Deal
+            </button>
+          ) : (
+            <button className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all duration-300 shadow-sm hover:shadow-orange-600/30">
+               <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
         </div>
       </div>
     </motion.div>
@@ -169,10 +181,11 @@ const ListingCard = ({ listing, isMember, onSchedule, onGate }) => {
 };
 
 // ─── Main FleaMarketPage ──────────────────────────────────────────────────────
-const FleaMarketPage = () => {
+export default function FleaMarketPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const { products: realProducts, fetchProducts } = React.useContext(ProductContext) || { products: [] };
 
   const params = new URLSearchParams(location.search);
@@ -186,6 +199,20 @@ const FleaMarketPage = () => {
   
   const [meetings, setMeetings] = useState([]);
   const [fetchingMeetings, setFetchingMeetings] = useState(false);
+  const [offers, setOffers] = useState([]);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', id: null });
+
+  const fetchUserOffers = async () => {
+    if (!user) return;
+    try {
+      const res = await getCustomerOffers();
+      if (res.success) {
+        setOffers(res.offers || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchUserMeetings = async () => {
     if (!user) return;
@@ -202,23 +229,62 @@ const FleaMarketPage = () => {
     }
   };
 
-  const handleCancelMeeting = async (meetingId) => {
-    if (!window.confirm("Are you sure you want to cancel this scheduled video conference?")) return;
+  const executeCancelMeeting = async (meetingId) => {
     try {
       const res = await cancelMeeting(meetingId);
       if (res.success) {
         fetchUserMeetings();
+        toast({ title: 'Success', description: 'Conference booking cancelled.' });
       } else {
-        alert(res.error || "Failed to cancel conference booking.");
+        toast({ title: 'Error', description: res.error || "Failed to cancel conference booking.", variant: 'destructive' });
       }
     } catch (err) {
       console.error(err);
-      alert("Error cancelling conference.");
+      toast({ title: 'Error', description: "Error cancelling conference.", variant: 'destructive' });
     }
+  };
+
+  const executeEndMeeting = async (meetingId) => {
+    try {
+      const res = await endMeeting(meetingId);
+      if (res.success) {
+        fetchUserMeetings();
+        toast({ title: 'Success', description: 'Conference ended.' });
+      } else {
+        toast({ title: 'Error', description: res.error || "Failed to end conference.", variant: 'destructive' });
+      }
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: "Error ending conference.", variant: 'destructive' });
+    }
+  };
+
+  const executeRejectDeal = async (offerId) => {
+    try {
+      const res = await cancelCustomerOffer(offerId);
+      if (res.success) {
+        toast({ title: 'Success', description: 'Deal rejected successfully.' });
+        fetchUserOffers();
+        fetchUserMeetings(); // To refresh the meeting notes if needed
+      } else {
+        toast({ title: 'Error', description: res.error || "Failed to reject deal.", variant: 'destructive' });
+      }
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: "Error rejecting deal.", variant: 'destructive' });
+    }
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmModal.type === 'cancel') executeCancelMeeting(confirmModal.id);
+    if (confirmModal.type === 'end') executeEndMeeting(confirmModal.id);
+    if (confirmModal.type === 'reject') executeRejectDeal(confirmModal.id);
+    setConfirmModal({ ...confirmModal, isOpen: false });
   };
 
   useEffect(() => {
     fetchUserMeetings();
+    fetchUserOffers();
   }, [user]);
 
   useEffect(() => {
@@ -391,28 +457,58 @@ const FleaMarketPage = () => {
         </div>
       </div>
 
-      {/* ── Upcoming B2B Conferences ── */}
+      {/* ── Upcoming B2B Conferences (Modern & Professional) ── */}
       {user && meetings.filter(m => m.status === 'Scheduled').length > 0 && (
         <section className="w-full max-w-[1920px] px-4 md:px-10 mx-auto pt-8">
-          <div className="bg-amber-955 text-white rounded-[24px] p-6 lg:p-8 border border-amber-800 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-500/30">
-                <Video className="text-amber-400" size={20} />
-              </div>
-              <div>
-                <h3 className="text-lg font-serif tracking-tight text-white">Your Scheduled <span className="italic font-light text-amber-300">Video Conferences</span></h3>
-                <p className="text-[10px] text-amber-400 uppercase tracking-widest font-bold mt-0.5">Flea Market B2B Negotiations</p>
-              </div>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Video size={20} className="text-amber-500" />
+                Scheduled Conferences
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">Manage your upcoming B2B negotiations.</p>
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {meetings.filter(m => m.status === 'Scheduled').map(m => (
-                <div key={m.meeting_id} className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col justify-between hover:bg-white/10 transition-all duration-300 relative group">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-lg overflow-hidden shrink-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {meetings.filter(m => m.status === 'Scheduled').map(m => {
+              const now = new Date();
+              const meetingTime = new Date(m.scheduled_at);
+              const diffMinutes = (now - meetingTime) / (1000 * 60);
+              const canJoin = diffMinutes >= 0 && diffMinutes <= 40;
+              
+              return (
+                <div 
+                  key={m.meeting_id} 
+                  className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    {/* Header: Date and Status */}
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                      <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
+                        <Calendar size={14} className={canJoin ? "text-amber-500" : "text-gray-400"} />
+                        <span>
+                          {new Date(m.scheduled_at).toLocaleString("en-IN", { 
+                            weekday: 'short', month: 'short', day: 'numeric', 
+                            hour: '2-digit', minute: '2-digit' 
+                          })}
+                        </span>
+                      </div>
+                      {canJoin ? (
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded-md">
+                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                          Live Now
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wider rounded-md">
+                          Upcoming
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Product & Seller Info */}
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-gray-50">
                         <img 
                           src={m.product_thumbnail || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000"} 
                           alt="" 
@@ -421,59 +517,135 @@ const FleaMarketPage = () => {
                         />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-black text-amber-100 uppercase tracking-wider truncate">{m.product_name}</p>
-                        <p className="text-[9px] text-amber-400 uppercase tracking-widest mt-0.5 font-bold">Seller: {m.seller_store_name || m.seller_name}</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{m.product_name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                          <Crown size={12} className="text-amber-500" /> {m.seller_store_name || m.seller_name}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-[11px] text-gray-300 bg-white/5 p-2 rounded-lg border border-white/5">
-                      <Calendar size={12} className="text-amber-400" />
-                      <span className="font-semibold">
-                        {new Date(m.scheduled_at).toLocaleString("en-IN", { 
-                          weekday: 'short', month: 'short', day: 'numeric', 
-                          hour: '2-digit', minute: '2-digit' 
-                        })}
-                      </span>
-                    </div>
-
+                    {/* Purpose */}
                     {m.purpose && (
-                      <p className="text-[10.5px] text-gray-400 italic line-clamp-2">" {m.purpose} "</p>
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          <span className="font-semibold text-gray-700 mr-1">Purpose:</span>
+                          {m.purpose}
+                        </p>
+                      </div>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-5 border-t border-white/5 pt-4">
-                    {(() => {
-                      const now = new Date();
-                      const meetingTime = new Date(m.scheduled_at);
-                      const diffMinutes = (now - meetingTime) / (1000 * 60);
-                      const canJoin = diffMinutes >= -5 && diffMinutes <= 40;
-                      return (
-                        <a href={canJoin ? m.meeting_link : '#'} 
-                          target={canJoin ? "_blank" : undefined} 
-                          rel="noopener noreferrer"
-                          onClick={(e) => {
-                            if (!canJoin) {
-                              e.preventDefault();
-                              alert('You can only join the video conference 5 minutes before or up to 40 minutes after the scheduled time.');
-                            }
-                          }}
-                          className={`flex-1 py-2.5 rounded-xl text-white font-bold text-[11px] uppercase tracking-wider transition-colors text-center flex items-center justify-center gap-2 ${
-                            canJoin 
-                              ? 'bg-amber-500 hover:bg-amber-600' 
-                              : 'bg-white/10 text-white/40 cursor-not-allowed'
-                          }`}>
-                          <Video size={13} /> {canJoin ? 'Join Call' : 'Wait'}
-                        </a>
-                      );
-                    })()}
-                    <button onClick={() => handleCancelMeeting(m.meeting_id)}
-                      className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-rose-950/40 border border-white/10 hover:border-rose-900/40 text-gray-400 hover:text-rose-400 text-[10px] uppercase tracking-wider font-bold transition-all">
-                      Cancel
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-5 pt-4 border-t border-gray-100">
+                    <button 
+                      onClick={(e) => {
+                        if (!canJoin) {
+                          e.preventDefault();
+                          toast({ title: 'Access Restricted', description: 'You can only join the video conference during the assigned time (up to 40 minutes after scheduled time).', variant: 'destructive' });
+                        } else {
+                          navigate(`/flea-market/conference/${m.meeting_id}`);
+                        }
+                      }}
+                      className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                        canJoin 
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' 
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <Video size={16} /> {canJoin ? 'Join Conference' : 'Wait for Host'}
+                    </button>
+                    
+                    <button onClick={() => setConfirmModal({ isOpen: true, type: 'end', id: m.meeting_id })}
+                      className="p-2.5 rounded-lg border border-gray-200 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors"
+                      title="End Meeting">
+                      <StopCircle size={18} />
+                    </button>
+                    <button onClick={() => setConfirmModal({ isOpen: true, type: 'cancel', id: m.meeting_id })}
+                      className="p-2.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                      title="Cancel Meeting">
+                      <X size={18} />
                     </button>
                   </div>
                 </div>
-              ))}
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── Deals Ready for Checkout ── */}
+      {user && offers.filter(o => o.status === 'Accepted').length > 0 && (
+        <section className="w-full max-w-[1920px] px-4 md:px-10 mx-auto pt-8">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <CheckCircle size={20} className="text-emerald-500" />
+                Completed Deals (Ready to Checkout)
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">Review your finalized B2B deals from video conferences.</p>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {offers.filter(o => o.status === 'Accepted').map(offer => (
+              <div 
+                key={offer.offer_id} 
+                className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-[100%] z-0"></div>
+                
+                <div className="space-y-4 relative z-10">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider rounded-md">
+                      <CheckCircle size={12} />
+                      Deal Recorded
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400">
+                      {new Date(offer.updated_at || offer.created_at || Date.now()).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-gray-50">
+                      <img 
+                        src={offer.product_thumbnail || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000"} 
+                        alt="" 
+                        className="w-full h-full object-cover" 
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{offer.product_name}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-1">
+                        {offer.agreed_quantity || 0} kg @ ₹{parseFloat(offer.offered_price || 0).toFixed(2)}/kg
+                      </p>
+                    </div>
+                  </div>
+
+                  {offer.contract_terms && (
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 mt-2">
+                      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Contract Terms:</p>
+                      <p className="text-xs text-gray-700 line-clamp-2">{offer.contract_terms}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 mt-5 pt-4 border-t border-gray-100 relative z-10">
+                  <button 
+                    onClick={() => navigate(`/checkout?offerToken=${offer.offer_token}`)}
+                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors flex items-center justify-center gap-2"
+                  >
+                    Proceed to Checkout <ArrowRight size={16} />
+                  </button>
+                  <button 
+                    onClick={() => setConfirmModal({ isOpen: true, type: 'reject', id: offer.offer_id })}
+                    className="p-2.5 rounded-lg border border-gray-200 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors"
+                    title="Reject & Cancel Deal"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}
@@ -496,14 +668,19 @@ const FleaMarketPage = () => {
         {filteredListings.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredListings.map((listing, idx) => (
-              <motion.div key={listing.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.06 }}>
-                <ListingCard
-                  listing={listing}
-                  isMember={isMember}
-                  onSchedule={setScheduleModal}
-                  onGate={() => setMembershipGate(true)}
-                />
+              <motion.div key={listing.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                {(() => {
+                  const acceptedOffer = offers.find(o => o.product_id === listing.id && o.status === 'Accepted');
+                  return (
+                    <ListingCard
+                      listing={listing}
+                      isMember={isMember}
+                      onSchedule={setScheduleModal}
+                      onGate={() => setMembershipGate(true)}
+                      onCheckout={acceptedOffer ? () => navigate(`/checkout?offerToken=${acceptedOffer.offer_token}`) : null}
+                    />
+                  );
+                })()}
               </motion.div>
             ))}
           </div>
@@ -559,8 +736,21 @@ const FleaMarketPage = () => {
           />
         )}
       </AnimatePresence>
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        title={
+          confirmModal.type === 'cancel' ? 'Cancel Conference' : 
+          confirmModal.type === 'end' ? 'End Conference' : 'Reject Deal'
+        }
+        message={
+          confirmModal.type === 'cancel' ? 'Are you sure you want to cancel this scheduled video conference?' : 
+          confirmModal.type === 'end' ? 'Are you sure you want to end this video conference?' : 'Are you sure you want to reject this deal? The reserved stock will be released and the deal will be cancelled.'
+        }
+        isDestructive={true}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={handleConfirmAction}
+      />
     </div>
   );
 };
 
-export default FleaMarketPage;

@@ -372,3 +372,224 @@ export const completeMeeting = async (req, res, next) => {
         return res.status(500).json({ success: false, message: "Failed to complete conference booking." });
     }
 };
+
+/**
+ * End a scheduled meeting manually for any participant
+ * PUT /api/meetings/:id/end
+ */
+export const endMeeting = async (req, res, next) => {
+    try {
+        const meetingId = req.params.id;
+        const userId = req.user.id;
+        const userRole = req.user.role || req.user.type;
+
+        // Fetch meeting details to authorize cancellation
+        const meetingRes = await pool.query(
+            "SELECT customer_id, seller_id, status FROM flea_market_meetings WHERE meeting_id = $1",
+            [meetingId]
+        );
+
+        if (meetingRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Conference booking not found." });
+        }
+
+        const meeting = meetingRes.rows[0];
+
+        // Authorization check: Only participant customer, participant seller or admin can end
+        if (meeting.customer_id !== userId && meeting.seller_id !== userId && userRole !== 'admin' && userRole !== 'super_admin') {
+            return res.status(403).json({ success: false, message: "You are not authorized to end this conference." });
+        }
+
+        if (meeting.status === 'Completed' || meeting.status === 'Cancelled' || meeting.status === 'Closed') {
+            return res.status(400).json({ success: false, message: `This video conference is already ${meeting.status.toLowerCase()}.` });
+        }
+
+        // End meeting
+        await pool.query(
+            "UPDATE flea_market_meetings SET status = 'Completed' WHERE meeting_id = $1",
+            [meetingId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Conference ended successfully."
+        });
+    } catch (error) {
+        console.error("Error ending conference:", error);
+        return res.status(500).json({ success: false, message: "Failed to end conference." });
+    }
+};
+
+export const recordMeetingOutcome = async (req, res, next) => {
+    const client = await pool.connect();
+    try {
+        const meetingId = req.params.id;
+        const { final_price, final_quantity, contract_terms } = req.body;
+
+        if (!final_price || !final_quantity) {
+            return res.status(400).json({ success: false, message: "Final price and quantity are required." });
+        }
+
+        await client.query('BEGIN');
+
+        // Fetch meeting details
+        const meetingRes = await client.query(
+            "SELECT product_id, customer_id, seller_id, status FROM flea_market_meetings WHERE meeting_id = $1 FOR UPDATE",
+            [meetingId]
+        );
+
+        if (meetingRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: "Conference booking not found." });
+        }
+
+        const meeting = meetingRes.rows[0];
+
+        if (meeting.status === 'Cancelled' || meeting.status === 'Closed') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: `Cannot record outcome for a ${meeting.status.toLowerCase()} conference.` });
+        }
+
+        // Update meeting status to Completed with notes
+        await client.query(
+            "UPDATE flea_market_meetings SET status = 'Completed', meeting_notes = $1 WHERE meeting_id = $2",
+            [`Admin Mediated Deal: ₹${final_price}/kg for ${final_quantity} kg`, meetingId]
+        );
+
+        // Generate Offer Token
+        const crypto = await import('crypto');
+        const offer_token = crypto.randomBytes(16).toString('hex');
+        
+        // Expiry in 48 hours
+        const expires_at = new Date();
+        expires_at.setHours(expires_at.getHours() + 48);
+
+        // Check stock availability before reserving
+        const stockRes = await client.query(
+            "SELECT stock_quantity FROM products WHERE product_id = $1",
+            [meeting.product_id]
+        );
+        if (stockRes.rows.length === 0 || stockRes.rows[0].stock_quantity < final_quantity) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: `Insufficient stock to reserve ${final_quantity} kg.` });
+        }
+
+        // Deduct stock temporarily (reserved)
+        await client.query(
+            "UPDATE products SET stock_quantity = stock_quantity - $1 WHERE product_id = $2",
+            [final_quantity, meeting.product_id]
+        );
+
+        // Insert into product_offers with terms and reservation flag
+        await client.query(
+            `INSERT INTO product_offers (
+                product_id, customer_id, offered_price, agreed_quantity, contract_terms, is_stock_reserved, status, offer_token, expires_at
+            ) VALUES ($1, $2, $3, $4, $5, true, 'Accepted', $6, $7)`,
+            [meeting.product_id, meeting.customer_id, final_price, final_quantity, contract_terms || '', offer_token, expires_at]
+        );
+
+        // Also add a notification for the customer
+        await client.query(
+            `INSERT INTO notifications (notification_id, customer_id, type, message, is_read, created_at)
+             VALUES (gen_random_uuid(), $1, 'bargain_accepted', $2, false, NOW())`,
+            [meeting.customer_id, `Flea Market Deal Finalized! Checkout your negotiated bulk commodity at ₹${final_price}/kg for ${final_quantity}kg.`]
+        );
+
+        await client.query('COMMIT');
+
+        return res.status(200).json({
+            success: true,
+            message: "Conference outcome recorded and offer sent to customer successfully."
+        });
+    } catch (error) {
+        if (client) await client.query('ROLLBACK');
+        console.error("Error recording conference outcome:", error);
+        return res.status(500).json({ success: false, message: "Failed to record conference outcome." });
+    } finally {
+        if (client) client.release();
+    }
+};
+
+/**
+ * Reschedule a scheduled meeting
+ * PUT /api/meetings/:id/reschedule
+ */
+export const rescheduleMeeting = async (req, res, next) => {
+    try {
+        const meetingId = req.params.id;
+        const { new_scheduled_at } = req.body;
+        const userId = req.user.id;
+        const userRole = req.user.role || req.user.type;
+
+        if (!new_scheduled_at) {
+            return res.status(400).json({ success: false, message: "New scheduled time is required." });
+        }
+
+        const scheduledTime = new Date(new_scheduled_at);
+        if (isNaN(scheduledTime.getTime()) || scheduledTime <= new Date()) {
+            return res.status(400).json({ success: false, message: "Please provide a valid future date and time." });
+        }
+
+        // Fetch meeting details
+        const meetingRes = await pool.query(
+            "SELECT customer_id, seller_id, status FROM flea_market_meetings WHERE meeting_id = $1",
+            [meetingId]
+        );
+
+        if (meetingRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Conference booking not found." });
+        }
+
+        const meeting = meetingRes.rows[0];
+
+        // Authorization check: Only participant customer, participant seller or admin can reschedule
+        if (meeting.customer_id !== userId && meeting.seller_id !== userId && userRole !== 'admin' && userRole !== 'super_admin') {
+            return res.status(403).json({ success: false, message: "You are not authorized to reschedule this conference." });
+        }
+
+        if (meeting.status !== 'Scheduled') {
+            return res.status(400).json({ success: false, message: `Cannot reschedule a ${meeting.status.toLowerCase()} conference.` });
+        }
+
+        // Slot Conflict Validation
+        const conflictRes = await pool.query(`
+            SELECT meeting_id, scheduled_at 
+            FROM flea_market_meetings 
+            WHERE seller_id = $1 
+              AND status = 'Scheduled'
+              AND meeting_id != $2
+              AND ABS(EXTRACT(EPOCH FROM (scheduled_at - $3::timestamp))) < 1800
+        `, [meeting.seller_id, meetingId, scheduledTime.toISOString()]);
+
+        if (conflictRes.rows.length > 0) {
+            const conflictTime = new Date(conflictRes.rows[0].scheduled_at).toLocaleTimeString('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            return res.status(409).json({
+                success: false,
+                message: `This seller has another video conference scheduled around ${conflictTime}. Please select a different slot at least 30 minutes apart.`
+            });
+        }
+
+        await pool.query(
+            "UPDATE flea_market_meetings SET scheduled_at = $1 WHERE meeting_id = $2",
+            [scheduledTime.toISOString(), meetingId]
+        );
+
+        // Notify customer
+        await pool.query(
+            `INSERT INTO notifications (notification_id, customer_id, type, message, is_read, created_at)
+             VALUES (gen_random_uuid(), $1, 'meeting_rescheduled', $2, false, NOW())`,
+            [meeting.customer_id, `Your Flea Market Video Conference has been rescheduled to ${scheduledTime.toLocaleString('en-IN')}.`]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Conference rescheduled successfully."
+        });
+    } catch (error) {
+        console.error("Error rescheduling conference:", error);
+        return res.status(500).json({ success: false, message: "Failed to reschedule conference." });
+    }
+};

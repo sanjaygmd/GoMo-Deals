@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 // Force rebuild watcher trigger for sharp luxury cards
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Heart, Eye, Check, Star } from 'lucide-react';
+import { ShoppingBag, Heart, Eye, Check, Star, Video } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { useAuth } from '../../context/AuthContext';
 import QuickViewModal from './QuickViewModal';
@@ -153,18 +153,31 @@ const ProductCard = ({ product }) => {
             </div>
             
             <div className="flex gap-2">
-              {/* Add to Cart (Circular, premium hover animation) */}
-              <button 
-                onClick={handleAddToCart}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border cursor-pointer shadow-sm hover:scale-110 active:scale-90 ${
-                  isInCart(productId) 
-                    ? 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100' 
-                    : 'bg-orange-950 text-white border-orange-950 hover:bg-orange-850 hover:border-orange-900 shadow-sm hover:shadow-orange-glow/10'
-                }`}
-                title={isInCart(productId) ? t("added_to_cart") : t("add_to_cart")}
-              >
-                {isInCart(productId) ? <Check size={15} strokeWidth={2.5} /> : <ShoppingBag size={15} />}
-              </button>
+              {isMarketProduct ? (
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigate('/flea-market');
+                  }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border cursor-pointer shadow-sm bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 hover:scale-110 active:scale-90"
+                  title="Schedule B2B Conference"
+                >
+                  <Video size={15} />
+                </button>
+              ) : (
+                <button 
+                  onClick={handleAddToCart}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 border cursor-pointer shadow-sm hover:scale-110 active:scale-90 ${
+                    isInCart(productId) 
+                      ? 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100' 
+                      : 'bg-orange-950 text-white border-orange-950 hover:bg-orange-850 hover:border-orange-900 shadow-sm hover:shadow-orange-glow/10'
+                  }`}
+                  title={isInCart(productId) ? t("added_to_cart") : t("add_to_cart")}
+                >
+                  {isInCart(productId) ? <Check size={15} strokeWidth={2.5} /> : <ShoppingBag size={15} />}
+                </button>
+              )}
               {/* Quick View (Circular, premium white frame) */}
               <button 
                 onClick={handleQuickView}
