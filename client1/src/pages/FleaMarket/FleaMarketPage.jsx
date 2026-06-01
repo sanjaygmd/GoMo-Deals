@@ -15,7 +15,6 @@ import { getCustomerMeetings, cancelMeeting, endMeeting } from '../../services/m
 import { getCustomerOffers, cancelCustomerOffer } from '../../services/offerService';
 import { useToast } from '../../context/ToastContext';
 import { ProductContext } from '../../context/ProductContext/ProductContext';
-import { FLEA_MARKET_PRODUCTS as MOCK_LISTINGS } from '../../data/fleaMarketProducts';
 
 // ─── Commodity Categories ────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -323,7 +322,7 @@ export default function FleaMarketPage() {
       const name = (p.name || '').toLowerCase();
       return fleaCategories.some(fc => cat.includes(fc) || tags.includes(fc) || name.includes(fc)) || cat.includes('flea') || tags.includes('flea') || name.includes('flea');
     }).map(p => ({
-      id: String(p.product_id).startsWith('fm') ? p.product_id : `fm_${p.product_id}`, // Ensure fm prefix for routing checks
+      id: p.product_id, // Ensure real database UUID is used directly without fm_ prefix
       title: p.name,
       description: p.description || p.name,
       pricePerKg: p.price,
@@ -342,10 +341,9 @@ export default function FleaMarketPage() {
     }));
 
     // Deduplicate by ID
-    const all = [...MOCK_LISTINGS, ...dbFleaProducts];
     const unique = [];
     const seen = new Set();
-    for (const item of all) {
+    for (const item of dbFleaProducts) {
       if (!seen.has(item.id)) {
         seen.add(item.id);
         unique.push(item);

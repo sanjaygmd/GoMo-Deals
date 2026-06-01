@@ -57,7 +57,7 @@ export const getWishlist = async (req, res) => {
                      WHERE product_id = p.product_id 
                      AND (variant_id = wi.variant_id OR variant_id IS NULL) 
                      ORDER BY sort_order LIMIT 1),
-                    'https://via.placeholder.com/400'
+                    '/fallback-product.png'
                 ) AS thumbnail,
                 pv.variant_name,
                 pv.variant_value
@@ -132,6 +132,8 @@ export const removeFromWishlist = async (req, res) => {
     const { wishlist_item_id } = req.params;
     const client = await pool.connect();
     try {
+        await client.query('BEGIN');
+
         // Ownership Check
         const ownershipCheck = await client.query(
             "SELECT w.customer_id FROM wishlist w JOIN wishlist_items wi ON w.wishlist_id = wi.wishlist_id WHERE wi.wishlist_item_id = $1",
@@ -139,14 +141,14 @@ export const removeFromWishlist = async (req, res) => {
         );
 
         if (ownershipCheck.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ success: false, message: 'Wishlist item not found' });
         }
 
         if (req.user.id !== ownershipCheck.rows[0].customer_id && !['admin', 'super_admin'].includes(req.user.type)) {
+            await client.query('ROLLBACK');
             return res.status(403).json({ success: false, message: 'Unauthorized: You do not own this wishlist item' });
         }
-
-        await client.query('BEGIN');
 
         const result = await client.query('DELETE FROM wishlist_items WHERE wishlist_item_id = $1 RETURNING wishlist_id', [wishlist_item_id]);
 

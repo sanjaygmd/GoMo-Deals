@@ -540,10 +540,8 @@ export const getSellerDashboardData = async (req, res) => {
       const orderItems = await pool.query("SELECT oi.*, p.name as prod_name, s.store_name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id LEFT JOIN sellers s ON oi.seller_id = s.seller_id ORDER BY oi.created_at DESC LIMIT 10");
       const finances = await pool.query("SELECT * FROM daily_finances ORDER BY date DESC LIMIT 10");
       const sellerProducts = await pool.query("SELECT product_id, name, seller_id, price FROM products WHERE seller_id = $1 LIMIT 10", [sellerId]);
-      const out = `SELLER ID: ${sellerId}\n\nORDERS:\n${JSON.stringify(orders.rows, null, 2)}\n\nORDER SELLERS:\n${JSON.stringify(orderSellers.rows, null, 2)}\n\nORDER ITEMS:\n${JSON.stringify(orderItems.rows, null, 2)}\n\nFINANCES:\n${JSON.stringify(finances.rows, null, 2)}\n\nSELLER PRODUCTS:\n${JSON.stringify(sellerProducts.rows, null, 2)}`;
-      fs.writeFileSync('check_finances_output.txt', out);
     } catch (err) {
-      fs.writeFileSync('check_finances_output.txt', `Err: ${err.message}`);
+      console.warn(`[DASHBOARD DEBUG ERROR]: ${err.message}`);
     }
 
     // Always sync the last 3 days of finances first to ensure today's revenue is included in real-time

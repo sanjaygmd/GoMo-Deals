@@ -554,6 +554,8 @@ export const initSchema = async () => {
             ALTER TABLE orders ADD COLUMN IF NOT EXISTS estimated_delivery DATE;
 
             ALTER TABLE reviews ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+            
+            ALTER TABLE half_yearly_finances ADD COLUMN IF NOT EXISTS annual_finance_id UUID;
         `);
 
         // Performance indexes for high-frequency lookup columns
@@ -806,6 +808,7 @@ export const initSchema = async () => {
                 platform_commission DECIMAL(15,2) DEFAULT 0,
                 net_seller_earnings DECIMAL(15,2) DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                annual_finance_id UUID,
                 UNIQUE (seller_id, half_number, year)
             )
         `);

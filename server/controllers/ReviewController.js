@@ -131,7 +131,7 @@ export const addReview = async (req, res, next) => {
             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), $7)
             RETURNING *
         `;
-        const result = await pool.query(query, [product_id, customer_id, order_item_id, rating, cleanTitle, cleanBody, variant_id || null]);
+        const result = await pool.query(query, [product_id, customer_id, order_item_id, parsedRating, cleanTitle, cleanBody, variant_id || null]);
         
         return res.status(201).json({ success: true, message: "Review submitted successfully", data: result.rows[0] });
     } catch (error) {
@@ -210,7 +210,7 @@ export const updateReview = async (req, res, next) => {
             WHERE review_id = $4
             RETURNING *
         `;
-        const result = await pool.query(query, [rating, cleanTitle, cleanBody, id]);
+        const result = await pool.query(query, [parsedRating, cleanTitle, cleanBody, id]);
         return res.status(200).json({ success: true, message: "Review updated successfully", data: result.rows[0] });
     } catch (error) {
         next(error);

@@ -33,29 +33,10 @@ export const createOrder = async (req, res, next) => {
 
     const customer_id = req.user.id;
 
-    // Security Fix: Razorpay Signature Verification
+    // Ensure payment details are provided
     if (payment_method === 'online' || payment_method === 'razorpay') {
       if (!payment_id || !razorpay_order_id || !razorpay_signature) {
         return res.status(400).json({ success: false, message: "Missing payment verification details" });
-      }
-
-      const isMock = process.env.NODE_ENV !== 'production' && razorpay_order_id.startsWith('order_mock_');
-      if (!isMock) {
-        const secret = process.env.RAZORPAY_KEY_SECRET;
-        
-        if (!secret || secret === 'your_razorpay_secret_here') {
-          console.error("CRITICAL: Razorpay secret not configured. Blocking order.");
-          return res.status(500).json({ success: false, message: "Payment verification failed: razorpay secret not configured" });
-        }
-
-        const generated_signature = crypto
-          .createHmac('sha256', secret)
-          .update(razorpay_order_id + "|" + payment_id)
-          .digest('hex');
-
-        if (generated_signature !== razorpay_signature) {
-          return res.status(400).json({ success: false, message: "Invalid payment signature" });
-        }
       }
     }
 
@@ -305,6 +286,43 @@ export const createOrder = async (req, res, next) => {
     const final_cod_fee = payment_method === 'cod' ? 50 : 0;
     const final_total_amount = serverCalculatedSubtotal + calculatedShipping + final_tax_amount + final_platform_fee + final_cod_fee - serverDiscountAmount;
 
+    // 5b. Verify Payment Amount & Signature
+    if (payment_method === 'online' || payment_method === 'razorpay') {
+      const isMock = process.env.NODE_ENV !== 'production' && razorpay_order_id.startsWith('order_mock_');
+      if (!isMock) {
+        const secret = process.env.RAZORPAY_KEY_SECRET;
+        const key_id = process.env.RAZORPAY_KEY_ID;
+        
+        if (!secret || secret === 'your_razorpay_secret_here') {
+          console.error("CRITICAL: Razorpay secret not configured. Blocking order.");
+          throw new Error("Payment verification failed: razorpay secret not configured");
+        }
+
+        const generated_signature = crypto
+          .createHmac('sha256', secret)
+          .update(razorpay_order_id + "|" + payment_id)
+          .digest('hex');
+
+        if (generated_signature !== razorpay_signature) {
+          throw new Error("Invalid payment signature");
+        }
+        
+        // CRITICAL SECURITY FIX: Validate that the Razorpay order amount strictly matches the server-calculated total
+        try {
+          const razorpay = new Razorpay({ key_id, key_secret: secret });
+          const rzpOrder = await razorpay.orders.fetch(razorpay_order_id);
+          const expectedAmount = Math.round(final_total_amount * 100);
+          
+          if (rzpOrder.amount !== expectedAmount) {
+             throw new Error(`Payment amount mismatch. Expected ₹${expectedAmount / 100}, but order was for ₹${rzpOrder.amount / 100}`);
+          }
+        } catch (rzpErr) {
+          console.error("Razorpay Fetch Error:", rzpErr);
+          throw new Error(rzpErr.message?.includes("mismatch") ? rzpErr.message : "Failed to verify payment amount with Razorpay");
+        }
+      }
+    }
+
     let pending_balance = 0;
     let actual_paid_amount = final_total_amount;
     
@@ -443,7 +461,7 @@ export const createOrder = async (req, res, next) => {
     }
 
     // Security Fix: Mask raw technical errors but allow through known business errors
-    const businessErrors = ["Insufficient stock", "Minimum order value", "Coupon already used", "You already used this coupon", "Coupon expired", "Invalid payment signature", "Administrators are restricted", "Invalid quantity", "Product not found"];
+    const businessErrors = ["Insufficient stock", "Minimum order value", "Payment amount mismatch", "Failed to verify payment amount", "Coupon already used", "You already used this coupon", "Coupon expired", "Invalid payment signature", "Administrators are restricted", "Invalid quantity", "Product not found"];
     const isBusinessError = businessErrors.some(msg => error.message?.includes(msg));
     const userMessage = isBusinessError ? error.message : "Failed to place order. Please try again later.";
     res.status(isBusinessError ? 400 : 500).json({ success: false, message: userMessage });

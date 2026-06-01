@@ -1451,7 +1451,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                 </h4>
                                 <div className="flex flex-col gap-1">
                                     <Link 
-                                        to="/collection/flea-market" 
+                                        to="/flea-market" 
                                         onClick={() => setMobileMenuOpen(false)}
                                         className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group"
                                     >
@@ -1637,7 +1637,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                     </h4>
                                     <div className="flex flex-col gap-1">
                                         <Link 
-                                            to="/collection/flea-market" 
+                                            to="/flea-market" 
                                             onClick={() => setAllMenuOpen(false)}
                                             className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
                                         >

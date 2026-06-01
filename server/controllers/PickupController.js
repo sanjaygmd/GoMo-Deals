@@ -164,13 +164,15 @@ export const deletePickupLocation = async (req, res) => {
     try {
         // Ownership Check
         const sellerRes = await pool.query("SELECT seller_id FROM seller_pickup_location WHERE pickup_id = $1", [pickupId]);
-        if (sellerRes.rows.length > 0) {
-            const seller_id = sellerRes.rows[0].seller_id;
-            if (req.user.id !== seller_id && !['admin', 'super_admin'].includes(req.user.type)) {
-                return res.status(403).json({ success: false, message: 'Unauthorized: You do not own this pickup location' });
-            }
-            await pool.query("DELETE FROM seller_pickup_location WHERE pickup_id = $1", [pickupId]);
+        if (sellerRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Pickup location not found" });
         }
+        
+        const seller_id = sellerRes.rows[0].seller_id;
+        if (req.user.id !== seller_id && !['admin', 'super_admin'].includes(req.user.type)) {
+            return res.status(403).json({ success: false, message: 'Unauthorized: You do not own this pickup location' });
+        }
+        await pool.query("DELETE FROM seller_pickup_location WHERE pickup_id = $1", [pickupId]);
 
         res.status(200).json({ success: true, message: "Pickup location deleted" });
     } catch (error) {

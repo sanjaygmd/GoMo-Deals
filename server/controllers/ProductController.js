@@ -184,14 +184,34 @@ export const getProducts = async (req, res) => {
             queryParams.push(seller_id);
         }
 
-        query += ` ORDER BY p.created_at DESC`;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+        const offset = (page - 1) * limit;
+
+        let countQuery = `SELECT COUNT(*) FROM products p WHERE p.deleted_at IS NULL`;
+        const countParams = [];
+        if (seller_id && seller_id !== 'null' && seller_id !== 'undefined' && seller_id !== '') {
+            countQuery += ` AND p.seller_id = $1::uuid`;
+            countParams.push(seller_id);
+        }
+        const countRes = await pool.query(countQuery, countParams);
+        const totalCount = parseInt(countRes.rows[0].count);
+
+        query += ` ORDER BY p.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+        queryParams.push(limit, offset);
 
         const result = await pool.query(query, queryParams);
 
         return res.status(200).json({
             success: true,
             message: 'Getting all products successful',
-            data: result.rows
+            data: result.rows,
+            pagination: {
+                total: totalCount,
+                page,
+                limit,
+                totalPages: Math.ceil(totalCount / limit)
+            }
         });
     } catch (error) {
         return res.status(500).json({
@@ -267,6 +287,15 @@ export const addVariants = async (req, res) => {
             });
         }
 
+        // Ownership Check
+        const pCheck = await pool.query('SELECT seller_id FROM products WHERE product_id = $1', [product_id]);
+        if (pCheck.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+        if (req.user.type === 'seller' && pCheck.rows[0].seller_id !== req.user.id) {
+            return res.status(403).json({ success: false, message: "Unauthorized. This product does not belong to your store catalog." });
+        }
+
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
@@ -319,7 +348,7 @@ export const getProductBySlug = async (req, res) => {
             (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
             FROM products p 
             LEFT JOIN categories c ON p.category_id = c.category_id
-            WHERE p.slug = $1
+            WHERE p.slug = $1 AND p.deleted_at IS NULL
         `, [slug]);
 
         if (result.rows.length === 0) {
@@ -687,6 +716,15 @@ export const searchProducts = async (req, res) => {
 
 export const getAllAdminProducts = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        const countQuery = `SELECT COUNT(*) FROM products WHERE deleted_at IS NULL`;
+        const countResult = await pool.query(countQuery);
+        const totalItems = parseInt(countResult.rows[0].count);
+        const totalPages = Math.ceil(totalItems / limit);
+
         const query = `
             SELECT p.*, s.store_name as seller_name,
             c.name as category_name,
@@ -701,9 +739,28 @@ export const getAllAdminProducts = async (req, res) => {
             LEFT JOIN categories c ON p.category_id = c.category_id
             WHERE p.deleted_at IS NULL
             ORDER BY p.created_at DESC
+            LIMIT $1 OFFSET $2
         `;
-        const result = await pool.query(query);
-        return res.status(200).json({ success: true, data: result.rows });
+        const result = await pool.query(query, [limit, offset]);
+        
+        const products = result.rows.map(p => ({
+            ...p,
+            id: p.product_id,
+            thumbnail: p.pi_images && p.pi_images.length > 0 ? p.pi_images[0].image_url : (p.images && p.images.length > 0 ? p.images[0] : null),
+            stock: p.stock_quantity || 0,
+            status: p.is_active ? "Active" : "Inactive"
+        }));
+
+        return res.status(200).json({ 
+            success: true, 
+            data: products,
+            pagination: {
+                total_items: totalItems,
+                total_pages: totalPages,
+                current_page: page,
+                limit
+            }
+        });
     } catch (error) {
         console.error("GET ALL ADMIN PRODUCTS ERROR:", error);
         return res.status(500).json({ success: false, message: 'Internal server error' });

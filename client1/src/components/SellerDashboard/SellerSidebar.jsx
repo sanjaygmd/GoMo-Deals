@@ -16,7 +16,8 @@ import {
   Compass,
   RotateCcw,
   Handshake,
-  Crown
+  Crown,
+  Lock
 } from "lucide-react";
 
 const menu = [
@@ -101,6 +102,9 @@ const SellerSidebar = () => {
                 <span className={`text-[10px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100"}`}>
                   {item.name}
                 </span>
+                {item.name === "Flea Market" && (!user?.seller_subscription || user?.seller_subscription === 'free') && (
+                  <Lock size={12} className="ml-auto text-orange-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                )}
               </motion.div>
             );
           })}

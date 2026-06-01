@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../config/db.js';
 import { loginCustomer, registerCustomer, sendOTP, verifyOTP, logout, getMe, customerOnboarding, getCustomerAddresses, updateCustomer, agreeToFleaMarketTerms } from '../controllers/AuthController/customerController.js';
 import { 
@@ -39,7 +40,6 @@ import {
     bulkUpdateOrders,
     autoDispatchOrders,
     getAllCustomers,
-    getAdminProducts,
     toggleCustomerStatus,
     toggleSellerStatus,
     deleteSeller,
@@ -58,6 +58,7 @@ import {
     verifySeller,
     getSellerDetails
 } from '../controllers/AuthController/adminController.js';
+import { getAllAdminProducts } from '../controllers/ProductController.js';
 import { 
     getAdminSettings,
     updateAdminSettings,
@@ -74,6 +75,24 @@ import { requireAuth } from '../middleware/authMiddleware.js';
 import { loginLimiter, otpLimiter, setupLimiter } from '../middleware/rateLimiter.js';
 
 const authRoutes = express.Router();
+
+// Rate limiting for auth routes
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 50, // limit each IP to 50 requests per windowMs
+    message: { success: false, message: "Too many authentication attempts, please try again after 15 minutes" }
+});
+
+authRoutes.use('/customer/login', authLimiter);
+authRoutes.use('/customer/send-otp', authLimiter);
+authRoutes.use('/customer/verify-otp', authLimiter);
+authRoutes.use('/customer/register', authLimiter);
+authRoutes.use('/seller/login', authLimiter);
+authRoutes.use('/seller/send-otp', authLimiter);
+authRoutes.use('/seller/verify-otp', authLimiter);
+authRoutes.use('/seller/register', authLimiter);
+authRoutes.use('/admin/login', authLimiter);
+authRoutes.use('/admin/setup', authLimiter);
 
 // Customer Routes
 authRoutes.post('/customer/send-otp', otpLimiter, sendOTP);
@@ -133,6 +152,7 @@ authRoutes.post('/admin/register', async (req, res, next) => {
         }
     } catch (err) {
         console.error("ADMIN REGISTRATION BYPASS AUTH ERROR:", err);
+        return next(err);
     }
     return requireAuth(['super_admin'])(req, res, next);
 }, registerAdmin);
@@ -145,7 +165,7 @@ authRoutes.get('/admin/orders', requireAuth(['admin', 'super_admin']), getAllOrd
 authRoutes.post('/admin/orders/bulk-update', requireAuth(['admin', 'super_admin']), bulkUpdateOrders);
 authRoutes.post('/admin/orders/auto-dispatch', requireAuth(['admin', 'super_admin']), autoDispatchOrders);
 authRoutes.get('/admin/customers', requireAuth(['admin', 'super_admin']), getAllCustomers);
-authRoutes.get('/admin/products', requireAuth(['admin', 'super_admin']), getAdminProducts);
+authRoutes.get('/admin/products', requireAuth(['admin', 'super_admin']), getAllAdminProducts);
 authRoutes.get('/admin/payments', requireAuth(['admin', 'super_admin']), getAllPayments);
 authRoutes.get('/admin/returns', requireAuth(['admin', 'super_admin']), getAllReturns);
 authRoutes.post('/admin/returns/:id/resolve', requireAuth(['admin', 'super_admin']), resolveReturnRequest);

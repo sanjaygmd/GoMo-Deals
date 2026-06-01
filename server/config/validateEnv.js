@@ -8,7 +8,8 @@ export const validateEnv = () => {
         'RAZORPAY_KEY_ID',
         'RAZORPAY_KEY_SECRET',
         'RAZORPAY_WEBHOOK_SECRET',
-        'GEMINI_API_KEY'
+        'GEMINI_API_KEY',
+        'MASTER_SECURITY_KEY'
     ];
 
     const missing = required.filter(key => !process.env[key]);

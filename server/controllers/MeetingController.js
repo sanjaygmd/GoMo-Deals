@@ -84,7 +84,8 @@ export const createMeeting = async (req, res, next) => {
         // 4. Generate premium virtual room meeting link
         const meetingId = crypto.randomUUID();
         const cleanProductName = sanitizeText(productName).replace(/[^a-zA-Z0-9]/g, '');
-        const meetingLink = `https://meet.jit.si/GoMoDeals-FleaMarket-${cleanProductName}-${meetingId.slice(0, 8)}`;
+        const randomSuffix = crypto.randomBytes(16).toString('hex');
+        const meetingLink = `https://meet.jit.si/GoMoDeals-FleaMarket-${cleanProductName}-${randomSuffix}`;
 
         const sanitizedPurpose = purpose ? sanitizeText(purpose) : "Commodity Bargain Discussion";
 
@@ -146,9 +147,6 @@ export const getSellerMeetings = async (req, res, next) => {
         if (userRole !== 'seller' && userRole !== 'admin') {
             return res.status(403).json({ success: false, message: 'Access denied: only sellers or admins can view seller meetings.' });
         }
-        // Debug: log seller ID being used for query
-        console.log('Fetching meetings for sellerId:', sellerId);
-
         const result = await pool.query(`
             SELECT 
                 m.meeting_id,
@@ -457,7 +455,6 @@ export const recordMeetingOutcome = async (req, res, next) => {
         );
 
         // Generate Offer Token
-        const crypto = await import('crypto');
         const offer_token = crypto.randomBytes(16).toString('hex');
         
         // Expiry in 48 hours

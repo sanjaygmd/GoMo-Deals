@@ -11,8 +11,7 @@ import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../services/api";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { StatCard } from "../components/StatCard";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { exportToExcel } from "../../../utils/exportUtils";
 
 const fmt = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
 
@@ -52,82 +51,30 @@ export default function FinancePage() {
   const handleDownloadReport = async () => {
     try {
       const year = new Date().getFullYear();
-      const doc = new jsPDF();
       
-      // Branding Header
-      doc.setFontSize(22);
-      doc.setTextColor(249, 115, 22);
-      doc.text("GoMo Deals Marketplace", 14, 22);
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text("Annual Fiscal Intelligence Report", 14, 28);
-      doc.text(`Fiscal Year: ${year}`, 14, 34);
+      const summaryData = [{
+        "Gross Revenue": fmt(financeData.summary.gross_revenue),
+        "Platform Earnings": fmt(financeData.summary.platform_commission),
+        "Net Profit": fmt(financeData.summary.net_profit)
+      }];
 
-      doc.setFontSize(14);
-      doc.setTextColor(0);
-      doc.text("EXECUTIVE SUMMARY", 14, 50);
-      
-      // Summary Box
-      doc.setDrawColor(240);
-      doc.setFillColor(248, 250, 252);
-      doc.rect(14, 55, 182, 35, 'F');
-      
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text("Gross Revenue", 20, 65);
-      doc.text("Platform Earnings", 80, 65);
-      doc.text("Net Profit", 140, 65);
-      
-      doc.setFontSize(14);
-      doc.setTextColor(0);
-      doc.setFont("helvetica", "bold");
-      doc.text(fmt(financeData.summary.gross_revenue), 20, 75);
-      doc.text(fmt(financeData.summary.platform_commission), 80, 75);
-      doc.setTextColor(16, 185, 129); // Success Green
-      doc.text(fmt(financeData.summary.net_profit), 140, 75);
+      const ledgerData = (financeData.monthlyPL || []).map(m => ({
+        "Period": m.name,
+        "Revenue (Credits)": fmt(m.revenue),
+        "Costs (Debits)": fmt(m.costs),
+        "Net Profit": fmt(m.profit)
+      }));
 
-      // Performance Table
-      doc.setFontSize(14);
-      doc.setTextColor(0);
-      doc.setFont("helvetica", "bold");
-      doc.text("MONTHLY PERFORMANCE LEDGER", 14, 105);
+      const exportData = {
+        "Executive Summary": summaryData,
+        "Monthly Ledger": ledgerData
+      };
 
-      const tableRows = (financeData.monthlyPL || []).map(m => [
-        m.name,
-        fmt(m.revenue),
-        fmt(m.costs),
-        fmt(m.profit)
-      ]);
-
-      autoTable(doc, {
-        startY: 110,
-        head: [['Period', 'Revenue (Credits)', 'Costs (Debits)', 'Net Profit']],
-        body: tableRows,
-        theme: 'striped',
-        headStyles: { fillColor: [249, 115, 22] },
-        styles: { font: "helvetica" },
-        columnStyles: {
-          1: { halign: 'right' },
-          2: { halign: 'right' },
-          3: { halign: 'right' }
-        }
-      });
-
-      // Footer
-      const pageCount = doc.internal.getNumberOfPages();
-      for(let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(`GoMo Internal Document - Confidential`, 14, 285);
-        doc.text(`Page ${i} of ${pageCount}`, 196, 285, { align: 'right' });
-      }
-
-      doc.save(`GoMo-Fiscal-Report-${year}.pdf`);
-      toast({ title: "Report Generated", description: `Professional fiscal report for ${year} is ready.` });
+      exportToExcel(exportData, `GoMo_Fiscal_Report_${year}`);
+      toast({ title: "Report Generated", description: `Excel fiscal report for ${year} is ready.` });
     } catch (err) {
       console.error("Download report error:", err);
-      toast({ title: "Generation Failed", description: "Could not build the PDF report.", variant: "destructive" });
+      toast({ title: "Generation Failed", description: "Could not build the Excel report.", variant: "destructive" });
     }
   };
 

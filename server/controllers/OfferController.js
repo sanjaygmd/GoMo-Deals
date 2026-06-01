@@ -7,28 +7,35 @@ import crypto from 'crypto';
  * POST /api/offers
  */
 export const createOffer = async (req, res, next) => {
+    const client = await pool.connect();
     try {
         const { productId, offeredPrice } = req.body;
         const customerId = req.user.id; // Logged-in customer UUID
 
         if (!productId || !offeredPrice) {
+            client.release();
             return res.status(400).json({ success: false, message: "Product ID and offered price are required." });
         }
 
         const priceNum = parseFloat(offeredPrice);
         if (isNaN(priceNum) || priceNum <= 0) {
+            client.release();
             return res.status(400).json({ success: false, message: "Please provide a valid, positive offered price." });
         }
 
+        await client.query('BEGIN');
+
         // Check customer's membership status
-        const custRes = await pool.query(
-            "SELECT membership FROM customers WHERE customer_id = $1",
+        const custRes = await client.query(
+            "SELECT membership FROM customers WHERE customer_id = $1 FOR UPDATE",
             [customerId]
         );
         const membership = custRes.rows[0]?.membership || 'free';
 
         // 1. Free Tier: Block bargaining completely
         if (membership === 'free') {
+            await client.query('ROLLBACK');
+            client.release();
             return res.status(403).json({
                 success: false,
                 message: "Only members can place bargain offers. Please upgrade your membership to Silver, Gold, or Platinum to participate in the Flea Market."
@@ -37,7 +44,7 @@ export const createOffer = async (req, res, next) => {
 
         // 2. Silver Tier: Limit to 5 offers per calendar month
         if (membership === 'silver') {
-            const countRes = await pool.query(
+            const countRes = await client.query(
                 `SELECT COUNT(*) FROM product_offers 
                  WHERE customer_id = $1 
                  AND created_at >= date_trunc('month', CURRENT_DATE)`,
@@ -45,6 +52,8 @@ export const createOffer = async (req, res, next) => {
             );
             const offerCount = parseInt(countRes.rows[0].count);
             if (offerCount >= 5) {
+                await client.query('ROLLBACK');
+                client.release();
                 return res.status(403).json({
                     success: false,
                     message: "You have reached your limit of 5 bargain offers for this month on the Silver plan. Please upgrade to Gold or Platinum for unlimited bargaining."
@@ -53,12 +62,14 @@ export const createOffer = async (req, res, next) => {
         }
 
         // 1. Verify the product exists and fetch its catalog price
-        const prodRes = await pool.query(
+        const prodRes = await client.query(
             "SELECT price, name, is_active, is_deleted FROM products WHERE product_id = $1",
             [productId]
         );
 
         if (prodRes.rows.length === 0 || !prodRes.rows[0].is_active || prodRes.rows[0].is_deleted) {
+            await client.query('ROLLBACK');
+            client.release();
             return res.status(404).json({ success: false, message: "Product not found or currently unavailable." });
         }
 
@@ -68,12 +79,16 @@ export const createOffer = async (req, res, next) => {
         // Prevent offers below 50% of the listed price or above 100%
         const minAcceptableOffer = listPrice * 0.50;
         if (priceNum < minAcceptableOffer) {
+            await client.query('ROLLBACK');
+            client.release();
             return res.status(400).json({ 
                 success: false, 
                 message: `Your offered price of ₹${priceNum.toLocaleString()} is too low. Offers must be at least 50% of the list price (₹${minAcceptableOffer.toLocaleString()}).` 
             });
         }
         if (priceNum > listPrice) {
+            await client.query('ROLLBACK');
+            client.release();
             return res.status(400).json({ 
                 success: false, 
                 message: "Offered price cannot exceed the current retail price." 
@@ -81,7 +96,7 @@ export const createOffer = async (req, res, next) => {
         }
 
         // 3. Upsert offer: If an active negotiation already exists, update it. Otherwise, create a new one.
-        const activeOfferRes = await pool.query(`
+        const activeOfferRes = await client.query(`
             SELECT offer_id FROM product_offers 
             WHERE product_id = $1 AND customer_id = $2 AND status IN ('Pending', 'Countered')
         `, [productId, customerId]);
@@ -89,19 +104,22 @@ export const createOffer = async (req, res, next) => {
         let result;
         if (activeOfferRes.rows.length > 0) {
             const offerId = activeOfferRes.rows[0].offer_id;
-            result = await pool.query(`
+            result = await client.query(`
                 UPDATE product_offers 
                 SET offered_price = $1, seller_counter_price = NULL, status = 'Pending', offer_token = NULL, expires_at = NULL, created_at = CURRENT_TIMESTAMP
                 WHERE offer_id = $2
                 RETURNING *
             `, [priceNum, offerId]);
         } else {
-            result = await pool.query(`
+            result = await client.query(`
                 INSERT INTO product_offers (product_id, customer_id, offered_price)
                 VALUES ($1, $2, $3)
                 RETURNING *
             `, [productId, customerId, priceNum]);
         }
+
+        await client.query('COMMIT');
+        client.release();
 
         return res.status(201).json({
             success: true,
@@ -110,6 +128,8 @@ export const createOffer = async (req, res, next) => {
         });
 
     } catch (error) {
+        await client.query('ROLLBACK');
+        client.release();
         next(error);
     }
 };
@@ -217,7 +237,7 @@ export const respondToOffer = async (req, res, next) => {
 
         // 1. Fetch offer and verify seller ownership of the product
         const offerRes = await pool.query(`
-            SELECT o.*, p.seller_id, p.name as product_name, c.customer_id
+            SELECT o.*, p.seller_id, p.name as product_name, p.price as list_price, c.customer_id
             FROM product_offers o
             JOIN products p ON o.product_id = p.product_id
             JOIN customers c ON o.customer_id = c.customer_id
@@ -251,6 +271,9 @@ export const respondToOffer = async (req, res, next) => {
             dbCounterPrice = parseFloat(counterPrice);
             if (isNaN(dbCounterPrice) || dbCounterPrice <= 0) {
                 return res.status(400).json({ success: false, message: "Please provide a valid counter price." });
+            }
+            if (dbCounterPrice > parseFloat(offer.list_price)) {
+                return res.status(400).json({ success: false, message: "Counter price cannot be higher than the original list price." });
             }
         }
 

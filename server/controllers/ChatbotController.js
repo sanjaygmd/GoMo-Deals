@@ -139,7 +139,7 @@ export const handleChatMessage = async (req, res, next) => {
                 console.warn("[CHATBOT WARNING] Failed to fetch recent orders with deliveries:", orderErr.message);
                 try {
                     const fallbackOrdersResult = await pool.query(`
-                        SELECT o.order_id, o.total_amount, o.order_status, o.placed_at
+                        SELECT o.order_id, o.order_status, o.placed_at
                         FROM orders o
                         WHERE o.customer_id = $1
                         ORDER BY o.placed_at DESC
@@ -152,9 +152,9 @@ export const handleChatMessage = async (req, res, next) => {
             }
         }
 
-        // 3. Format Context for Gemini Prompt
+        // 3. Format Context for Gemini Prompt (No PII)
         const userContextString = customerProfile 
-            ? `Logged-in Customer Name: ${customerProfile.full_name}\nEmail: ${customerProfile.email}\nRecent Orders:\n${JSON.stringify(recentOrders, null, 2)}`
+            ? `Logged-in Customer: ${customerProfile.full_name ? customerProfile.full_name.split(' ')[0] : 'Customer'}\nRecent Orders:\n${JSON.stringify(recentOrders, null, 2)}`
             : "Guest User (Not logged in. If they ask about their orders or track status, kindly advise them to log in to see personalized order updates, or they can provide an Order ID and you will search it).";
 
         // Build the System Instruction to guide the AI's behavior

@@ -7,6 +7,7 @@ import { Button } from "../../ui/button";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../services/api";
 import { StatCard } from "../components/StatCard";
+import { exportToExcel } from "../../../utils/exportUtils";
 
 const fmt = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
 
@@ -57,7 +58,16 @@ export default function PayoutsPage() {
   }, [payouts]);
 
   const handleExport = () => {
-    toast({ title: "Export Started", description: "The payouts ledger list is being compiled for download." });
+    const tableRows = payouts.map(p => ({
+      'Payout ID': p.id,
+      'Seller': p.seller_name,
+      'Amount Requested': p.amount,
+      'Gross Revenue': p.revenue,
+      'Status': p.status,
+      'Request Date': p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'
+    }));
+    exportToExcel(tableRows, `Seller_Payouts_Ledger_${new Date().toISOString().split('T')[0]}`);
+    toast({ title: "Export Complete", description: "The payouts ledger has been downloaded." });
   };
 
   return (

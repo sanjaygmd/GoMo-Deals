@@ -26,8 +26,14 @@ const Bank = ({ next, back, data, setData }) => {
       return setError("Account numbers do not match");
     }
     
-    if (data.ifsc_code.length !== 11) {
-      return setError("Valid 11-character IFSC code is required");
+    const accountRegex = /^\d{9,18}$/;
+    if (!accountRegex.test(data.account_number)) {
+      return setError("Valid Account Number is required (9-18 digits)");
+    }
+
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!ifscRegex.test(data.ifsc_code)) {
+      return setError("Valid 11-character IFSC code is required (e.g. SBIN0001234)");
     }
 
     setError("");

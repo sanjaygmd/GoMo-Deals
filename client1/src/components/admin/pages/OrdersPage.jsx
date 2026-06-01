@@ -1,3 +1,5 @@
+
+
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "../../ui/button";
@@ -13,12 +15,13 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useToast } from "../../../hooks/use-toast";
 import { StatCard } from "../components/StatCard";
+import { exportToExcel } from "../../../utils/exportUtils";
 
 /* ─── PDF Invoice download helper ─────────────────────────────── */
 function downloadInvoice(order) {
   const doc = new jsPDF();
   const items = Array.isArray(order.items) ? order.items : [];
-  
+
   // Header
   doc.setFontSize(22);
   doc.setTextColor(249, 115, 22); // Orange primary
@@ -81,7 +84,7 @@ function downloadInvoice(order) {
   });
 
   const finalY = doc.lastAutoTable.finalY || 80;
-  
+
   // Totals
   doc.setFontSize(10);
   doc.text(`Subtotal: INR ${order.total_amount}`, 200, finalY + 15, { align: 'right' });
@@ -187,34 +190,18 @@ export default function OrdersPage() {
   };
 
   const handleExportStream = () => {
-    const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(20);
-    doc.text("Transaction Stream Report", 14, 20);
-    doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
-    doc.text(`Total Records: ${filtered.length}`, 14, 34);
+    const tableRows = filtered.map(o => ({
+      'Order ID': `#${o.id.slice(0, 8)}`,
+      'Date': new Date(o.created_at).toLocaleDateString(),
+      'Customer': o.customer_name,
+      'Email': o.customer_email,
+      'Amount': `INR ${o.total_amount}`,
+      'Status': o.status,
+      'Method': o.payment_method,
+      'Courier': o.courier || 'N/A'
+    }));
 
-    const tableRows = filtered.map(o => [
-      `#${o.id.slice(0, 8)}`,
-      new Date(o.created_at).toLocaleDateString(),
-      o.customer_name,
-      o.customer_email,
-      `INR ${o.total_amount}`,
-      o.status,
-      o.payment_method,
-      o.courier || 'N/A'
-    ]);
-
-    autoTable(doc, {
-      startY: 40,
-      head: [['Order ID', 'Date', 'Customer', 'Email', 'Amount', 'Status', 'Method', 'Courier']],
-      body: tableRows,
-      theme: 'grid',
-      headStyles: { fillColor: [0, 0, 0] },
-      styles: { fontSize: 8 }
-    });
-
-    doc.save(`Order-Stream-${new Date().toISOString().split('T')[0]}.pdf`);
+    exportToExcel(tableRows, `Order-Stream-${new Date().toISOString().split('T')[0]}`);
   };
 
   const [editStatus, setEditStatus] = useState("");
@@ -296,7 +283,7 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={handleExportStream}
             className="px-8 py-3 bg-white text-orange-955 border border-orange-200 hover:bg-orange-50 text-[10px] uppercase tracking-widest font-black transition-all flex items-center gap-3 shadow-sm cursor-pointer active:scale-98"
           >
@@ -357,8 +344,8 @@ export default function OrdersPage() {
                     key={f}
                     onClick={() => setStatusFilter(f)}
                     className={cn("px-4 h-10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
-                      f === statusFilter 
-                        ? "bg-orange-955 text-white shadow-md" 
+                      f === statusFilter
+                        ? "bg-orange-955 text-white shadow-md"
                         : "text-orange-500 hover:bg-orange-50"
                     )}
                   >
@@ -366,8 +353,8 @@ export default function OrdersPage() {
                   </button>
                 ))}
               </div>
-              
-              <button 
+
+              <button
                 onClick={handleAutoPilot}
                 className="px-6 h-11 rounded-xl bg-orange-955 text-white hover:bg-orange-850 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-md"
               >
@@ -383,12 +370,12 @@ export default function OrdersPage() {
             <thead>
               <tr className="bg-orange-50/50 border-b border-orange-100">
                 <th className="px-8 py-5 w-10 text-center">
-                   <input 
-                     type="checkbox" 
-                     className="h-4 w-4 rounded border-orange-200 text-orange-955 focus:ring-orange-955 cursor-pointer"
-                     checked={selectedIds.size > 0 && selectedIds.size === filtered.length}
-                     onChange={() => toggleSelectAll(filtered)}
-                   />
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-orange-200 text-orange-955 focus:ring-orange-955 cursor-pointer"
+                    checked={selectedIds.size > 0 && selectedIds.size === filtered.length}
+                    onChange={() => toggleSelectAll(filtered)}
+                  />
                 </th>
                 <th className="px-6 py-5 text-[9px] font-bold text-orange-600 uppercase tracking-widest">Token</th>
                 <th className="px-6 py-5 text-[9px] font-bold text-orange-600 uppercase tracking-widest">Client</th>
@@ -402,11 +389,11 @@ export default function OrdersPage() {
               {filtered.map((o) => (
                 <tr key={o.id} className={cn("transition-all duration-200 hover:bg-orange-50/20 border-b border-orange-100 last:border-b-0 group", selectedIds.has(o.id) && "bg-orange-50/30")}>
                   <td className="px-8 py-5 text-center">
-                    <input 
-                       type="checkbox" 
-                       className="h-4 w-4 rounded border-orange-200 text-orange-955 focus:ring-orange-955 cursor-pointer"
-                       checked={selectedIds.has(o.id)}
-                       onChange={() => toggleSelect(o.id)}
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-orange-200 text-orange-955 focus:ring-orange-955 cursor-pointer"
+                      checked={selectedIds.has(o.id)}
+                      onChange={() => toggleSelect(o.id)}
                     />
                   </td>
                   <td className="px-6 py-5">
@@ -496,8 +483,8 @@ export default function OrdersPage() {
                 >
                   <Download size={14} /> Invoice
                 </button>
-                <button 
-                  onClick={closeModal} 
+                <button
+                  onClick={closeModal}
                   className="h-10 w-10 bg-orange-55 hover:bg-orange-105 border border-orange-205 rounded-full flex items-center justify-center text-orange-750 transition-all cursor-pointer"
                 >
                   <X size={18} />
@@ -655,7 +642,7 @@ export default function OrdersPage() {
                         </div>
                         <h3 className="text-[10px] font-black text-orange-900 uppercase tracking-widest">Shiprocket Intelligence</h3>
                       </div>
-                      <button 
+                      <button
                         onClick={async () => {
                           setSrLoading(true);
                           try {
@@ -678,13 +665,13 @@ export default function OrdersPage() {
                         </div>
                         <h4 className="text-sm font-bold text-orange-955">Order Dispatched!</h4>
                         <p className="text-[9px] font-black text-orange-600 uppercase mt-1 mb-4">Assigned to {dispatchSuccess.courier}</p>
-                        
+
                         <div className="w-full bg-white rounded-xl p-3 border border-orange-100 text-left mb-4 shadow-inner">
-                           <p className="text-[8px] font-black text-stone-500 uppercase mb-0.5">AWB Tracking Code</p>
-                           <p className="text-xs font-bold text-orange-955 font-mono">{dispatchSuccess.awb_code}</p>
+                          <p className="text-[8px] font-black text-stone-500 uppercase mb-0.5">AWB Tracking Code</p>
+                          <p className="text-xs font-bold text-orange-955 font-mono">{dispatchSuccess.awb_code}</p>
                         </div>
-                        
-                        <button 
+
+                        <button
                           onClick={closeModal}
                           className="w-full h-10 rounded-xl bg-orange-955 hover:bg-orange-850 text-white font-black text-[9px] uppercase tracking-widest transition-all cursor-pointer"
                         >
@@ -694,7 +681,7 @@ export default function OrdersPage() {
                     ) : (
                       <div className="space-y-4">
                         {/* Intelligent Auto-Pilot Button */}
-                        <button 
+                        <button
                           onClick={async () => {
                             if (!window.confirm("Run Shiprocket Auto-Pilot for this order?")) return;
                             setSrLoading(true);
@@ -746,9 +733,9 @@ export default function OrdersPage() {
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <label className="text-[8px] font-black text-stone-500 uppercase tracking-wider block ml-1">Courier</label>
-                              <select 
-                                className="w-full h-10 px-3 rounded-lg border border-orange-200 bg-white text-stone-850 text-[10px] font-bold focus:outline-none focus:border-orange-500 cursor-pointer" 
-                                value={editCourier} 
+                              <select
+                                className="w-full h-10 px-3 rounded-lg border border-orange-200 bg-white text-stone-850 text-[10px] font-bold focus:outline-none focus:border-orange-500 cursor-pointer"
+                                value={editCourier}
                                 onChange={e => setEditCourier(e.target.value)}
                               >
                                 {COURIERS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -756,16 +743,16 @@ export default function OrdersPage() {
                             </div>
                             <div className="space-y-1">
                               <label className="text-[8px] font-black text-stone-500 uppercase tracking-wider block ml-1">Tracking ID</label>
-                              <input 
-                                className="w-full h-10 px-3 rounded-lg border border-orange-200 bg-white text-stone-850 text-[10px] font-bold focus:outline-none focus:border-orange-500" 
-                                value={editTrackingId} 
-                                onChange={e => setEditTrackingId(e.target.value)} 
+                              <input
+                                className="w-full h-10 px-3 rounded-lg border border-orange-200 bg-white text-stone-850 text-[10px] font-bold focus:outline-none focus:border-orange-500"
+                                value={editTrackingId}
+                                onChange={e => setEditTrackingId(e.target.value)}
                                 placeholder="e.g. TRK123"
                               />
                             </div>
                           </div>
-                          <button 
-                            onClick={handleUpdateStatus} 
+                          <button
+                            onClick={handleUpdateStatus}
                             className="w-full h-10 rounded-lg bg-orange-955 hover:bg-orange-850 text-white font-black uppercase text-[8px] tracking-widest transition-all active:scale-95 cursor-pointer shadow-sm"
                           >
                             {statusSaved ? "Saved!" : "Manual Save"}
@@ -784,52 +771,52 @@ export default function OrdersPage() {
       {/* Bulk Action Bar (High contrast clean bottom bar) */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-orange-955 text-white px-8 py-4 rounded-3xl shadow-xl z-[90] flex items-center gap-6 animate-in slide-in-from-bottom-8 duration-300 border border-orange-800">
-           <div className="flex items-center gap-3 pr-6 border-r border-orange-800">
-              <div className="h-9 w-9 rounded-xl bg-orange-600 flex items-center justify-center font-bold text-sm">
-                 {selectedIds.size}
-              </div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-orange-200">Selected</p>
-           </div>
-           
-           <div className="flex items-center gap-4">
-              <div className="flex flex-col gap-1">
-                 <label className="text-[8px] font-black text-orange-300 uppercase tracking-wider">Set Status</label>
-                 <select 
-                   className="bg-orange-900 border border-orange-800 rounded-lg px-3 py-1.5 text-[9px] font-black uppercase tracking-widest focus:outline-none focus:border-orange-500 cursor-pointer"
-                   value={bulkStatus}
-                   onChange={e => setBulkStatus(e.target.value)}
-                 >
-                   {["Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map(s => <option key={s} value={s} className="bg-orange-900">{s}</option>)}
-                 </select>
-              </div>
+          <div className="flex items-center gap-3 pr-6 border-r border-orange-800">
+            <div className="h-9 w-9 rounded-xl bg-orange-600 flex items-center justify-center font-bold text-sm">
+              {selectedIds.size}
+            </div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-orange-200">Selected</p>
+          </div>
 
-              {bulkStatus === 'Shipped' && (
-                <div className="flex flex-col gap-1">
-                   <label className="text-[8px] font-black text-orange-300 uppercase tracking-wider">Courier</label>
-                   <select 
-                     className="bg-orange-900 border border-orange-800 rounded-lg px-3 py-1.5 text-[9px] font-black uppercase tracking-widest focus:outline-none focus:border-orange-500 cursor-pointer"
-                     value={bulkCourier}
-                     onChange={e => setBulkCourier(e.target.value)}
-                   >
-                     {COURIERS.map(c => <option key={c} value={c} className="bg-orange-900">{c}</option>)}
-                   </select>
-                </div>
-              )}
-
-              <button 
-                onClick={handleBulkUpdate}
-                className="h-10 px-5 rounded-xl bg-white text-orange-955 font-black uppercase text-[9px] tracking-widest hover:bg-orange-50 transition-all shadow-md active:scale-95 cursor-pointer"
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-[8px] font-black text-orange-300 uppercase tracking-wider">Set Status</label>
+              <select
+                className="bg-orange-900 border border-orange-800 rounded-lg px-3 py-1.5 text-[9px] font-black uppercase tracking-widest focus:outline-none focus:border-orange-500 cursor-pointer"
+                value={bulkStatus}
+                onChange={e => setBulkStatus(e.target.value)}
               >
-                Apply to {selectedIds.size} Orders
-              </button>
-           </div>
+                {["Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map(s => <option key={s} value={s} className="bg-orange-900">{s}</option>)}
+              </select>
+            </div>
 
-           <button 
-             onClick={() => setSelectedIds(new Set())}
-             className="h-9 w-9 rounded-xl bg-orange-900 border border-orange-800 text-orange-200 hover:text-white transition-all flex items-center justify-center cursor-pointer"
-           >
-              <X size={16} />
-           </button>
+            {bulkStatus === 'Shipped' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-[8px] font-black text-orange-300 uppercase tracking-wider">Courier</label>
+                <select
+                  className="bg-orange-900 border border-orange-800 rounded-lg px-3 py-1.5 text-[9px] font-black uppercase tracking-widest focus:outline-none focus:border-orange-500 cursor-pointer"
+                  value={bulkCourier}
+                  onChange={e => setBulkCourier(e.target.value)}
+                >
+                  {COURIERS.map(c => <option key={c} value={c} className="bg-orange-900">{c}</option>)}
+                </select>
+              </div>
+            )}
+
+            <button
+              onClick={handleBulkUpdate}
+              className="h-10 px-5 rounded-xl bg-white text-orange-955 font-black uppercase text-[9px] tracking-widest hover:bg-orange-50 transition-all shadow-md active:scale-95 cursor-pointer"
+            >
+              Apply to {selectedIds.size} Orders
+            </button>
+          </div>
+
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="h-9 w-9 rounded-xl bg-orange-900 border border-orange-800 text-orange-200 hover:text-white transition-all flex items-center justify-center cursor-pointer"
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
     </div>

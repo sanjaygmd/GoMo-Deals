@@ -621,6 +621,7 @@ export const logout = async (req, res) => {
     res.clearCookie('admin_token', { path: '/' });
     res.clearCookie('seller_token', { path: '/' });
     res.clearCookie('customer_token', { path: '/' });
+    res.clearCookie('super_admin_token', { path: '/' });
     return res.status(200).json({ success: true, message: "Logout successful" });
   } catch (error) {
     console.error("LOGOUT ERROR:", error);

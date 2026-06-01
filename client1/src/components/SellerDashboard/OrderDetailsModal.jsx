@@ -6,9 +6,11 @@ import PersonIcon from '@mui/icons-material/Person';
 import PaymentIcon from '@mui/icons-material/Payment';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useToast } from "../../hooks/use-toast";
 
 const OrderDetailsModal = ({ orderId, onClose }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newStatus, setNewStatus] = useState("");
@@ -31,7 +33,11 @@ const OrderDetailsModal = ({ orderId, onClose }) => {
   const handleUpdateStatus = async () => {
     if (newStatus === order.order_status) return;
     if (newStatus === 'Cancelled' && !cancellationReason.trim()) {
-      alert("Please provide a reason for cancellation.");
+      toast({ 
+        title: "Validation Error", 
+        description: "Please provide a reason for cancellation.", 
+        variant: "destructive" 
+      });
       return;
     }
 
@@ -48,9 +54,9 @@ const OrderDetailsModal = ({ orderId, onClose }) => {
         setOrder(refresh.data);
         setCancellationReason("");
       }
-      alert("Status updated successfully!");
+      toast({ title: "Status Updated", description: "Order status was updated successfully." });
     } else {
-      alert("Failed to update status: " + res.message);
+      toast({ title: "Update Failed", description: "Failed to update status: " + res.message, variant: "destructive" });
     }
     setUpdating(false);
   };

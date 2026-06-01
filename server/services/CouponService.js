@@ -30,7 +30,7 @@ export class CouponService {
             const cleanCode = code ? code.trim().toUpperCase() : '';
             
             const result = await client.query(
-                "SELECT * FROM coupons WHERE code = $1 FOR UPDATE",
+                "SELECT * FROM coupons WHERE code = $1",
                 [cleanCode]
             );
 

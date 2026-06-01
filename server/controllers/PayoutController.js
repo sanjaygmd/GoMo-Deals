@@ -292,6 +292,10 @@ export const updatePayoutStatus = async (req, res) => {
 
 // Admin: Initiate a payout for a seller (Direct)
 export const initiatePayout = async (req, res) => {
+    if (!['admin', 'super_admin'].includes(req.user?.type)) {
+        return res.status(403).json({ success: false, message: 'Unauthorized: Admin access required' });
+    }
+
     const { seller_id, admin_id, amount, payment_method, transaction_ref, notes, payout_period_start, payout_period_end } = req.body;
 
     const client = await pool.connect();

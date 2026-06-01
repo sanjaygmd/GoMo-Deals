@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 import { ProductContext } from "../../context/ProductContext/ProductContext";
 import { X, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
+import { useToast } from "../../hooks/use-toast";
 
 const DeleteProduct = ({ product, onClose }) => {
   const { deleteProduct } = useContext(ProductContext);
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
   const handleDelete = async () => {
@@ -13,12 +15,13 @@ const DeleteProduct = ({ product, onClose }) => {
     try {
       const res = await deleteProduct(product.product_id || product.id, product.seller_id);
       if (res.success) {
+        toast({ title: "Product Removed", description: `${product?.name} was deleted successfully.` });
         onClose();
       } else {
-        alert(res.error || "Failed to delete product");
+        toast({ title: "Deletion Failed", description: res.error || "Failed to delete product", variant: "destructive" });
       }
     } catch (err) {
-      alert("Something went wrong");
+      toast({ title: "Error", description: "Something went wrong", variant: "destructive" });
     } finally {
       setLoading(false);
     }

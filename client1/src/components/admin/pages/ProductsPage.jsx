@@ -12,8 +12,7 @@ import { useAdminSearch } from "../../admin/contexts/AdminSearchContext";
 import { useState, useMemo, useEffect, useContext } from "react";
 import { cn } from "../../../lib/utils";
 import { api } from "../../../services/api";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { exportToExcel } from "../../../utils/exportUtils";
 import { motion, AnimatePresence } from "framer-motion";
 import { StatCard } from "../components/StatCard";
 
@@ -147,48 +146,17 @@ export default function ProductsPage() {
   const handleExport = () => {
     if (filtered.length === 0) return;
 
-    const doc = new jsPDF();
-    
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text("GoMo BOUTIQUE CATALOG", 14, 20);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    doc.text(`Report Date: ${new Date().toLocaleString()}`, 14, 30);
-    doc.text(`Inventory Size: ${filtered.length} Items`, 14, 36);
-    doc.text(`Status: ${ownerFilter} Records`, 14, 42);
+    const tableRows = filtered.map(p => ({
+      'ID': p.product_id.split('-')[0].toUpperCase(),
+      'PRODUCT NAME': p.name,
+      'SKU': p.sku || 'N/A',
+      'CATEGORY': p.room || 'General',
+      'PRICE': `INR ${Number(p.price || 0).toLocaleString()}`,
+      'STOCK': p.stock,
+      'STATUS': p.status
+    }));
 
-    const tableColumn = ["ID", "PRODUCT NAME", "SKU", "CATEGORY", "PRICE", "STOCK", "STATUS"];
-    const tableRows = filtered.map(p => [
-      p.product_id.split('-')[0].toUpperCase(),
-      p.name,
-      p.sku || 'N/A',
-      p.room || 'General',
-      `INR ${Number(p.price || 0).toLocaleString()}`,
-      p.stock,
-      p.status
-    ]);
-
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 50,
-      styles: { fontSize: 8, cellPadding: 4, font: "helvetica" },
-      headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [250, 250, 250] },
-      margin: { top: 50 },
-      didDrawPage: (data) => {
-        const str = `Page ${doc.internal.getNumberOfPages()}`;
-        doc.setFontSize(10);
-        const pageSize = doc.internal.pageSize;
-        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-        doc.text(str, data.settings.margin.left, pageHeight - 10);
-      }
-    });
-
-    doc.save(`GoMo_Catalog_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    exportToExcel(tableRows, `GoMo_Catalog_Report_${new Date().toISOString().split('T')[0]}`);
   };
 
   if (loading) return (

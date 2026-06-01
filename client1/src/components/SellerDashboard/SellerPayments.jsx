@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "../../hooks/use-toast";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { exportToExcel } from "../../utils/exportUtils";
 
 const SellerPayments = () => {
   const { user } = useAuth();
@@ -110,6 +111,30 @@ const SellerPayments = () => {
       toast({ title: "Error", description: "Internal processing error. Please try again.", variant: "destructive" });
     }
     setRequesting(false);
+  };
+
+  const handleExport = () => {
+    if (!filteredTransactions || filteredTransactions.length === 0) {
+      toast({ title: "Export Failed", description: "No payout history available to export.", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const dataToExport = filteredTransactions.map(tx => ({
+        "Payout ID": tx.id || tx.payout_id || "N/A",
+        "Date Requested": tx.date || tx.created_at ? new Date(tx.date || tx.created_at).toLocaleDateString() : "N/A",
+        "Amount (₹)": Number(tx.amount) || 0,
+        "Status": tx.status || tx.payout_status || "N/A",
+        "Method": tx.method || "Bank Transfer",
+        "Notes": tx.notes || "N/A"
+      }));
+      
+      exportToExcel(dataToExport, 'Seller_Payouts');
+      toast({ title: "Export Successful", description: "Payout history exported to Excel." });
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Export Failed", description: "An error occurred while generating the Excel file.", variant: "destructive" });
+    }
   };
 
   if (loading) {
@@ -247,7 +272,7 @@ const SellerPayments = () => {
                   className="w-full pl-9 pr-3 h-10 bg-orange-50 border border-orange-200 rounded-none text-xs font-bold text-orange-800 placeholder-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-950 focus:border-orange-950 transition-all"
                 />
               </div>
-              <button className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-orange-500 hover:text-orange-950 transition-colors shrink-0">
+              <button onClick={handleExport} className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-orange-500 hover:text-orange-950 transition-colors shrink-0">
                  <Download size={14} /> Export CSV
               </button>
            </div>

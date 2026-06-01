@@ -44,12 +44,26 @@ export const isValidImageUrl = (urlStr) => {
 
         const parsed = new URL(urlStr);
 
-        // Enforce allowed protocols (HTTP, HTTPS, and Base64 Data URIs)
-        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && parsed.protocol !== 'data:') {
+        // Enforce allowed protocols (HTTP, HTTPS only)
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
             return false;
         }
 
-        // Allow localhost, local IPs, and private subnets for development and staging
+        // Block localhost, local IPs, and private subnets in production
+        if (process.env.NODE_ENV === 'production') {
+            const hostname = parsed.hostname;
+            if (
+                hostname === 'localhost' ||
+                hostname.startsWith('127.') ||
+                hostname.startsWith('10.') ||
+                hostname.startsWith('192.168.') ||
+                (hostname.startsWith('172.') && parseInt(hostname.split('.')[1], 10) >= 16 && parseInt(hostname.split('.')[1], 10) <= 31) ||
+                hostname.endsWith('.local')
+            ) {
+                return false;
+            }
+        }
+        
         return true;
     } catch (err) {
         return false;

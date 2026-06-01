@@ -243,7 +243,10 @@ export const registerAdmin = async (req, res) => {
     }
 
     const hashedInput = hashOtp(otp);
-    if (hashedInput !== otpData.otp_hash) {
+    const hashedInputBuf = Buffer.from(hashedInput, 'utf8');
+    const dbHashBuf = Buffer.from(otpData.otp_hash, 'utf8');
+    
+    if (hashedInputBuf.length !== dbHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, dbHashBuf)) {
       await pool.query(
         `UPDATE otp_verifications SET attempts = attempts + 1 WHERE email = $1 AND purpose = 'admin_registration'`,
         [sanitizedEmailForOtp]
@@ -775,6 +778,12 @@ export const verifyAdminPasswordReset = async (req, res) => {
     await pool.query(
       `UPDATE ${targetTable} SET password_hash = $1, updated_at = NOW() WHERE ${targetIdCol} = $2`,
       [passwordHash, target[targetIdCol]]
+    );
+
+    // Security: Invalidate all existing sessions for this admin
+    await pool.query(
+      "DELETE FROM auth_sessions WHERE user_ref_id = $1",
+      [target[targetIdCol]]
     );
 
     // Mark as used
@@ -2052,43 +2061,6 @@ export const deleteSeller = async (req, res) => {
     client.release();
   }
 };
-/**
- * Get All Products (Admin View)
- */
-export const getAdminProducts = async (req, res) => {
-  try {
-    const productsQuery = `
-      SELECT 
-        p.*,
-        c.name as category_name,
-        s.store_name as seller_name,
-        (SELECT json_agg(pi.* ORDER BY pi.sort_order) FROM product_images pi WHERE pi.product_id = p.product_id) as pi_images,
-        (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.category_id
-      LEFT JOIN sellers s ON p.seller_id = s.seller_id
-      WHERE p.deleted_at IS NULL
-      ORDER BY p.created_at DESC
-    `;
-    const result = await pool.query(productsQuery);
-
-
-
-    const products = result.rows.map(p => ({
-      ...p,
-      id: p.product_id,
-      thumbnail: p.pi_images && p.pi_images.length > 0 ? p.pi_images[0].image_url : (p.images && p.images.length > 0 ? p.images[0] : null),
-      stock: p.stock_quantity || 0,
-      status: p.is_active ? "Active" : "Inactive"
-    }));
-
-
-    return res.status(200).json({ success: true, data: products });
-  } catch (error) {
-    console.error("GET ADMIN PRODUCTS ERROR:", error);
-    return res.status(500).json({ success: false, message: "Failed to fetch admin products" });
-  }
-};
 
 /**
  * Change Admin Password
@@ -2275,6 +2247,14 @@ export const bulkUpdateOrders = async (req, res) => {
 
     if (!Array.isArray(orderIds) || orderIds.length === 0) {
       return res.status(400).json({ success: false, message: "No orders selected" });
+    }
+
+    // Security: Validate all orderIds as UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    for (const id of orderIds) {
+      if (!uuidRegex.test(id)) {
+        return res.status(400).json({ success: false, message: "Invalid order ID format detected" });
+      }
     }
 
     // Security: Validation for status and courier

@@ -11,8 +11,17 @@ const KYCPage = ({ back, data, setData }) => {
     const [submitting, setSubmitting] = useState(false);
 
     const handleSubmit = async () => {
-        if (!data.aadhar || data.aadhar.length !== 12 || isNaN(data.aadhar)) {
-            return setError("Valid 12-digit Aadhar number is required");
+        if (!data.aadhar_name || data.aadhar_name.trim() === "") {
+            return setError("Name on Aadhar card is required");
+        }
+        
+        if (data.aadhar_name.toLowerCase().trim() !== (data.full_name || "").toLowerCase().trim()) {
+            return setError("Aadhar card name must match your registered full name exactly");
+        }
+
+        const aadharRegex = /^\d{12}$/;
+        if (!data.aadhar || !aadharRegex.test(data.aadhar)) {
+            return setError("Valid 12-digit Aadhar number is required (numbers only)");
         }
 
         setSubmitting(true);
@@ -46,6 +55,15 @@ const KYCPage = ({ back, data, setData }) => {
             </div>
 
             <div className="space-y-6">
+                <div>
+                    <label className={labelStyle}>Name on Aadhar Card</label>
+                    <input
+                        placeholder="As printed on Aadhar"
+                        value={data.aadhar_name}
+                        onChange={(e) => setData({ ...data, aadhar_name: e.target.value })}
+                        className={`${inputStyle} bg-white`}
+                    />
+                </div>
                 <div>
                     <label className={labelStyle}>Aadhar Number</label>
                     <input

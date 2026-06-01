@@ -64,6 +64,7 @@ const ProductGrid = () => {
   const [filterColor, setFilterColor] = useState('all');
   const [filterSize, setFilterSize] = useState('all');
   const [filterDiscount, setFilterDiscount] = useState('all');
+  const [displayLimit, setDisplayLimit] = useState(20);
   
   // UI Accordion and Drawer States
   const [expandedCategories, setExpandedCategories] = useState({});
@@ -144,6 +145,7 @@ const ProductGrid = () => {
     setFilterColor('all');
     setFilterSize('all');
     setFilterDiscount('all');
+    setDisplayLimit(20);
     
     // Reset any active URL parameters by navigating to the base catalog path
     if (location.search) {
@@ -176,7 +178,7 @@ const ProductGrid = () => {
       list.push({ id: 'rating', label: `Rating: ${minRating}★ & Up`, clear: () => setMinRating(0) });
     }
     if (filterBrand !== 'all') {
-      list.push({ id: 'brand', label: `${t('boutique')}: ${filterBrand}`, clear: () => setFilterBrand('all') });
+      list.push({ id: 'brand', label: `${t('brand') || 'Brand'}: ${filterBrand}`, clear: () => setFilterBrand('all') });
     }
     if (availability !== 'all') {
       list.push({ id: 'availability', label: `Stock: ${availability === 'instock' ? t('in_stock') : t('out_of_stock')}`, clear: () => setAvailability('all') });
@@ -218,24 +220,29 @@ const ProductGrid = () => {
         const cat = filterCategory.toLowerCase();
         const catClean = cat.replace(/[^a-z0-9]/g, '');
         
-        const subcats = categoryTree[cat] || [];
-        const matchSubcategoryTree = subcats.some(sub => 
-            fieldContains(p.category_name, sub.label) || 
-            fieldContains(p.category_name, sub.slug) ||
-            fieldContains(p.tags, sub.label) ||
-            fieldContains(p.tags, sub.slug) ||
-            fieldContains(p.room, sub.label) ||
-            fieldContains(p.room, sub.slug) ||
-            fieldContains(p.name, sub.label)
-        );
+        const catCleanSpaced = catClean.replace(/-/g, ' ');
+        let matchSubcategoryTree = false;
+        if (categoryTree[cat]) {
+          matchSubcategoryTree = categoryTree[cat].some(sub => 
+            fieldContains(p.category_name, sub.slug) || 
+            fieldContains(p.category_name, sub.slug.replace(/-/g, ' ')) ||
+            fieldContains(p.tags, sub.slug) || 
+            fieldContains(p.name, sub.slug) ||
+            fieldContains(p.name, sub.slug.replace(/-/g, ' '))
+          );
+        }
 
-        matchCategory = fieldContains(p.category_name, cat) || 
-                        fieldContains(p.parent_category_name, cat) || 
-                        (p.category_id?.toString() === cat) ||
-                        (p.parent_category_id?.toString() === cat) ||
-                        fieldContains(p.tags, cat) ||
-                        fieldContains(p.name, cat) ||
-                        fieldContains(p.room, cat) ||
+        matchCategory = fieldContains(p.category_name, catClean) || 
+                        fieldContains(p.category_name, catCleanSpaced) ||
+                        fieldContains(p.parent_category_name, catClean) || 
+                        fieldContains(p.parent_category_name, catCleanSpaced) ||
+                        fieldContains(p.tags, catClean) || 
+                        fieldContains(p.name, catClean) ||
+                        fieldContains(p.name, catCleanSpaced) ||
+                        fieldContains(p.description, catClean) ||
+                        fieldContains(p.description, catCleanSpaced) ||
+                        fieldContains(p.recipient, catClean) ||
+                        fieldContains(p.room, catClean) ||
                         matchSubcategoryTree ||
                         (catClean === 'homeliving' && (fieldContains(p.category_name, 'home') || fieldContains(p.category_name, 'living') || fieldContains(p.parent_category_name, 'home') || fieldContains(p.parent_category_name, 'living'))) ||
                         (catClean === 'sportsfitness' && (fieldContains(p.category_name, 'sports') || fieldContains(p.category_name, 'fitness') || fieldContains(p.parent_category_name, 'sports') || fieldContains(p.parent_category_name, 'fitness'))) ||
@@ -247,10 +254,14 @@ const ProductGrid = () => {
       let matchSubcategory = true;
       if (filterSubcategory !== 'all') {
         const subClean = filterSubcategory.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const subCleanSpaced = subClean.replace(/-/g, ' ');
         matchSubcategory = fieldContains(p.category_name, subClean) || 
+                           fieldContains(p.category_name, subCleanSpaced) ||
                            fieldContains(p.tags, subClean) || 
                            fieldContains(p.name, subClean) || 
+                           fieldContains(p.name, subCleanSpaced) || 
                            fieldContains(p.description, subClean) ||
+                           fieldContains(p.description, subCleanSpaced) ||
                            fieldContains(p.recipient, subClean) ||
                            fieldContains(p.occasion, subClean);
       }
@@ -343,7 +354,7 @@ const ProductGrid = () => {
         matchRating = Number(p.rating || 0) >= minRating || Number(p.rating || 0) === 0;
       }
 
-      // 8. Match Boutique Brand Filter
+      // 8. Match Brand Filter
       let matchBrand = true;
       if (filterBrand !== 'all') {
         const brand = filterBrand.toLowerCase();
@@ -438,6 +449,11 @@ const ProductGrid = () => {
 
     return result;
   }, [sellerProducts, filterCategory, filterSubcategory, priceRange, filterDeal, sortBy, filterRecipient, filterOccasion, minRating, filterBrand, availability, filterGender, filterColor, filterSize, filterDiscount, urlSearchQuery, location.pathname]);
+
+  // Reset display limit when filters change
+  useEffect(() => {
+    setDisplayLimit(6);
+  }, [filterCategory, filterSubcategory, priceRange, filterDeal, sortBy, filterRecipient, filterOccasion, minRating, filterBrand, availability, filterGender, filterColor, filterSize, filterDiscount, urlSearchQuery]);
 
 
   const activeFiltersCount = useMemo(() => {
@@ -564,13 +580,13 @@ const ProductGrid = () => {
         </AnimatePresence>
       </div>
 
-      {/* Boutique Brands Filter */}
+      {/* Brand Filter */}
       <div>
         <button
           onClick={() => toggleSection('brand')}
           className="w-full flex items-center justify-between text-[11px] font-black uppercase tracking-[0.2em] text-orange-955 mb-3.5 border-b border-orange-100 pb-2.5 hover:text-orange-600 transition-colors"
         >
-          <span>{t("boutique")}</span>
+          <span>{t("brand") || "Brand"}</span>
           {openSections.brand ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
         <AnimatePresence initial={false}>
@@ -1267,21 +1283,24 @@ const ProductGrid = () => {
           {/* 2. Right Column: Products Display Grid */}
           <div className="flex-grow w-full md:w-auto">
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-8 sm:gap-y-12">
-                <AnimatePresence mode='popLayout'>
-                  {(activeFiltersCount === 0 ? filteredProducts.slice(0, 12) : filteredProducts).map((product) => (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.3 }}
-                      key={product.product_id || product.id}
-                    >
-                      <ProductCard product={product} />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+              <div className="flex flex-col">
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-8 sm:gap-y-12">
+                  <AnimatePresence mode='popLayout'>
+                    {filteredProducts.slice(0, displayLimit).map((product) => (
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                        key={product.product_id || product.id}
+                      >
+                        <ProductCard product={product} />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+
               </div>
             ) : (
               <div className="py-24 text-center bg-white border border-orange-100/50 rounded-3xl p-8 max-w-xl mx-auto shadow-sm">

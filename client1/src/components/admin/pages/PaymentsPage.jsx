@@ -8,6 +8,7 @@ import {
 import { cn } from "../../../lib/utils";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../services/api";
+import { exportToExcel } from "../../../utils/exportUtils";
 
 const PaymentStatCard = ({ title, value, label, icon: Icon, color }) => (
   <div className="bg-white rounded-[32px] p-8 border border-orange-100 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all duration-500">
@@ -65,7 +66,16 @@ export default function PaymentsPage() {
   });
 
   const handleExport = () => {
-    toast({ title: "Exporting Data", description: "Your transaction report is being generated..." });
+    const tableRows = filteredPayments.map(p => ({
+      'Transaction ID': p.id,
+      'Status': p.status,
+      'Customer': p.customer,
+      'Amount': p.amount,
+      'Date': p.date,
+      'Method': p.method
+    }));
+    exportToExcel(tableRows, `Payments_Report_${new Date().toISOString().split('T')[0]}`);
+    toast({ title: "Exporting Data", description: "Your transaction report has been generated." });
   };
 
   return (

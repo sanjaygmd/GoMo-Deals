@@ -30,5 +30,6 @@ export const pruneExpiredRecords = async () => {
         console.log("[CLEANUP] Database maintenance completed.");
     } catch (error) {
         console.error("[CLEANUP] Maintenance Error:", error.message);
+        throw error;
     }
 };

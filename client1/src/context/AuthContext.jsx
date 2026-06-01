@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            const role = user?.role;
+            const role = user?.role || user?.type;
             if (role === 'admin' || role === 'super_admin') {
                 await authService.adminLogout();
             } else if (role === 'seller') {

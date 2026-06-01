@@ -22,15 +22,19 @@ import {
   ArrowDownRight,
   History,
   Activity,
-  Layers
+  Layers,
+  Download
 } from "lucide-react";
 import {useState, useEffect} from "react";
+import { exportToExcel } from "../../utils/exportUtils";
+import { useToast } from "../../hooks/use-toast";
 
 import { useAuth } from "../../context/AuthContext.jsx";
 
 const SellerAnalytics = () => {
   const { user } = useAuth();
   const sellerId = user?.id;
+  const { toast } = useToast();
   const [financeData, setFinanceData] = useState({
     daily: [],
     weekly: [],
@@ -92,6 +96,26 @@ const SellerAnalytics = () => {
   const avgOrderValue = stats?.total_orders > 0
     ? (parseFloat(stats.total_revenue) / parseInt(stats.total_orders)).toFixed(0)
     : 0;
+
+  const handleExport = () => {
+    if (!currentChartData || currentChartData.length === 0) {
+      toast({ title: "Export Failed", description: "No analytics data available for the selected period.", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const dataToExport = currentChartData.map(d => ({
+        "Period": d.name || "N/A",
+        "Revenue (₹)": Number(d.value) || 0
+      }));
+      
+      exportToExcel(dataToExport, `Analytics_${selectedPeriod}`);
+      toast({ title: "Export Successful", description: `${selectedPeriod} analytics exported to Excel.` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Export Failed", description: "An error occurred while generating the Excel file.", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="p-8 lg:p-12 space-y-12 max-w-[1600px] mx-auto animate-fadeIn">
@@ -192,6 +216,12 @@ const SellerAnalytics = () => {
                 {p.label}
               </button>
             ))}
+            <button
+              onClick={handleExport}
+              className="px-6 py-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-orange-950 hover:bg-orange-100 transition-colors"
+            >
+              <Download size={14} /> Export
+            </button>
           </div>
         </div>
 

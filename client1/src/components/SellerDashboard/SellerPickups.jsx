@@ -6,16 +6,19 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import MapIcon from '@mui/icons-material/Map';
 import PhoneIcon from '@mui/icons-material/Phone';
 import PersonIcon from '@mui/icons-material/Person';
-
+import ConfirmModal from "../common/ConfirmModal";
+import { useToast } from "../../hooks/use-toast";
 import { useAuth } from "../../context/AuthContext.jsx";
 
 const SellerPickups = () => {
     const { user } = useAuth();
     const sellerId = user?.id;
+    const { toast } = useToast();
 
     const [pickups, setPickups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, locationId: null });
     const [formData, setFormData] = useState({
         location_name: "",
         contact_name: "",
@@ -44,7 +47,7 @@ const SellerPickups = () => {
         e.preventDefault();
         const res = await addPickupLocation({ ...formData, seller_id: sellerId });
         if (res.success) {
-            alert("Pickup location added successfully!");
+            toast({ title: "Location Added", description: "Pickup location added successfully!" });
             setShowModal(false);
             fetchPickups();
             setFormData({
@@ -58,17 +61,24 @@ const SellerPickups = () => {
                 is_default: false
             });
         } else {
-            alert("Error adding location: " + res.message);
+            toast({ title: "Failed", description: "Error adding location: " + res.message, variant: "destructive" });
         }
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this pickup location?")) {
-            const res = await deletePickupLocation(id);
-            if (res.success) {
-                fetchPickups();
-            }
+    const handleDeleteClick = (id) => {
+        setConfirmModal({ isOpen: true, locationId: id });
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!confirmModal.locationId) return;
+        const res = await deletePickupLocation(confirmModal.locationId);
+        if (res.success) {
+            toast({ title: "Location Deleted", description: "Pickup location has been removed." });
+            fetchPickups();
+        } else {
+            toast({ title: "Error", description: "Failed to delete location.", variant: "destructive" });
         }
+        setConfirmModal({ isOpen: false, locationId: null });
     };
 
     const handleSetDefault = async (pickupId) => {
@@ -121,7 +131,7 @@ const SellerPickups = () => {
                                         </button>
                                     )}
                                     <button 
-                                        onClick={() => handleDelete(pickup.pickup_id)}
+                                        onClick={() => handleDeleteClick(pickup.pickup_id)}
                                         className="p-3 text-orange-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition"
                                         title="Delete Location"
                                     >
@@ -282,6 +292,17 @@ const SellerPickups = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, locationId: null })}
+                onConfirm={handleDeleteConfirm}
+                title="Delete Pickup Location"
+                message="Are you sure you want to permanently delete this pickup location? This action cannot be undone."
+                confirmText="Delete Location"
+                cancelText="Cancel"
+                type="danger"
+            />
         </div>
     );
 };

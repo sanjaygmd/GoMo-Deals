@@ -13,13 +13,17 @@ import {
   Truck,
   ArrowRight,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Download
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { exportToExcel } from "../../utils/exportUtils";
+import { useToast } from "../../hooks/use-toast";
 
 const SellerOrders = () => {
   const { user } = useAuth();
   const sellerId = user?.seller_id || user?.id;
+  const { toast } = useToast();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -71,6 +75,30 @@ const SellerOrders = () => {
     return matchesSearch && matchesTab;
   });
 
+  const handleExport = () => {
+    if (!filteredOrders || filteredOrders.length === 0) {
+      toast({ title: "Export Failed", description: "No orders available to export.", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const dataToExport = filteredOrders.map(o => ({
+        "Order ID": o.id || "N/A",
+        "Customer Name": o.customer || "N/A",
+        "Transaction Date": o.placed_at ? new Date(o.placed_at).toLocaleDateString() : "N/A",
+        "Gross Total (₹)": Number(o.total) || 0,
+        "Status": o.status || "N/A",
+        "Cancellation Reason": o.cancellation_reason || "N/A"
+      }));
+      
+      exportToExcel(dataToExport, 'Seller_Orders');
+      toast({ title: "Export Successful", description: "Order history exported to Excel." });
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Export Failed", description: "An error occurred while generating the Excel file.", variant: "destructive" });
+    }
+  };
+
   const tabs = [
     { id: "all", label: "All Sales", icon: ShoppingBag },
     { id: "pending", label: "Pending", icon: Clock },
@@ -116,6 +144,13 @@ const SellerOrders = () => {
               className="pl-10 pr-6 py-3 bg-orange-50 border border-orange-100 text-[10px] uppercase tracking-widest outline-none focus:border-orange-950 focus:bg-white transition-all w-72 shadow-sm"
             />
           </div>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-3 bg-orange-950 text-white hover:bg-orange-900 transition-colors shadow-sm"
+          >
+            <Download size={14} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Export</span>
+          </button>
         </div>
       </div>
 

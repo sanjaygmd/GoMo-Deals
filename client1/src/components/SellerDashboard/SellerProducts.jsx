@@ -17,9 +17,12 @@ import {
   AlertTriangle,
   ChevronDown,
   LayoutGrid,
-  List
+  List,
+  Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { exportToExcel } from "../../utils/exportUtils";
+import { useToast } from "../../hooks/use-toast";
 
 const getColorHex = (color) => {
   const lowerColor = color?.toLowerCase() || '';
@@ -36,6 +39,7 @@ const SellerProducts = () => {
   const { products: sellerProducts, fetchProducts: fetchSellerProducts } = useContext(ProductContext);
   const { user } = useAuth();
   const sellerId = user?.seller_id || user?.id;
+  const { toast } = useToast();
 
   useEffect(() => {
     if (sellerId) {
@@ -75,6 +79,35 @@ const SellerProducts = () => {
     filteredProducts.sort((a, b) => b.price - a.price);
   }
 
+  const handleExport = () => {
+    if (!filteredProducts || filteredProducts.length === 0) {
+      toast({ title: "Export Failed", description: "No products available to export.", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const dataToExport = filteredProducts.map(p => ({
+        "Product ID": p.product_id || p.id || "N/A",
+        "SKU": p.sku || "N/A",
+        "Name": p.name || "N/A",
+        "Brand": p.brand || "N/A",
+        "Category": p.category || "N/A",
+        "Base Price (₹)": p.price || 0,
+        "Original MRP (₹)": p.mrp || 0,
+        "Discount (%)": p.discount_percent || 0,
+        "Stock Quantity": p.stock_quantity || 0,
+        "Status": p.status || "Active",
+        "Date Added": p.created_at ? new Date(p.created_at).toLocaleDateString() : "N/A"
+      }));
+      
+      exportToExcel(dataToExport, 'Seller_Products');
+      toast({ title: "Export Successful", description: "Product inventory exported to Excel." });
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Export Failed", description: "An error occurred while generating the Excel file.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="p-8 lg:p-12 space-y-12 max-w-[1600px] mx-auto animate-fadeIn">
       
@@ -108,6 +141,13 @@ const SellerProducts = () => {
             className="px-8 py-3 bg-orange-950 text-white text-[10px] uppercase tracking-widest font-black hover:bg-orange-800 transition-all flex items-center gap-3 shadow-xl"
           >
             <Plus size={14} /> Add New Product
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-3 bg-white text-orange-950 border border-orange-200 hover:bg-orange-50 transition-colors shadow-sm"
+          >
+            <Download size={14} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Export</span>
           </button>
         </div>
       </div>

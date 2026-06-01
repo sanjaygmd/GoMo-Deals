@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import Razorpay from 'razorpay';
 import { pool } from '../config/db.js';
 
 /**
@@ -7,7 +8,7 @@ import { pool } from '../config/db.js';
  */
 export const subscribe = async (req, res, next) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, tier } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, tier, billing_cycle } = req.body;
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !tier) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
@@ -28,6 +29,33 @@ export const subscribe = async (req, res, next) => {
 
       if (generated_signature !== razorpay_signature) {
         return res.status(400).json({ success: false, message: 'Invalid payment signature.' });
+      }
+      
+      // CRITICAL SECURITY FIX: Validate that the Razorpay order amount strictly matches the tier price
+      const TIERS = {
+        'free': { price: 0, yearlyPrice: 0 },
+        'silver': { price: 299, yearlyPrice: 2999 },
+        'gold': { price: 599, yearlyPrice: 5999 },
+        'platinum': { price: 999, yearlyPrice: 9999 }
+      };
+      
+      const expectedAmount = billing_cycle === 'yearly' ? TIERS[tier]?.yearlyPrice : TIERS[tier]?.price;
+      
+      if (expectedAmount === undefined) {
+          return res.status(400).json({ success: false, message: 'Invalid membership tier.' });
+      }
+
+      try {
+        const key_id = process.env.RAZORPAY_KEY_ID;
+        const razorpay = new Razorpay({ key_id, key_secret: secret });
+        const rzpOrder = await razorpay.orders.fetch(razorpay_order_id);
+        
+        if (rzpOrder.amount !== Math.round(expectedAmount * 100)) {
+           return res.status(400).json({ success: false, message: `Payment amount mismatch. Expected ₹${expectedAmount}, but order was for ₹${rzpOrder.amount / 100}` });
+        }
+      } catch (rzpErr) {
+        console.error("Razorpay Fetch Error:", rzpErr);
+        return res.status(400).json({ success: false, message: rzpErr.message?.includes("mismatch") ? rzpErr.message : "Failed to verify payment amount with Razorpay" });
       }
     }
 
@@ -51,6 +79,11 @@ export const downgrade = async (req, res, next) => {
     if (!newTier) {
       return res.status(400).json({ success: false, message: 'Target tier not specified.' });
     }
+    
+    if (!['free', 'silver'].includes(newTier)) {
+      return res.status(403).json({ success: false, message: 'Invalid downgrade tier. You can only downgrade to free or silver.' });
+    }
+
     const result = await pool.query(
       `UPDATE customers SET membership = $1 WHERE customer_id = $2 RETURNING *`,
       [newTier, req.user.id]

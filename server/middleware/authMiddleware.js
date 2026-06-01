@@ -59,9 +59,13 @@ export const requireAuth = (allowedRoles = []) => async (req, res, next) => {
         let session = null;
         if (allowedRoles.length > 0) {
             session = sortedSessions.find(r => allowedRoles.includes(r.user_type));
-        }
-        
-        if (!session) {
+            if (!session) {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: 'Insufficient permissions'
+                });
+            }
+        } else {
             session = sortedSessions[0];
         }
 
@@ -76,13 +80,6 @@ export const requireAuth = (allowedRoles = []) => async (req, res, next) => {
                 return profile.name || 'Authenticated User';
             }
         };
-
-        if (allowedRoles.length > 0 && !allowedRoles.includes(user.type)) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Insufficient permissions'
-            });
-        }
 
         req.user = user;
         req.sessionId = session.session_id;

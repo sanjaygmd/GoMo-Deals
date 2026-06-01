@@ -5,8 +5,16 @@ const Tax = ({ next, back, data, setData }) => {
   const [error, setError] = useState("");
 
   const handleNext = () => {
-    if (!data.pan || data.pan.length !== 10) {
-      return setError("Valid 10-character PAN is required");
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!data.pan || !panRegex.test(data.pan)) {
+      return setError("Valid 10-character PAN is required (e.g. ABCDE1234F)");
+    }
+    
+    if (data.gstin) {
+      const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!gstinRegex.test(data.gstin)) {
+        return setError("Valid 15-character GSTIN is required (e.g. 22AAAAA0000A1Z5)");
+      }
     }
     setError("");
     next();

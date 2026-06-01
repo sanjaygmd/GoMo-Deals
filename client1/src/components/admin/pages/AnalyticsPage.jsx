@@ -12,8 +12,7 @@ import { cn } from "../../../lib/utils";
 import { useToast } from "../../../hooks/use-toast";
 import { api } from "../../../services/api";
 import { useNavigate } from "react-router-dom";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { exportToExcel } from "../../../utils/exportUtils";
 import { StatCard } from "../components/StatCard";
 
 const RANGES = [
@@ -66,86 +65,15 @@ export default function AnalyticsPage() {
   ];
 
   const handleExport = () => {
-    const doc = new jsPDF();
-    const date = new Date().toLocaleDateString('en-IN');
+    const exportData = {
+      "Top Products": analytics.topProducts || [],
+      "Category Distribution": analytics.categoryDistribution || [],
+      "Revenue Trend": analytics.trend || [],
+      "Recent Deliveries": analytics.recentDeliveries || []
+    };
     
-    // Premium Branding
-    doc.setFillColor(10, 10, 10);
-    doc.rect(0, 0, 210, 40, 'F');
-    
-    doc.setFontSize(24);
-    doc.setTextColor(255, 255, 255);
-    doc.text("GoMo Intelligence Matrix", 14, 25);
-    doc.setFontSize(10);
-    doc.text(`Market Dynamics Report | Generated: ${date} | Range: ${range.toUpperCase()}`, 14, 32);
-
-    // KPI Summary
-    doc.setTextColor(0);
-    doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
-    doc.text("EXECUTIVE KPIS", 14, 55);
-    
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Total Platform Revenue: INR ${totalRevenue.toLocaleString()}`, 14, 65);
-    doc.text(`Transaction Volume: ${totalOrders.toLocaleString()} Orders`, 14, 71);
-    doc.text(`Inventory Velocity: ${totalItems.toLocaleString()} Items Sold`, 14, 77);
-    doc.text(`Average Basket Valuation: INR ${Math.round(avgOrderValue).toLocaleString()}`, 14, 83);
-
-    // Top Products Table
-    doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
-    doc.text("TOP PERFORMING SECTORS", 14, 100);
-
-    const productRows = (analytics.topProducts || []).map((p, i) => [
-      i + 1,
-      p.name,
-      p.seller,
-      p.qty,
-      `INR ${p.revenue.toLocaleString()}`
-    ]);
-
-    autoTable(doc, {
-      startY: 105,
-      head: [['Rank', 'Product Entity', 'Merchant', 'Quantity', 'Gross Revenue']],
-      body: productRows,
-      theme: 'grid',
-      headStyles: { fillColor: [10, 10, 10] },
-      styles: { fontSize: 8 }
-    });
-
-    // Category Distribution
-    const categoryY = doc.lastAutoTable.finalY + 15;
-    doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
-    doc.text("SECTOR DISTRIBUTION", 14, categoryY);
-
-    const categoryRows = (analytics.categoryDistribution || []).map(c => [
-      c.name,
-      c.value,
-      `${((c.value / analytics.categoryDistribution.reduce((a, b) => a + b.value, 0)) * 100).toFixed(1)}%`
-    ]);
-
-    autoTable(doc, {
-      startY: categoryY + 5,
-      head: [['Category Cluster', 'SKU Count', 'Market Share']],
-      body: categoryRows,
-      theme: 'striped',
-      styles: { fontSize: 8 }
-    });
-
-    // Footer
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text("GoMo Proprietary Data - Internal Use Only", 14, 285);
-      doc.text(`Analytical Document ID: GoMo-IM-${Date.now().toString().slice(-6)} | Page ${i} of ${pageCount}`, 196, 285, { align: 'right' });
-    }
-
-    doc.save(`GoMo-Intelligence-${range}-${date}.pdf`);
-    toast({ title: "Intelligence Exported", description: "Market Dynamics report is now available for review." });
+    exportToExcel(exportData, `GoMo_Intelligence_${range}_${new Date().toLocaleDateString('en-IN').replace(/\//g, '-')}`);
+    toast({ title: "Intelligence Exported", description: "Excel report is now available for review." });
   };
 
   return (

@@ -35,6 +35,7 @@ const Onboarding = () => {
     pan: "",
     gstin: "",
     aadhar: "",
+    aadhar_name: "",
     
     // Address
     address_line_1: "",

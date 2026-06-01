@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 import { StatCard } from "../components/StatCard";
 import { getAdminMeetings, cancelMeeting, endMeeting } from "../../../services/meetingService";
-import ConfirmModal from '../../components/common/ConfirmModal';
+import ConfirmModal from '../../common/ConfirmModal';
 
 export default function FleaMarketMediator() {
   const [loading, setLoading] = useState(true);

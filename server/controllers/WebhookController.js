@@ -86,7 +86,7 @@ export const handleRazorpayWebhook = async (req, res) => {
 
         } else if (event === 'refund.processed') {
             // Refund State Mismatches (Risk D)
-            const refundEntity = req.body.payload.refund.entity;
+            const refundEntity = parsedBody.payload.refund.entity;
             const refund_id = refundEntity.id;
 
             // Find the order associated with this payment

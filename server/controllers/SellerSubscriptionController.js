@@ -31,25 +31,45 @@ export const subscribe = async (req, res, next) => {
       }
     }
 
-    // Give 30 days of subscription access
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      const checkDouble = await client.query(
+        "SELECT 1 FROM seller_subscriptions_history WHERE razorpay_order_id = $1",
+        [razorpay_order_id]
+      );
+      if (checkDouble.rows.length > 0 && !isMock) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: 'Subscription already processed for this payment.' });
+      }
 
-    // Record the transaction
-    await pool.query(
-      `INSERT INTO seller_subscriptions_history 
-        (seller_id, plan_id, amount, razorpay_order_id, razorpay_payment_id, status)
-       VALUES ($1, $2, $3, $4, $5, 'active')`,
-      [req.user.id, plan_id, amount, razorpay_order_id, razorpay_payment_id]
-    );
+      // Give 30 days of subscription access
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30);
 
-    // Update seller's subscription status
-    const result = await pool.query(
-      `UPDATE sellers SET seller_subscription = $1, seller_subscription_expiry = $2 WHERE seller_id = $3 RETURNING seller_id, seller_subscription, seller_subscription_expiry`,
-      [plan_id, expiryDate, req.user.id]
-    );
+      // Record the transaction
+      await client.query(
+        `INSERT INTO seller_subscriptions_history 
+          (seller_id, plan_id, amount, razorpay_order_id, razorpay_payment_id, status)
+         VALUES ($1, $2, $3, $4, $5, 'active')`,
+        [req.user.id, plan_id, amount, razorpay_order_id, razorpay_payment_id]
+      );
 
-    return res.json({ success: true, message: `Subscribed to ${plan_id} plan.`, data: result.rows[0] });
+      // Update seller's subscription status
+      const result = await client.query(
+        `UPDATE sellers SET seller_subscription = $1, seller_subscription_expiry = $2 WHERE seller_id = $3 RETURNING seller_id, seller_subscription, seller_subscription_expiry`,
+        [plan_id, expiryDate, req.user.id]
+      );
+
+      await client.query('COMMIT');
+      return res.json({ success: true, message: `Subscribed to ${plan_id} plan.`, data: result.rows[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      next(err);
+    } finally {
+      client.release();
+    }
   } catch (err) {
     next(err);
   }

@@ -48,11 +48,13 @@ export const getCart = async (req, res) => {
         if (!['admin', 'super_admin'].includes(req.user.type)) {
             return res.status(403).json({ success: false, message: 'Unauthorized access to cart' });
         }
-        // Security Fix: Audit log when an administrator views another customer's shopping cart
-        await logAction(req, 'VIEW_USER_CART', { customer_id });
     }
 
     try {
+        if (req.user.id !== customer_id) {
+            // Security Fix: Audit log when an administrator views another customer's shopping cart
+            await logAction(req, 'VIEW_USER_CART', { customer_id });
+        }
         const result = await pool.query(
             `SELECT 
                 ci.cart_item_id,
@@ -74,7 +76,7 @@ export const getCart = async (req, res) => {
                      WHERE product_id = p.product_id 
                      AND (variant_id = ci.variant_id OR variant_id IS NULL) 
                      ORDER BY sort_order LIMIT 1),
-                    'https://via.placeholder.com/400'
+                    '/fallback-product.png'
                 ) AS thumbnail,
                 pv.variant_name,
                 pv.variant_value
@@ -121,6 +123,11 @@ export const addToCart = async (req, res) => {
 
     if (!product_id) {
         return res.status(400).json({ success: false, message: 'product_id is required' });
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(product_id)) {
+        return res.status(400).json({ success: false, message: 'Sample products cannot be added to cart. Please choose a real product.' });
     }
 
 
@@ -307,13 +314,13 @@ export const updateCartItem = async (req, res) => {
         await client.query('BEGIN');
 
         let result;
-        if (quantity <= 0) {
+        if (qty <= 0) {
             result = await client.query('DELETE FROM cart_items WHERE cart_item_id = $1 RETURNING cart_id', [cart_item_id]);
         } else {
             // Update quantity and price in cart_items using latest DB price
             result = await client.query(
                 'UPDATE cart_items SET quantity = $1, price = $2, updated_at = NOW() WHERE cart_item_id = $3 RETURNING cart_id',
-                [quantity, dbPrice, cart_item_id]
+                [qty, dbPrice, cart_item_id]
             );
         }
 

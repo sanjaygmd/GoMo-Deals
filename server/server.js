@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import { testDB } from './config/db.js';
 import { initSchema } from './config/initDb.js';
 import { validateEnv } from './config/validateEnv.js';
+import { pruneExpiredRecords } from './utils/cleanupTask.js';
 
 // Validate environment variables on startup
 validateEnv();
@@ -145,6 +146,16 @@ app.listen(port, () => {
         } else {
             console.log("Production environment. Skipping initSchema(). Run 'npm run db:migrate' to apply schema changes.");
         }
+
+        // Run cleanup tasks
+        pruneExpiredRecords().catch(err => console.error("Initial cleanup error:", err));
+        setInterval(() => {
+            pruneExpiredRecords().catch(err => console.error("Periodic cleanup error:", err));
+        }, 1000 * 60 * 60 * 24);
+
+    }).catch(err => {
+        console.error("FATAL: Database connection failed. Shutting down.", err);
+        process.exit(1);
     });
 });
 

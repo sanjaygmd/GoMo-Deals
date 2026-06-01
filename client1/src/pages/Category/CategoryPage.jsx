@@ -15,6 +15,13 @@ const CategoryPage = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [filterType, setFilterType] = useState('all'); // 'all' | 'new' | 'best'
 
+  useEffect(() => {
+    if (type === 'flea-market' || type === 'flea_market') {
+       navigate('/flea-market', { replace: true });
+       return;
+    }
+  }, [type, navigate]);
+
   // Dynamic Sidebar Filter States
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [priceRange, setPriceRange] = useState('all');
