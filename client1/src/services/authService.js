@@ -39,8 +39,15 @@ export const customerRegister = (registerData) => {
 
 export const register = customerRegister; // Generic alias
 
-export const customerLogin = (email, password) => {
-    const payload = typeof email === 'object' ? normalizeEmail(email) : { email: normalizeEmail(email), password };
+export const customerLogin = (email, password, otp = null) => {
+    let payload;
+    if (typeof email === 'object') {
+        payload = normalizeEmail(email);
+        if (otp) payload.otp = otp;
+    } else {
+        payload = { email: normalizeEmail(email), password };
+        if (otp) payload.otp = otp;
+    }
     return handleApiCall('post', '/customer/login', payload);
 };
 
@@ -64,22 +71,36 @@ export const sellerRegister = (registerData) => {
 
 export const registerSeller = sellerRegister; // Alias
 
-export const loginSeller = (loginData) => {
-    const normalizedData = { ...loginData, email: loginData.email?.toLowerCase().trim() };
-    return handleApiCall('post', '/seller/login', normalizedData);
+// Admin Auth
+export const sellerLogin = (email, password, otp = null) => {
+    let payload;
+    if (typeof email === 'object') {
+        payload = normalizeEmail(email);
+        if (otp) payload.otp = otp;
+    } else {
+        payload = { email: normalizeEmail(email), password };
+        if (otp) payload.otp = otp;
+    }
+    return handleApiCall('post', '/seller/login', payload);
 };
 
-// Admin Auth
-export const adminLogin = (email, password, role) => {
-    const payload = typeof email === 'object' ? normalizeEmail(email) : { email: normalizeEmail(email), password, role };
+export const adminLogin = (email, password, role, otp = null) => {
+    let payload;
+    if (typeof email === 'object') {
+        payload = normalizeEmail(email);
+        if (otp) payload.otp = otp;
+    } else {
+        payload = { email: normalizeEmail(email), password, role };
+        if (otp) payload.otp = otp;
+    }
     return handleApiCall('post', '/admin/login', payload);
 };
 
 export const loginAdmin = adminLogin; // Alias
 
 export const sendAdminRegisterOTP = (data) => {
-    const normalizedData = { ...data, email: data.email?.toLowerCase().trim() };
-    return handleApiCall('post', '/admin/send-register-otp', normalizedData);
+    const payload = { ...data, email: data.email?.toLowerCase().trim() };
+    return handleApiCall('post', '/admin/send-register-otp', payload);
 };
 
 export const adminRegister = (registerData) => {
@@ -88,11 +109,6 @@ export const adminRegister = (registerData) => {
 };
 
 export const registerAdmin = adminRegister; // Alias
-
-export const verifySuperAdminLogin = (email, otp) => {
-    const payload = typeof email === 'object' ? normalizeEmail(email) : { email: normalizeEmail(email), otp };
-    return handleApiCall('post', '/admin/verify-super-admin-login', payload);
-};
 
 export const requestAdminPasswordReset = (email) => {
     return handleApiCall('post', '/admin/request-password-reset', { email: normalizeEmail(email) });

@@ -58,16 +58,21 @@ export default function PayoutsPage() {
   }, [payouts]);
 
   const handleExport = () => {
-    const tableRows = payouts.map(p => ({
-      'Payout ID': p.id,
-      'Seller': p.seller_name,
-      'Amount Requested': p.amount,
-      'Gross Revenue': p.revenue,
-      'Status': p.status,
-      'Request Date': p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'
-    }));
-    exportToExcel(tableRows, `Seller_Payouts_Ledger_${new Date().toISOString().split('T')[0]}`);
-    toast({ title: "Export Complete", description: "The payouts ledger has been downloaded." });
+    try {
+      toast({ title: "Export Started", description: "Preparing payouts data for export..." });
+      const tableRows = payouts.map(p => ({
+        'Payout ID': p.id,
+        'Seller': p.seller_name,
+        'Amount Requested': p.amount,
+        'Gross Revenue': p.revenue,
+        'Status': p.status,
+        'Request Date': p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'
+      }));
+      exportToExcel(tableRows, `Seller_Payouts_Ledger_${new Date().toISOString().split('T')[0]}`);
+      toast({ title: "Export Complete", description: "The payouts ledger has been downloaded." });
+    } catch (err) {
+      toast({ title: "Export Failed", description: "Could not generate excel file.", variant: "destructive" });
+    }
   };
 
   return (

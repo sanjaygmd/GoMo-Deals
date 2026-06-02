@@ -16,7 +16,7 @@ export const initSchema = async () => {
             `, [tableName]);
             return res.rows[0].exists;
         };
-        
+
         // 1. Fix Shiprocket Tables (UUID to VARCHAR migration)
         const checkShiprocket = await pool.query(`
             SELECT data_type FROM information_schema.columns 
@@ -50,7 +50,7 @@ export const initSchema = async () => {
             await pool.query(`
                 ALTER TABLE super_admins ADD COLUMN IF NOT EXISTS master_key VARCHAR(255);
             `);
-            
+
             // Populate existing null master_keys with a hash of the environment key
             const existingAdmins = await pool.query("SELECT super_admin_id FROM super_admins WHERE master_key IS NULL");
             if (existingAdmins.rows.length > 0) {

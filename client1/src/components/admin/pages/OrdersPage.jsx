@@ -16,6 +16,7 @@ import autoTable from "jspdf-autotable";
 import { useToast } from "../../../hooks/use-toast";
 import { StatCard } from "../components/StatCard";
 import { exportToExcel } from "../../../utils/exportUtils";
+import ConfirmModal from '../../common/ConfirmModal';
 
 /* ─── PDF Invoice download helper ─────────────────────────────── */
 function downloadInvoice(order) {
@@ -177,31 +178,43 @@ export default function OrdersPage() {
   };
 
   const handleAutoPilot = async () => {
-    if (!window.confirm("This will automatically assign couriers and mark ALL pending orders as Shipped. Continue?")) return;
-    try {
-      const resp = await api.post('/admin/orders/auto-dispatch');
-      if (resp.data.success) {
-        toast({ title: "Auto-Pilot Success", description: resp.data.message });
-        fetchOrders();
+    setConfirmModal({
+      isOpen: true,
+      title: 'Bulk Auto-Pilot Dispatch',
+      message: 'This will automatically assign couriers and mark ALL pending orders as Shipped. Continue?',
+      action: async () => {
+        try {
+          const resp = await api.post('/admin/orders/auto-dispatch');
+          if (resp.data.success) {
+            toast({ title: "Auto-Pilot Success", description: resp.data.message });
+            fetchOrders();
+          }
+        } catch (err) {
+          toast({ title: "Auto-Pilot Failed", description: "System error during automated dispatch", variant: "destructive" });
+        }
       }
-    } catch (err) {
-      toast({ title: "Auto-Pilot Failed", description: "System error during automated dispatch", variant: "destructive" });
-    }
+    });
   };
 
   const handleExportStream = () => {
-    const tableRows = filtered.map(o => ({
-      'Order ID': `#${o.id.slice(0, 8)}`,
-      'Date': new Date(o.created_at).toLocaleDateString(),
-      'Customer': o.customer_name,
-      'Email': o.customer_email,
-      'Amount': `INR ${o.total_amount}`,
-      'Status': o.status,
-      'Method': o.payment_method,
-      'Courier': o.courier || 'N/A'
-    }));
+    try {
+      toast({ title: "Export Started", description: "Preparing order data for export..." });
+      const tableRows = filtered.map(o => ({
+        'Order ID': `#${o.id.slice(0, 8)}`,
+        'Date': new Date(o.created_at).toLocaleDateString(),
+        'Customer': o.customer_name,
+        'Email': o.customer_email,
+        'Amount': `INR ${o.total_amount}`,
+        'Status': o.status,
+        'Method': o.payment_method,
+        'Courier': o.courier || 'N/A'
+      }));
 
-    exportToExcel(tableRows, `Order-Stream-${new Date().toISOString().split('T')[0]}`);
+      exportToExcel(tableRows, `Order-Stream-${new Date().toISOString().split('T')[0]}`);
+      toast({ title: "Export Complete", description: "Order stream has been downloaded." });
+    } catch (err) {
+      toast({ title: "Export Failed", description: "Could not generate excel file.", variant: "destructive" });
+    }
   };
 
   const [editStatus, setEditStatus] = useState("");
@@ -212,6 +225,7 @@ export default function OrdersPage() {
   const [srLoading, setSrLoading] = useState(false);
   const [serviceability, setServiceability] = useState(null);
   const [dispatchSuccess, setDispatchSuccess] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, message: '', title: '' });
 
   const openOrder = (o) => {
     setSelectedOrder(o);
@@ -682,19 +696,25 @@ export default function OrdersPage() {
                       <div className="space-y-4">
                         {/* Intelligent Auto-Pilot Button */}
                         <button
-                          onClick={async () => {
-                            if (!window.confirm("Run Shiprocket Auto-Pilot for this order?")) return;
-                            setSrLoading(true);
-                            try {
-                              const res = await api.post(`/shipping/initiate/${selectedOrder.id}`);
-                              if (res.data.success) {
-                                toast({ title: "Smart Dispatch Success", description: `Assigned to ${res.data.data.courier}` });
-                                setDispatchSuccess(res.data.data);
-                                fetchOrders();
+                          onClick={() => {
+                            setConfirmModal({
+                              isOpen: true,
+                              title: 'Shiprocket Auto-Pilot',
+                              message: 'Run Shiprocket Auto-Pilot for this order?',
+                              action: async () => {
+                                setSrLoading(true);
+                                try {
+                                  const res = await api.post(`/shipping/initiate/${selectedOrder.id}`);
+                                  if (res.data.success) {
+                                    toast({ title: "Smart Dispatch Success", description: `Assigned to ${res.data.data.courier}` });
+                                    setDispatchSuccess(res.data.data);
+                                    fetchOrders();
+                                  }
+                                } catch (err) {
+                                  toast({ title: "Dispatch Failed", description: err.response?.data?.message || "System error", variant: "destructive" });
+                                } finally { setSrLoading(false); }
                               }
-                            } catch (err) {
-                              toast({ title: "Dispatch Failed", description: err.response?.data?.message || "System error", variant: "destructive" });
-                            } finally { setSrLoading(false); }
+                            });
                           }}
                           disabled={srLoading || selectedOrder.status === 'Shipped'}
                           className="w-full h-12 rounded-xl bg-white border border-orange-200 hover:border-orange-500 hover:text-orange-955 text-stone-800 disabled:opacity-30 disabled:pointer-events-none font-black uppercase text-[9px] tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
@@ -819,6 +839,19 @@ export default function OrdersPage() {
           </button>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, action: null, message: '', title: '' })}
+        onConfirm={() => {
+          if (confirmModal.action) confirmModal.action();
+          setConfirmModal({ isOpen: false, action: null, message: '', title: '' });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText="Confirm"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

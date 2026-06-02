@@ -48,19 +48,19 @@ const NavMain = ({ scrolled, isHome }) => {
 
     // Flea Market commodity categories for the dropdown
     const FLEA_CATEGORIES = [
-        { slug: 'all',            label: 'All Products' },
-        { slug: 'dal',            label: 'Dal' },
-        { slug: 'paruppu',        label: 'Paruppu' },
-        { slug: 'rice',           label: 'Rice' },
-        { slug: 'wheat',          label: 'Wheat' },
-        { slug: 'maize',          label: 'Maize / Corn' },
-        { slug: 'groundnut',      label: 'Groundnut' },
-        { slug: 'sesame',         label: 'Sesame Seeds' },
-        { slug: 'black-pepper',   label: 'Black Pepper' },
-        { slug: 'turmeric',       label: 'Turmeric' },
-        { slug: 'coriander',      label: 'Coriander Seeds' },
-        { slug: 'cumin',          label: 'Cumin' },
-        { slug: 'sugar',          label: 'Sugar' },
+        { slug: 'all', label: 'All Products' },
+        { slug: 'dal', label: 'Dal' },
+        { slug: 'paruppu', label: 'Paruppu' },
+        { slug: 'rice', label: 'Rice' },
+        { slug: 'wheat', label: 'Wheat' },
+        { slug: 'maize', label: 'Maize / Corn' },
+        { slug: 'groundnut', label: 'Groundnut' },
+        { slug: 'sesame', label: 'Sesame Seeds' },
+        { slug: 'black-pepper', label: 'Black Pepper' },
+        { slug: 'turmeric', label: 'Turmeric' },
+        { slug: 'coriander', label: 'Coriander Seeds' },
+        { slug: 'cumin', label: 'Cumin' },
+        { slug: 'sugar', label: 'Sugar' },
     ];
 
     const handleFleaCategoryClick = (slug) => {
@@ -109,8 +109,8 @@ const NavMain = ({ scrolled, isHome }) => {
         };
     }, []);
 
-    const { 
-        cartCount, 
+    const {
+        cartCount,
         wishlist,
         cartDrawerOpen,
         setCartDrawerOpen,
@@ -246,7 +246,7 @@ const NavMain = ({ scrolled, isHome }) => {
     const filteredSearch = useMemo(() => {
         if (!searchQuery.trim() || !sellerProducts) return [];
         const q = searchQuery.toLowerCase().trim();
-        
+
         return sellerProducts.filter(p => {
             // Check department category filter if category selected is not 'all'
             if (searchCategory !== 'all') {
@@ -256,27 +256,27 @@ const NavMain = ({ scrolled, isHome }) => {
                     return false;
                 }
             }
-            
+
             // Check direct name match
             if ((p.name || '').toLowerCase().includes(q)) return true;
-            
+
             // Check brand match
             if ((p.brand || '').toLowerCase().includes(q)) return true;
-            
+
             // Check description match
             if ((p.description || '').toLowerCase().includes(q)) return true;
-            
+
             // Check occasion/recipient match
             if ((p.recipient || '').toLowerCase().includes(q)) return true;
             if ((p.occasion || '').toLowerCase().includes(q)) return true;
-            
+
             // Check color/size match
             if ((p.color || '').toLowerCase().includes(q)) return true;
             if ((p.size || '').toLowerCase().includes(q)) return true;
-            
+
             // Check tags match
             if ((p.tags || '').toLowerCase().includes(q)) return true;
-            
+
             return false;
         });
     }, [searchQuery, searchCategory, sellerProducts]);
@@ -308,7 +308,7 @@ const NavMain = ({ scrolled, isHome }) => {
         }
 
         const targetUrl = `/?search=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(searchCategory)}`;
-        
+
         if (location.pathname !== '/') {
             navigate(targetUrl);
             setTimeout(() => {
@@ -325,7 +325,7 @@ const NavMain = ({ scrolled, isHome }) => {
     const handleDealClick = (dealName) => {
         setAllMenuOpen(false);
         const targetUrl = `/?deal=${encodeURIComponent(dealName)}`;
-        
+
         if (location.pathname !== '/') {
             navigate(targetUrl);
             setTimeout(() => {
@@ -366,21 +366,21 @@ const NavMain = ({ scrolled, isHome }) => {
                                 <Menu size={22} strokeWidth={1.5} />
                             </button>
                             <Link to="/" className="flex items-center overflow-visible transition-transform duration-300 active:scale-98 -my-2.5 md:-my-3.5">
-                                <img 
-                                    src={gmdLogo} 
-                                    alt="GoMo Deals Logo" 
-                                    className="h-32 md:h-36 w-auto object-contain transition-all duration-300 hover:scale-[1.05] hover:brightness-105 active:scale-95 filter drop-shadow(0 4px 15px rgba(234, 88, 12, 0.22))" 
+                                <img
+                                    src={gmdLogo}
+                                    alt="GoMo Deals Logo"
+                                    className="h-32 md:h-36 w-auto object-contain transition-all duration-300 hover:scale-[1.05] hover:brightness-105 active:scale-95 filter drop-shadow(0 4px 15px rgba(234, 88, 12, 0.22))"
                                     style={{ contentVisibility: 'auto' }}
                                 />
                             </Link>
                         </div>
 
                         {/* Delivery Locator - Interactive Country Picker */}
-                        <div 
-                            ref={countryContainerRef} 
+                        <div
+                            ref={countryContainerRef}
                             className="relative hidden lg:block flex-shrink-0"
                         >
-                            <div 
+                            <div
                                 onClick={() => {
                                     setShowCountryDropdown(!showCountryDropdown);
                                     setShowLanguageDropdown(false);
@@ -403,7 +403,7 @@ const NavMain = ({ scrolled, isHome }) => {
 
                             <AnimatePresence>
                                 {showCountryDropdown && (
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ opacity: 0, y: 8, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 8, scale: 0.95 }}
@@ -422,11 +422,10 @@ const NavMain = ({ scrolled, isHome }) => {
                                                         changeCountry(country.name);
                                                         setShowCountryDropdown(false);
                                                     }}
-                                                    className={`w-full text-left px-3.5 py-2 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100/10 rounded-xl transition-all flex items-center justify-between group/item cursor-pointer border border-transparent ${
-                                                        selectedCountry.name === country.name 
-                                                            ? 'bg-orange-50/50 text-orange-600 font-extrabold border-orange-100/30' 
+                                                    className={`w-full text-left px-3.5 py-2 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100/10 rounded-xl transition-all flex items-center justify-between group/item cursor-pointer border border-transparent ${selectedCountry.name === country.name
+                                                            ? 'bg-orange-50/50 text-orange-600 font-extrabold border-orange-100/30'
                                                             : 'text-orange-955 hover:text-orange-600 font-bold'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[15px]">{country.flag}</span>
@@ -444,11 +443,11 @@ const NavMain = ({ scrolled, isHome }) => {
                         </div>
 
                         {/* Interactive Language Picker */}
-                        <div 
-                            ref={languageContainerRef} 
+                        <div
+                            ref={languageContainerRef}
                             className="relative hidden lg:block flex-shrink-0"
                         >
-                            <div 
+                            <div
                                 onClick={() => {
                                     setShowLanguageDropdown(!showLanguageDropdown);
                                     setShowCountryDropdown(false);
@@ -471,7 +470,7 @@ const NavMain = ({ scrolled, isHome }) => {
 
                             <AnimatePresence>
                                 {showLanguageDropdown && (
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ opacity: 0, y: 8, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 8, scale: 0.95 }}
@@ -490,11 +489,10 @@ const NavMain = ({ scrolled, isHome }) => {
                                                         changeLanguage(lang.code);
                                                         setShowLanguageDropdown(false);
                                                     }}
-                                                    className={`w-full text-left px-3.5 py-2 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100/10 rounded-xl transition-all flex items-center justify-between group/item cursor-pointer border border-transparent ${
-                                                        language === lang.code 
-                                                            ? 'bg-orange-50/50 text-orange-600 font-extrabold border-orange-100/30' 
+                                                    className={`w-full text-left px-3.5 py-2 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100/10 rounded-xl transition-all flex items-center justify-between group/item cursor-pointer border border-transparent ${language === lang.code
+                                                            ? 'bg-orange-50/50 text-orange-600 font-extrabold border-orange-100/30'
                                                             : 'text-orange-955 hover:text-orange-600 font-bold'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[15px]">{lang.flag}</span>
@@ -515,10 +513,10 @@ const NavMain = ({ scrolled, isHome }) => {
                     {/* Redesigned Central Luxury Search Bar */}
                     <div ref={searchContainerRef} className={`hidden md:flex flex-1 items-center max-w-xl relative ${searchOpen ? 'z-[141]' : 'z-30'}`}>
                         <div className="flex items-center w-full rounded-md border border-orange-200 bg-orange-50/5 hover:bg-orange-50/10 focus-within:bg-white shadow-[0_2px_10px_rgba(249,115,22,0.01)] focus-within:shadow-[0_6px_24px_rgba(249,115,22,0.08)] focus-within:border-orange-500 transition-all duration-300 h-10 group/search-bar">
-                            
+
                             {/* Custom Category Dropdown Selector */}
                             <div className="relative flex-shrink-0 h-full flex items-center">
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => {
                                         setShowCategoryDropdown(!showCategoryDropdown);
@@ -529,10 +527,10 @@ const NavMain = ({ scrolled, isHome }) => {
                                     <span>{t((searchCategories.find(c => c.value === searchCategory) || searchCategories[0]).value)}</span>
                                     <ChevronDown size={11} className={`text-orange-600 transition-transform duration-200 ${showCategoryDropdown ? 'rotate-180' : ''}`} />
                                 </button>
-                                
+
                                 <AnimatePresence>
                                     {showCategoryDropdown && (
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ opacity: 0, y: 8, scale: 0.95 }}
                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                             exit={{ opacity: 0, y: 8, scale: 0.95 }}
@@ -547,11 +545,10 @@ const NavMain = ({ scrolled, isHome }) => {
                                                         setSearchCategory(cat.value);
                                                         setShowCategoryDropdown(false);
                                                     }}
-                                                    className={`w-full text-left px-4 py-2 text-[12px] font-bold uppercase tracking-wider transition-colors flex items-center justify-between cursor-pointer ${
-                                                        searchCategory === cat.value 
-                                                            ? 'bg-orange-50 text-orange-600 font-extrabold' 
+                                                    className={`w-full text-left px-4 py-2 text-[12px] font-bold uppercase tracking-wider transition-colors flex items-center justify-between cursor-pointer ${searchCategory === cat.value
+                                                            ? 'bg-orange-50 text-orange-600 font-extrabold'
                                                             : 'text-orange-955 hover:bg-orange-50/50 hover:text-orange-600'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <span>{t(cat.value)}</span>
                                                     {searchCategory === cat.value && <div className="w-1.5 h-1.5 rounded-full bg-orange-600" />}
@@ -565,7 +562,7 @@ const NavMain = ({ scrolled, isHome }) => {
                             {/* Search Input Box */}
                             <div className="flex-1 flex items-center px-3.5 h-full">
                                 <Search size={14} className="text-orange-450/70 mr-2 flex-shrink-0 transition-colors group-focus-within/search-bar:text-orange-500" />
-                                <input 
+                                <input
                                     id="navbar-search-input"
                                     type="text"
                                     value={searchQuery}
@@ -582,9 +579,9 @@ const NavMain = ({ scrolled, isHome }) => {
                                     className="bg-transparent text-xs font-semibold w-full focus:outline-none text-orange-955 placeholder-orange-300/80"
                                 />
                                 {searchQuery && (
-                                    <button 
+                                    <button
                                         type="button"
-                                        onClick={() => { setSearchQuery(''); setSearchOpen(false); }} 
+                                        onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
                                         className="transition-all duration-200 text-orange-400 hover:text-orange-600 p-1.5 rounded-full hover:bg-orange-100/60 hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0"
                                     >
                                         <X size={13} />
@@ -593,7 +590,7 @@ const NavMain = ({ scrolled, isHome }) => {
                             </div>
 
                             {/* Premium Boxy Action Button */}
-                            <button 
+                            <button
                                 onClick={handleSearchSubmit}
                                 className="h-full px-5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center justify-center text-white cursor-pointer transition-all duration-300 rounded-r-md group/btn flex-shrink-0 border-l border-orange-100/50 hover:shadow-[inset_0_-2px_10px_rgba(0,0,0,0.05)] active:brightness-95"
                             >
@@ -604,7 +601,7 @@ const NavMain = ({ scrolled, isHome }) => {
                         {/* Search Autocomplete Suggestions Popup */}
                         <AnimatePresence>
                             {searchOpen && searchQuery.trim() !== '' && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 12, scale: 0.98 }}
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -613,12 +610,12 @@ const NavMain = ({ scrolled, isHome }) => {
                                 >
                                     <div className="flex items-center justify-between mb-4 border-b border-orange-100 pb-2">
                                         <span className="text-[12px] font-extrabold uppercase tracking-wider text-orange-900">{t("search_results")}</span>
-                                        <span className="text-[12px] font-extrabold uppercase tracking-wider text-orange-600">{t("matches", {count: filteredSearch.length})}</span>
+                                        <span className="text-[12px] font-extrabold uppercase tracking-wider text-orange-600">{t("matches", { count: filteredSearch.length })}</span>
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
                                         {filteredSearch.slice(0, 8).map(product => (
-                                            <Link 
-                                                to={`/product/${product.product_id}`} 
+                                            <Link
+                                                to={`/product/${product.product_id}`}
                                                 key={product.product_id}
                                                 onClick={() => setSearchQuery('')}
                                                 className="group flex flex-col gap-2.5 p-1.5 rounded-xl hover:bg-orange-50/40 transition-all duration-300 text-left"
@@ -642,7 +639,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                 </motion.div>
                             )}
                             {searchOpen && searchQuery.trim() === '' && searchHistory.length > 0 && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 12, scale: 0.98 }}
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -660,7 +657,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                     <div className="max-h-[300px] overflow-y-auto">
                                         <div className="flex flex-col">
                                             {searchHistory.map((query, idx) => (
-                                                <button 
+                                                <button
                                                     key={idx}
                                                     onClick={(e) => {
                                                         e.preventDefault();
@@ -684,7 +681,7 @@ const NavMain = ({ scrolled, isHome }) => {
                     {/* Right Header Navigation: Accounts, Returns, Wishlist & Cart */}
                     <div className="flex items-center justify-end gap-3 md:gap-4 flex-shrink-0">
                         {/* Account Menu */}
-                        <div 
+                        <div
                             className="relative hidden md:block cursor-pointer py-1.5 px-3 rounded-full hover:bg-gradient-to-r hover:from-white hover:to-orange-50/20 border border-transparent hover:border-orange-200/60 hover:shadow-[0_4px_12px_rgba(249,115,22,0.03)] transition-all duration-300 group"
                             onMouseEnter={() => setShowAccountMenu(true)}
                             onMouseLeave={() => setShowAccountMenu(false)}
@@ -702,7 +699,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                     </span>
                                 </div>
                             </div>
-                            
+
                             {showAccountMenu && (
                                 <div className="absolute top-full right-0 pt-2.5 z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
                                     <div className="bg-white/95 backdrop-blur-md border border-orange-100 shadow-[0_15px_40px_rgba(0,0,0,0.12)] rounded-2xl py-3 w-56 overflow-hidden">
@@ -711,7 +708,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                                 {user ? `${t("welcome")}, ${(user.full_name || user.name || user.store_name || 'Partner')}` : t("account")}
                                             </p>
                                         </div>
-                                        
+
                                         {!user ? (
                                             <div className="flex flex-col px-1.5 gap-0.5">
                                                 <Link to="/login" className="flex items-center gap-3 px-3.5 py-2 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100/10 rounded-xl transition-all text-orange-955 hover:text-orange-600 font-bold border border-transparent hover:border-orange-100/30 group/item">
@@ -719,7 +716,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                                     <span className="text-[10px] uppercase tracking-wider">Customer Login</span>
                                                 </Link>
                                                 <Link to="/seller-login" className="flex items-center gap-3 px-3.5 py-2 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100/10 rounded-xl transition-all text-orange-955 hover:text-orange-600 font-bold border border-transparent hover:border-orange-100/30 group/item">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500 group-hover/item:scale-125 transition-transform" style={{backgroundColor: '#ea580c'}} />
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500 group-hover/item:scale-125 transition-transform" style={{ backgroundColor: '#ea580c' }} />
                                                     <span className="text-[10px] uppercase tracking-wider">Seller Login</span>
                                                 </Link>
                                                 <Link to="/admin-login" className="flex items-center gap-3 px-3.5 py-2 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100/10 rounded-xl transition-all text-orange-955 hover:text-orange-600 font-bold border border-transparent hover:border-orange-100/30 group/item">
@@ -751,14 +748,14 @@ const NavMain = ({ scrolled, isHome }) => {
                                                         <Link to="/membership" className="flex items-center gap-3 px-3.5 py-2 hover:bg-gradient-to-r hover:from-amber-50 hover:to-yellow-50/30 rounded-xl transition-all text-orange-955 hover:text-amber-600 font-bold border border-transparent hover:border-amber-100/40 group/item">
                                                             <span className="text-sm">{
                                                                 user?.membership === 'platinum' ? '💎' :
-                                                                user?.membership === 'gold' ? '👑' :
-                                                                user?.membership === 'silver' ? '⭐' : '🛍️'
+                                                                    user?.membership === 'gold' ? '👑' :
+                                                                        user?.membership === 'silver' ? '⭐' : '🛍️'
                                                             }</span>
                                                             <span className="text-[10px] uppercase tracking-wider">Membership</span>
                                                         </Link>
                                                     </>
                                                 )}
-                                                <button 
+                                                <button
                                                     onClick={handleLogout}
                                                     className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-red-50 rounded-xl transition-all text-red-500 text-left border border-transparent hover:border-red-100/30 border-t border-orange-50/60 mt-1 cursor-pointer font-bold"
                                                 >
@@ -775,7 +772,7 @@ const NavMain = ({ scrolled, isHome }) => {
                         {/* Live Notifications (Bell) */}
                         {user && (user.role !== 'admin' && user.role !== 'super_admin') && (
                             <div className="relative flex items-center">
-                                <button 
+                                <button
                                     onClick={() => setNotificationsOpen(!notificationsOpen)}
                                     className="w-9 h-9 rounded-full flex items-center justify-center border border-transparent hover:border-orange-100/80 hover:bg-white text-orange-955 hover:text-orange-600 hover:scale-105 hover:shadow-[0_4px_12px_rgba(249,115,22,0.06)] active:scale-95 transition-all duration-300 relative p-0 cursor-pointer hover-bell-shake"
                                 >
@@ -786,7 +783,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                         </span>
                                     )}
                                 </button>
-                                
+
                                 <AnimatePresence>
                                     {notificationsOpen && (
                                         <motion.div
@@ -808,7 +805,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     {notifications.length > 0 && (
-                                                        <button 
+                                                        <button
                                                             onClick={handleMarkAllAsRead}
                                                             className="text-[9.5px] uppercase tracking-wider font-extrabold text-orange-600 hover:text-orange-700 transition-colors cursor-pointer hover:underline"
                                                         >
@@ -820,18 +817,18 @@ const NavMain = ({ scrolled, isHome }) => {
                                                     </button>
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Cards list */}
                                             <div className="max-h-[280px] sm:max-h-[380px] overflow-y-auto py-2.5 px-3.5 custom-scrollbar bg-white space-y-2">
                                                 {notifications.length > 0 ? (
                                                     notifications.map((notification) => {
                                                         const isUnread = !notification.is_read;
-                                                        
+
                                                         // Determine dynamic icon, title, and color scheme based on notification.type
                                                         let IconComponent = Info;
                                                         let iconBgColor = "bg-amber-50 text-amber-600 border-amber-100";
                                                         let typeLabel = "Info";
-                                                        
+
                                                         if (notification.type === 'offer_update') {
                                                             IconComponent = Tag;
                                                             iconBgColor = "bg-orange-50 text-orange-600 border-orange-100";
@@ -859,13 +856,12 @@ const NavMain = ({ scrolled, isHome }) => {
                                                         }
 
                                                         return (
-                                                            <div 
-                                                                key={notification.notification_id} 
-                                                                className={`p-3 rounded-xl border transition-all duration-200 relative group flex gap-3 text-left ${
-                                                                    isUnread 
-                                                                        ? 'bg-orange-50/40 hover:bg-orange-50/70 border-orange-100/70 border-l-[3.5px] border-l-orange-500 shadow-sm' 
+                                                            <div
+                                                                key={notification.notification_id}
+                                                                className={`p-3 rounded-xl border transition-all duration-200 relative group flex gap-3 text-left ${isUnread
+                                                                        ? 'bg-orange-50/40 hover:bg-orange-50/70 border-orange-100/70 border-l-[3.5px] border-l-orange-500 shadow-sm'
                                                                         : 'bg-white hover:bg-neutral-50/50 border-neutral-100 border-l-[3.5px] border-l-neutral-200 shadow-none'
-                                                                }`}
+                                                                    }`}
                                                             >
                                                                 {/* Left side: Icon */}
                                                                 <div className="flex-shrink-0">
@@ -894,17 +890,17 @@ const NavMain = ({ scrolled, isHome }) => {
                                                                         </span>
                                                                         <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                                             {isUnread && (
-                                                                                <button 
+                                                                                <button
                                                                                     onClick={() => handleMarkAsRead(notification.notification_id)}
                                                                                     className="text-[9px] uppercase tracking-wider font-extrabold text-orange-600 hover:text-orange-700 transition-colors cursor-pointer hover:underline"
                                                                                 >
                                                                                     Mark Read
                                                                                 </button>
                                                                             )}
-                                                                            <button 
+                                                                            <button
                                                                                 onClick={() => handleDelete(notification.notification_id)}
                                                                                 className="text-[9px] uppercase tracking-wider font-extrabold text-neutral-400 hover:text-rose-600 transition-colors cursor-pointer hover:underline"
-                                                                              >
+                                                                            >
                                                                                 Clear
                                                                             </button>
                                                                         </div>
@@ -925,10 +921,10 @@ const NavMain = ({ scrolled, isHome }) => {
                                                     </div>
                                                 )}
                                             </div>
-                                            
+
                                             {/* Footer */}
                                             <div className="p-3 bg-neutral-50/50 border-t border-orange-100/50 text-center">
-                                                <button 
+                                                <button
                                                     onClick={() => { setNotificationsOpen(false); navigate('/profile'); }}
                                                     className="w-full py-2 rounded-lg border border-orange-200 bg-white hover:bg-orange-50/50 text-[10px] font-extrabold uppercase tracking-widest text-orange-600 hover:text-orange-700 transition-all shadow-sm cursor-pointer active:scale-98"
                                                 >
@@ -943,14 +939,14 @@ const NavMain = ({ scrolled, isHome }) => {
 
                         {/* Shopping History */}
                         <div className="relative flex items-center">
-                            <button 
+                            <button
                                 onClick={() => setShoppingHistoryOpen(!shoppingHistoryOpen)}
                                 className="w-9 h-9 rounded-full flex items-center justify-center border border-transparent hover:border-orange-100/80 hover:bg-white text-orange-955 hover:text-orange-600 hover:scale-105 hover:shadow-[0_4px_12px_rgba(249,115,22,0.06)] active:scale-95 transition-all duration-300 relative p-0 cursor-pointer"
                                 title="Shopping History"
                             >
                                 <History size={20} strokeWidth={1.5} />
                             </button>
-                            
+
                             <AnimatePresence>
                                 {shoppingHistoryOpen && (
                                     <motion.div
@@ -968,7 +964,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                                 <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-955">Shopping History</h3>
                                             </div>
                                             {searchHistory.length > 0 && (
-                                                <button 
+                                                <button
                                                     onClick={() => {
                                                         setSearchHistory([]);
                                                         localStorage.removeItem('shopping_history');
@@ -979,12 +975,12 @@ const NavMain = ({ scrolled, isHome }) => {
                                                 </button>
                                             )}
                                         </div>
-                                        
+
                                         <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent">
                                             {searchHistory.length > 0 ? (
                                                 <div className="flex flex-col">
                                                     {searchHistory.map((query, idx) => (
-                                                        <button 
+                                                        <button
                                                             key={idx}
                                                             onClick={() => {
                                                                 setSearchQuery(query);
@@ -1016,7 +1012,7 @@ const NavMain = ({ scrolled, isHome }) => {
                         </div>
 
                         {/* Wishlist */}
-                        <button 
+                        <button
                             onClick={(e) => { e.preventDefault(); setWishlistDrawerOpen(true); }}
                             className="w-9 h-9 rounded-full flex items-center justify-center border border-transparent hover:border-orange-100/80 hover:bg-white text-orange-955 hover:text-orange-600 hover:scale-105 hover:shadow-[0_4px_12px_rgba(249,115,22,0.06)] active:scale-95 transition-all duration-300 flex relative p-0 hover-heart-beat cursor-pointer"
                         >
@@ -1029,11 +1025,11 @@ const NavMain = ({ scrolled, isHome }) => {
                         </button>
 
                         {/* Cart */}
-                        <button 
+                        <button
                             onClick={(e) => { e.preventDefault(); setCartDrawerOpen(true); }}
                             className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-orange-50/30 hover:bg-gradient-to-r hover:from-white hover:to-orange-50/30 border border-orange-100/40 hover:border-orange-400 hover:shadow-[0_8px_24px_rgba(249,115,22,0.16)] hover:-translate-y-0.5 hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 group relative cursor-pointer"
                         >
-                            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-orange-100/60 text-orange-600 transition-all duration-300 group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-amber-500 group-hover:text-white group-hover:shadow-[0_4px_12px_rgba(249,115,22,0.35)]" style={{backgroundColor: 'rgba(255, 237, 213, 0.6)'}}>
+                            <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-orange-100/60 text-orange-600 transition-all duration-300 group-hover:bg-gradient-to-br group-hover:from-orange-500 group-hover:to-amber-500 group-hover:text-white group-hover:shadow-[0_4px_12px_rgba(249,115,22,0.35)]" style={{ backgroundColor: 'rgba(255, 237, 213, 0.6)' }}>
                                 <ShoppingCart size={16} strokeWidth={2} className="transition-all duration-300 group-hover:scale-115 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:rotate-[-8deg]" />
                                 {cartCount > 0 && (
                                     <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-[8px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-white shadow-[0_2px_5px_rgba(234,88,12,0.3)] animate-bounce-subtle group-hover:scale-110 transition-transform">
@@ -1050,7 +1046,7 @@ const NavMain = ({ scrolled, isHome }) => {
                 <form onSubmit={handleSearchSubmit} className="md:hidden px-4 py-3 border-b border-orange-100/40 flex items-center gap-2 bg-orange-50/5">
                     <div className="flex items-center w-full rounded-md border border-orange-200 bg-white px-3 py-1.5 shadow-[0_2px_8px_rgba(249,115,22,0.02)] focus-within:ring-2 focus-within:ring-orange-500/15 focus-within:border-orange-500 transition-all duration-300">
                         <Search size={15} className="text-orange-500 mr-2 flex-shrink-0" />
-                        <input 
+                        <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -1072,76 +1068,79 @@ const NavMain = ({ scrolled, isHome }) => {
                 <div className="w-full bg-orange-50/15 border-b border-orange-100/40 py-3 px-4 md:px-8 flex items-center justify-between text-[11.5px] md:text-[13px] font-black uppercase tracking-wider text-orange-955 relative z-10">
 
                     <div ref={subnavRef} className="flex items-center gap-6 overflow-x-auto whitespace-nowrap no-scrollbar py-0.5 scroll-smooth select-none flex-grow">
-                        <button 
+                        <button
                             onClick={() => setAllMenuOpen(true)}
                             className="group flex items-center gap-1.5 cursor-pointer px-3.5 py-1 rounded-full bg-orange-50 hover:bg-orange-600 text-orange-955 hover:text-white border border-orange-100 hover:border-orange-600 hover:shadow-[0_3px_10px_rgba(249,115,22,0.25)] font-extrabold transition-all duration-300 active:scale-95 flex-shrink-0"
                         >
-                            <Menu size={11} strokeWidth={2.5} className="text-orange-500 group-hover:text-white transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" /> 
+                            <Menu size={11} strokeWidth={2.5} className="text-orange-500 group-hover:text-white transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" />
                             <span className="transition-colors duration-300">{t("all")}</span>
                         </button>
-                        <button 
-                            onClick={() => handleDealClick('sale')} 
-                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${
-                                activeDeal === 'sale' 
-                                    ? 'bg-rose-50 text-rose-700 border-rose-200 shadow-[0_4px_12px_rgba(225,29,72,0.12)]' 
+                        <button
+                            onClick={() => handleDealClick('sale')}
+                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${activeDeal === 'sale'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200 shadow-[0_4px_12px_rgba(225,29,72,0.12)]'
                                     : 'text-rose-600 border-transparent bg-transparent hover:bg-rose-50/60 hover:text-rose-700 hover:border-rose-100 hover:shadow-[0_3px_10px_rgba(225,29,72,0.05)]'
-                            }`}
+                                }`}
                         >
                             {t("sale")}
                         </button>
-                        <button 
-                            onClick={() => handleDealClick('top deals')} 
-                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${
-                                activeDeal === 'top deals' 
-                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]' 
+                        <button
+                            onClick={() => handleDealClick('top deals')}
+                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${activeDeal === 'top deals'
+                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]'
                                     : 'text-orange-600 border-transparent bg-transparent hover:bg-orange-50/80 hover:text-orange-700 hover:border-orange-200/50 hover:shadow-[0_3px_10px_rgba(249,115,22,0.08)]'
-                            }`}
+                                }`}
                         >
                             {t("wow_deals")}
                         </button>
 
 
 
-                        <button 
-                            onClick={() => handleDealClick('click of the week')} 
-                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${
-                                activeDeal === 'click of the week' 
-                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]' 
+                        <button
+                            onClick={() => handleDealClick('click of the week')}
+                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${activeDeal === 'click of the week'
+                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]'
                                     : 'text-orange-955 border-transparent bg-transparent hover:bg-orange-50/60 hover:text-orange-600 hover:border-orange-200/45 hover:shadow-[0_3px_10px_rgba(249,115,22,0.05)]'
-                            }`}
+                                }`}
                         >
                             Click of the week
                         </button>
-                        <button 
-                            onClick={() => handleDealClick('new arrivals')} 
-                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${
-                                activeDeal === 'new arrivals' 
-                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]' 
+                        <button
+                            onClick={() => handleDealClick('new arrivals')}
+                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${activeDeal === 'new arrivals'
+                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]'
                                     : 'text-orange-955 border-transparent bg-transparent hover:bg-orange-50/60 hover:text-orange-600 hover:border-orange-200/45 hover:shadow-[0_3px_10px_rgba(249,115,22,0.05)]'
-                            }`}
+                                }`}
                         >
                             {t("whats_new")}
                         </button>
-                        <button 
-                            onClick={() => handleDealClick('best sellers')} 
-                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${
-                                activeDeal === 'best sellers' 
-                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]' 
+                        <button
+                            onClick={() => handleDealClick('best sellers')}
+                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider ${activeDeal === 'best sellers'
+                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]'
                                     : 'text-orange-955 border-transparent bg-transparent hover:bg-orange-50/60 hover:text-orange-600 hover:border-orange-200/45 hover:shadow-[0_3px_10px_rgba(249,115,22,0.05)]'
-                            }`}
+                                }`}
                         >
                             {t("best_sellers")}
                         </button>
 
-                        <Link 
-                            to="/deals" 
+                        <Link
+                            to="/deals"
                             className="px-4 py-2 rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_4px_12px_rgba(249,115,22,0.3)] hover:shadow-[0_6px_16px_rgba(249,115,22,0.4)]"
                         >
                             GMD Deals
                         </Link>
+                        <a 
+                            href={user ? `http://localhost:5174/?sso_user=${encodeURIComponent(JSON.stringify({ full_name: user.full_name || user.name || user.store_name, role: user.role, email: user.email, id: user.customer_id || user.seller_id || user.admin_id }))}` : "http://localhost:5174/"} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] cursor-pointer flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:shadow-[0_6px_16px_rgba(99,102,241,0.4)]"
+                        >
+                            Movie Tickets
+                        </a>
 
                         <div className="w-[1px] h-4 bg-orange-200 self-center flex-shrink-0 mx-1" />
-                        
+
                         {[
                             { key: 'beauty', label: t('beauty'), slug: 'beauty' },
                             { key: 'books', label: t('books'), slug: 'books' },
@@ -1180,11 +1179,10 @@ const NavMain = ({ scrolled, isHome }) => {
                             >
                                 <Link
                                     to={`/collection/${cat.slug}`}
-                                    className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider flex items-center gap-1 ${
-                                        activeCategory === cat.key
+                                    className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider flex items-center gap-1 ${activeCategory === cat.key
                                             ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-[0_4px_12px_rgba(249,115,22,0.12)]'
                                             : 'text-orange-955 border-transparent bg-transparent hover:bg-orange-50/60 hover:text-orange-600 hover:border-orange-200/45 hover:shadow-[0_3px_10px_rgba(249,115,22,0.05)]'
-                                    }`}
+                                        }`}
                                 >
                                     {cat.label}
                                     <ChevronDown size={9} className={`text-orange-400 transition-transform duration-200 ${hoveredCat === cat.key ? 'rotate-180' : ''}`} />
@@ -1246,20 +1244,19 @@ const NavMain = ({ scrolled, isHome }) => {
                             document.body
                         )}
                     </div>
-                    
+
                     {/* Flea Market Dropdown — moved to the right */}
-                    <div 
-                        ref={fleaDropdownRef} 
+                    <div
+                        ref={fleaDropdownRef}
                         className="relative flex-shrink-0 ml-4 hidden md:block"
                         onMouseEnter={() => setShowFleaDropdown(true)}
                         onMouseLeave={() => setShowFleaDropdown(false)}
                     >
                         <button
-                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.05] active:scale-[0.95] flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider flex items-center gap-1.5 ${
-                                location.pathname.startsWith('/flea-market')
+                            className={`px-4 py-2 border rounded-full transition-all duration-300 hover:scale-[1.05] active:scale-[0.95] flex-shrink-0 font-extrabold text-[12px] uppercase tracking-wider flex items-center gap-1.5 ${location.pathname.startsWith('/flea-market')
                                     ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-transparent shadow-[0_4px_15px_rgba(245,158,11,0.3)]'
                                     : 'bg-amber-500/10 text-amber-800 border-amber-300/45 hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-white hover:border-transparent hover:shadow-[0_4px_15px_rgba(245,158,11,0.2)]'
-                            }`}
+                                }`}
                         >
                             <Globe size={11} strokeWidth={2.5} className="mr-0.5 opacity-80" />
                             Flea Market
@@ -1319,22 +1316,22 @@ const NavMain = ({ scrolled, isHome }) => {
 
                     <div className="hidden md:flex items-center gap-3.5 flex-shrink-0 ml-4">
                         {isHome ? (
-                            <button 
-                                onClick={scrollToGrid} 
+                            <button
+                                onClick={scrollToGrid}
                                 className="px-5 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-full transition-all duration-300 text-[9px] font-black uppercase tracking-widest cursor-pointer shadow-[0_2px_8px_rgba(249,115,22,0.15)] hover:shadow-orange-glow active:scale-95"
                             >
                                 {t("explore_products")}
                             </button>
                         ) : (
                             <div className="flex items-center gap-3">
-                                <button 
+                                <button
                                     onClick={() => navigate(-1)}
                                     className="px-4 py-1.5 bg-white text-orange-955 border border-orange-100 hover:bg-orange-600 hover:text-white transition-all duration-300 rounded-full text-[9px] font-black tracking-widest cursor-pointer active:scale-95 shadow-sm"
                                 >
                                     {t("back")}
                                 </button>
-                                <Link 
-                                    to="/" 
+                                <Link
+                                    to="/"
                                     className="px-4 py-1.5 bg-white text-orange-955 border border-orange-100 hover:bg-orange-600 hover:text-white transition-all duration-300 rounded-full text-[9px] font-black tracking-widest active:scale-95 shadow-sm"
                                 >
                                     {t("home_menu")}
@@ -1371,9 +1368,9 @@ const NavMain = ({ scrolled, isHome }) => {
                         <div className="flex-1 overflow-y-auto py-5 px-5 space-y-5 divide-y divide-orange-100/60 text-left custom-scrollbar">
                             {/* Navigation section */}
                             <div className="flex flex-col gap-1 pb-4">
-                                <Link 
-                                    to="/" 
-                                    onClick={() => setMobileMenuOpen(false)} 
+                                <Link
+                                    to="/"
+                                    onClick={() => setMobileMenuOpen(false)}
                                     className={`py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold transition-all flex items-center justify-between rounded-xl ${isHome ? 'text-orange-600 bg-orange-50/50' : 'text-orange-900/80'}`}
                                 >
                                     <span>Home</span>
@@ -1404,7 +1401,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                         { key: 'women', label: 'Women' },
                                     ].map(dept => (
                                         <div key={dept.key} className="flex flex-col">
-                                            <button 
+                                            <button
                                                 onClick={() => setExpandedMobileDept(expandedMobileDept === dept.key ? null : dept.key)}
                                                 className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
                                             >
@@ -1413,14 +1410,14 @@ const NavMain = ({ scrolled, isHome }) => {
                                             </button>
                                             <AnimatePresence>
                                                 {expandedMobileDept === dept.key && categorySubcategories[dept.key] && (
-                                                    <motion.div 
-                                                        initial={{ height: 0, opacity: 0 }} 
-                                                        animate={{ height: 'auto', opacity: 1 }} 
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
                                                         exit={{ height: 0, opacity: 0 }}
                                                         className="flex flex-col pl-4 overflow-hidden"
                                                     >
                                                         {categorySubcategories[dept.key].map(sub => (
-                                                            <Link 
+                                                            <Link
                                                                 key={sub.slug}
                                                                 to={`/collection/${sub.slug}`}
                                                                 onClick={() => setMobileMenuOpen(false)}
@@ -1450,22 +1447,22 @@ const NavMain = ({ scrolled, isHome }) => {
                                     Explore Store
                                 </h4>
                                 <div className="flex flex-col gap-1">
-                                    <Link 
-                                        to="/flea-market" 
+                                    <Link
+                                        to="/flea-market"
                                         onClick={() => setMobileMenuOpen(false)}
                                         className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group"
                                     >
                                         <span>Flea Market</span>
                                         <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
                                     </Link>
-                                    <button 
+                                    <button
                                         onClick={() => { scrollToFeatured(); setMobileMenuOpen(false); }}
                                         className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group cursor-pointer"
                                     >
                                         <span>Featured Deals</span>
                                         <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => { scrollToGrid(); setMobileMenuOpen(false); }}
                                         className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group cursor-pointer"
                                     >
@@ -1482,8 +1479,8 @@ const NavMain = ({ scrolled, isHome }) => {
                                 </h4>
                                 <div className="flex flex-col gap-1">
                                     {user && (user.role === 'admin' || user.role === 'super_admin') && (
-                                        <Link 
-                                            to="/admin" 
+                                        <Link
+                                            to="/admin"
                                             onClick={() => setMobileMenuOpen(false)}
                                             className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-red-600 transition-all flex items-center justify-between rounded-xl group"
                                         >
@@ -1492,8 +1489,8 @@ const NavMain = ({ scrolled, isHome }) => {
                                         </Link>
                                     )}
                                     {(!user || (user.role !== 'admin' && user.role !== 'super_admin')) && (
-                                        <Link 
-                                            to="/my-orders" 
+                                        <Link
+                                            to="/my-orders"
                                             onClick={() => setMobileMenuOpen(false)}
                                             className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group"
                                         >
@@ -1501,8 +1498,8 @@ const NavMain = ({ scrolled, isHome }) => {
                                             <ChevronRight size={14} className="text-orange-300 group-hover:translate-x-1 transition-all" />
                                         </Link>
                                     )}
-                                    <Link 
-                                        to="/wishlist" 
+                                    <Link
+                                        to="/wishlist"
                                         onClick={() => setMobileMenuOpen(false)}
                                         className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 transition-all flex items-center justify-between rounded-xl group"
                                     >
@@ -1519,7 +1516,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                 </h4>
                                 <div className="px-3">
                                     <div className="relative">
-                                        <select 
+                                        <select
                                             value={selectedCountry.name}
                                             onChange={(e) => {
                                                 changeCountry(e.target.value);
@@ -1547,7 +1544,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                 </h4>
                                 <div className="px-3">
                                     <div className="relative">
-                                        <select 
+                                        <select
                                             value={language}
                                             onChange={(e) => {
                                                 changeLanguage(e.target.value);
@@ -1571,254 +1568,254 @@ const NavMain = ({ scrolled, isHome }) => {
                     </div>
                 </>,
                 document.body
-            ) }
+            )}
 
             {/* Amazon-Style Left-Sliding Drawer Menu */}
             {createPortal(
                 <AnimatePresence>
-                {allMenuOpen && (
-                    <>
-                        {/* Backdrop Overlay */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.3 }}
-                            onClick={() => setAllMenuOpen(false)}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] cursor-pointer"
-                        />
+                    {allMenuOpen && (
+                        <>
+                            {/* Backdrop Overlay */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                onClick={() => setAllMenuOpen(false)}
+                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] cursor-pointer"
+                            />
 
-                        {/* Slide-out Panel Container */}
-                        <motion.div
-                            initial={{ x: "-100%" }}
-                            animate={{ x: 0 }}
-                            exit={{ x: "-100%" }}
-                            transition={{ type: "tween", duration: 0.35, ease: "easeOut" }}
-                            className="fixed top-0 left-0 bottom-0 w-[300px] sm:w-[365px] bg-white h-full shadow-2xl flex flex-col z-[160] overflow-hidden"
-                        >
-                            {/* Drawer Header */}
-                            <div className="bg-gradient-to-br from-orange-950 to-orange-900 text-white px-6 py-6 flex items-center gap-4 border-b border-orange-900/20 relative">
-                                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/30 text-white shadow-inner">
-                                    <User size={20} strokeWidth={2} />
-                                </div>
-                                <div className="flex flex-col text-left">
-                                    <span className="text-[10px] text-orange-200 uppercase tracking-widest font-bold">Welcome</span>
-                                    <h3 className="text-sm font-bold tracking-wide">
-                                        {user ? `Hello, ${user.full_name || user.name || user.store_name || 'Partner'}` : 'Hello, Sign In'}
-                                    </h3>
+                            {/* Slide-out Panel Container */}
+                            <motion.div
+                                initial={{ x: "-100%" }}
+                                animate={{ x: 0 }}
+                                exit={{ x: "-100%" }}
+                                transition={{ type: "tween", duration: 0.35, ease: "easeOut" }}
+                                className="fixed top-0 left-0 bottom-0 w-[300px] sm:w-[365px] bg-white h-full shadow-2xl flex flex-col z-[160] overflow-hidden"
+                            >
+                                {/* Drawer Header */}
+                                <div className="bg-gradient-to-br from-orange-950 to-orange-900 text-white px-6 py-6 flex items-center gap-4 border-b border-orange-900/20 relative">
+                                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/30 text-white shadow-inner">
+                                        <User size={20} strokeWidth={2} />
+                                    </div>
+                                    <div className="flex flex-col text-left">
+                                        <span className="text-[10px] text-orange-200 uppercase tracking-widest font-bold">Welcome</span>
+                                        <h3 className="text-sm font-bold tracking-wide">
+                                            {user ? `Hello, ${user.full_name || user.name || user.store_name || 'Partner'}` : 'Hello, Sign In'}
+                                        </h3>
+                                    </div>
+
+                                    {/* Floating Close Button inside Header */}
+                                    <button
+                                        onClick={() => setAllMenuOpen(false)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-all cursor-pointer"
+                                        title="Close Menu"
+                                    >
+                                        <X size={20} />
+                                    </button>
                                 </div>
 
-                                {/* Floating Close Button inside Header */}
-                                <button 
-                                    onClick={() => setAllMenuOpen(false)} 
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-all cursor-pointer"
+                                {/* Floating Close Button outside drawer (for that authentic Amazon feel on larger screens) */}
+                                <button
+                                    onClick={() => setAllMenuOpen(false)}
+                                    className="hidden sm:block absolute top-4 left-[380px] bg-black/40 hover:bg-black/60 text-white p-2 rounded-full border border-white/10 transition-all duration-200 hover:scale-105 z-[170] cursor-pointer"
                                     title="Close Menu"
                                 >
-                                    <X size={20} />
+                                    <X size={22} />
                                 </button>
-                            </div>
 
-                            {/* Floating Close Button outside drawer (for that authentic Amazon feel on larger screens) */}
-                            <button
-                                onClick={() => setAllMenuOpen(false)}
-                                className="hidden sm:block absolute top-4 left-[380px] bg-black/40 hover:bg-black/60 text-white p-2 rounded-full border border-white/10 transition-all duration-200 hover:scale-105 z-[170] cursor-pointer"
-                                title="Close Menu"
-                            >
-                                <X size={22} />
-                            </button>
+                                {/* Scrollable Drawer Content */}
+                                <div className="flex-1 overflow-y-auto py-6 px-6 space-y-6 divide-y divide-orange-100/60 text-left custom-scrollbar">
 
-                            {/* Scrollable Drawer Content */}
-                            <div className="flex-1 overflow-y-auto py-6 px-6 space-y-6 divide-y divide-orange-100/60 text-left custom-scrollbar">
-                                
-                                {/* Section 1: Trending Collections */}
-                                <div className="space-y-3 pb-5">
-                                    <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-955 flex items-center gap-1.5">
-                                        Trending
-                                    </h4>
-                                    <div className="flex flex-col gap-1">
-                                        <Link 
-                                            to="/flea-market" 
-                                            onClick={() => setAllMenuOpen(false)}
-                                            className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                        >
-                                            <span>Flea Market</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </Link>
-                                        <button 
-                                            onClick={() => handleDealClick('best sellers')}
-                                            className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl cursor-pointer"
-                                        >
-                                            <span>Best Sellers</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </button>
-                                        <button 
-                                            onClick={() => handleDealClick('new arrivals')}
-                                            className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl cursor-pointer"
-                                        >
-                                            <span>New Arrivals</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </button>
-                                        <button 
-                                            onClick={() => handleDealClick('top deals')}
-                                            className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl cursor-pointer"
-                                        >
-                                            <span>Super Deals</span>
-                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                        </button>
+                                    {/* Section 1: Trending Collections */}
+                                    <div className="space-y-3 pb-5">
+                                        <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-955 flex items-center gap-1.5">
+                                            Trending
+                                        </h4>
+                                        <div className="flex flex-col gap-1">
+                                            <Link
+                                                to="/flea-market"
+                                                onClick={() => setAllMenuOpen(false)}
+                                                className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
+                                            >
+                                                <span>Flea Market</span>
+                                                <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                            </Link>
+                                            <button
+                                                onClick={() => handleDealClick('best sellers')}
+                                                className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl cursor-pointer"
+                                            >
+                                                <span>Best Sellers</span>
+                                                <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDealClick('new arrivals')}
+                                                className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl cursor-pointer"
+                                            >
+                                                <span>New Arrivals</span>
+                                                <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDealClick('top deals')}
+                                                className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl cursor-pointer"
+                                            >
+                                                <span>Super Deals</span>
+                                                <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* Section 2: Shop By Department */}
-                                <div className="space-y-3 pt-5 pb-5">
-                                    <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-955 flex items-center gap-1.5">
-                                        Departments
-                                    </h4>
-                                    <div className="flex flex-col gap-1">
-                                        {[
-                                            { key: 'beauty', label: 'Beauty' },
-                                            { key: 'books', label: 'Books' },
-                                            { key: 'clothing', label: 'Clothing' },
-                                            { key: 'electronics', label: 'Electronics' },
-                                            { key: 'fashion', label: 'Fashion' },
-                                            { key: 'gifts', label: 'Gifts' },
-                                            { key: 'healthy-foods', label: 'Healthy Foods' },
-                                            { key: 'home-living', label: 'Home & Living' },
-                                            { key: 'kids', label: 'Kids' },
-                                            { key: 'mens', label: 'Mens' },
-                                            { key: 'pooja-items', label: 'Pooja Items' },
-                                            { key: 'sports-fitness', label: 'Sports & Fitness' },
-                                            { key: 'toys', label: 'Toys' },
-                                            { key: 'women', label: 'Women' },
-                                        ].map(dept => (
-                                            <div key={dept.key} className="flex flex-col">
-                                                <button 
-                                                    onClick={() => setExpandedDept(expandedDept === dept.key ? null : dept.key)}
-                                                    className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                                >
-                                                    <span>{dept.label}</span>
-                                                    <ChevronDown size={14} className={`text-orange-300 transition-transform ${expandedDept === dept.key ? 'rotate-180' : ''}`} />
-                                                </button>
-                                                <AnimatePresence>
-                                                    {expandedDept === dept.key && categorySubcategories[dept.key] && (
-                                                        <motion.div 
-                                                            initial={{ height: 0, opacity: 0 }} 
-                                                            animate={{ height: 'auto', opacity: 1 }} 
-                                                            exit={{ height: 0, opacity: 0 }}
-                                                            className="flex flex-col pl-4 overflow-hidden"
-                                                        >
-                                                            {categorySubcategories[dept.key].map(sub => (
-                                                                <Link 
-                                                                    key={sub.slug}
-                                                                    to={`/collection/${sub.slug}`}
-                                                                    onClick={() => setAllMenuOpen(false)}
-                                                                    className="py-1.5 px-3 text-[11px] font-semibold text-orange-900/60 hover:text-orange-600 hover:pl-4 transition-all duration-300"
-                                                                >
-                                                                    {sub.label}
-                                                                </Link>
-                                                            ))}
-                                                            <Link
-                                                                to={`/collection/${dept.key}`}
-                                                                onClick={() => setAllMenuOpen(false)}
-                                                                className="py-1.5 px-3 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:pl-4 transition-all duration-300"
-                                                            >
-                                                                View All {dept.label}
-                                                            </Link>
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Section 3: Account & Support */}
-                                <div className="space-y-3 pt-5">
-                                    <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-955 flex items-center gap-1.5">
-                                        Account & Settings
-                                    </h4>
-                                    <div className="flex flex-col gap-1">
-                                        {!user ? (
-                                            <>
-                                                <Link 
-                                                    to="/login" 
-                                                    onClick={() => setAllMenuOpen(false)}
-                                                    className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                                >
-                                                    <span>Customer Sign In</span>
-                                                    <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                                </Link>
-                                                <Link 
-                                                    to="/seller-login" 
-                                                    onClick={() => setAllMenuOpen(false)}
-                                                    className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                                >
-                                                    <span>Seller Portal</span>
-                                                    <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                                </Link>
-                                                <Link 
-                                                    to="/admin-login" 
-                                                    onClick={() => setAllMenuOpen(false)}
-                                                    className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl text-red-600"
-                                                >
-                                                    <span>Admin Dashboard</span>
-                                                    <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                                </Link>
-                                            </>
-                                        ) : (
-                                            <>
-                                                {(user.role === 'admin' || user.role === 'super_admin') && (
-                                                    <Link 
-                                                        to="/admin" 
-                                                        onClick={() => setAllMenuOpen(false)}
-                                                        className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-955 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl bg-orange-50/20"
+                                    {/* Section 2: Shop By Department */}
+                                    <div className="space-y-3 pt-5 pb-5">
+                                        <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-955 flex items-center gap-1.5">
+                                            Departments
+                                        </h4>
+                                        <div className="flex flex-col gap-1">
+                                            {[
+                                                { key: 'beauty', label: 'Beauty' },
+                                                { key: 'books', label: 'Books' },
+                                                { key: 'clothing', label: 'Clothing' },
+                                                { key: 'electronics', label: 'Electronics' },
+                                                { key: 'fashion', label: 'Fashion' },
+                                                { key: 'gifts', label: 'Gifts' },
+                                                { key: 'healthy-foods', label: 'Healthy Foods' },
+                                                { key: 'home-living', label: 'Home & Living' },
+                                                { key: 'kids', label: 'Kids' },
+                                                { key: 'mens', label: 'Mens' },
+                                                { key: 'pooja-items', label: 'Pooja Items' },
+                                                { key: 'sports-fitness', label: 'Sports & Fitness' },
+                                                { key: 'toys', label: 'Toys' },
+                                                { key: 'women', label: 'Women' },
+                                            ].map(dept => (
+                                                <div key={dept.key} className="flex flex-col">
+                                                    <button
+                                                        onClick={() => setExpandedDept(expandedDept === dept.key ? null : dept.key)}
+                                                        className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
                                                     >
-                                                        <span className="text-red-700 font-extrabold">Admin Dashboard</span>
+                                                        <span>{dept.label}</span>
+                                                        <ChevronDown size={14} className={`text-orange-300 transition-transform ${expandedDept === dept.key ? 'rotate-180' : ''}`} />
+                                                    </button>
+                                                    <AnimatePresence>
+                                                        {expandedDept === dept.key && categorySubcategories[dept.key] && (
+                                                            <motion.div
+                                                                initial={{ height: 0, opacity: 0 }}
+                                                                animate={{ height: 'auto', opacity: 1 }}
+                                                                exit={{ height: 0, opacity: 0 }}
+                                                                className="flex flex-col pl-4 overflow-hidden"
+                                                            >
+                                                                {categorySubcategories[dept.key].map(sub => (
+                                                                    <Link
+                                                                        key={sub.slug}
+                                                                        to={`/collection/${sub.slug}`}
+                                                                        onClick={() => setAllMenuOpen(false)}
+                                                                        className="py-1.5 px-3 text-[11px] font-semibold text-orange-900/60 hover:text-orange-600 hover:pl-4 transition-all duration-300"
+                                                                    >
+                                                                        {sub.label}
+                                                                    </Link>
+                                                                ))}
+                                                                <Link
+                                                                    to={`/collection/${dept.key}`}
+                                                                    onClick={() => setAllMenuOpen(false)}
+                                                                    className="py-1.5 px-3 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:pl-4 transition-all duration-300"
+                                                                >
+                                                                    View All {dept.label}
+                                                                </Link>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Section 3: Account & Support */}
+                                    <div className="space-y-3 pt-5">
+                                        <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-955 flex items-center gap-1.5">
+                                            Account & Settings
+                                        </h4>
+                                        <div className="flex flex-col gap-1">
+                                            {!user ? (
+                                                <>
+                                                    <Link
+                                                        to="/login"
+                                                        onClick={() => setAllMenuOpen(false)}
+                                                        className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
+                                                    >
+                                                        <span>Customer Sign In</span>
                                                         <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
                                                     </Link>
-                                                )}
-                                                {user.role !== 'admin' && user.role !== 'super_admin' && (
-                                                    <>
-                                                        <Link 
-                                                            to="/profile" 
+                                                    <Link
+                                                        to="/seller-login"
+                                                        onClick={() => setAllMenuOpen(false)}
+                                                        className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
+                                                    >
+                                                        <span>Seller Portal</span>
+                                                        <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                                    </Link>
+                                                    <Link
+                                                        to="/admin-login"
+                                                        onClick={() => setAllMenuOpen(false)}
+                                                        className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl text-red-600"
+                                                    >
+                                                        <span>Admin Dashboard</span>
+                                                        <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                                    </Link>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {(user.role === 'admin' || user.role === 'super_admin') && (
+                                                        <Link
+                                                            to="/admin"
                                                             onClick={() => setAllMenuOpen(false)}
-                                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
+                                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-955 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl bg-orange-50/20"
                                                         >
-                                                            <span>My Profile</span>
+                                                            <span className="text-red-700 font-extrabold">Admin Dashboard</span>
                                                             <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
                                                         </Link>
-                                                        <Link 
-                                                            to="/my-orders" 
-                                                            onClick={() => setAllMenuOpen(false)}
-                                                            className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
-                                                        >
-                                                            <span>My Orders</span>
-                                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                                        </Link>
-                                                        <button 
-                                                            onClick={() => { setAllMenuOpen(false); setNotificationsOpen(true); }}
-                                                            className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl cursor-pointer"
-                                                        >
-                                                            <span>Notifications</span>
-                                                            <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                                                        </button>
-                                                    </>
-                                                )}
-                                                <button 
-                                                    onClick={() => { setAllMenuOpen(false); handleLogout(); }}
-                                                    className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-red-500 text-xs font-bold text-red-500 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl border-t border-orange-100/50 mt-2 cursor-pointer"
-                                                >
-                                                    <span>Logout</span>
-                                                    <ChevronRight size={14} className="text-red-300 group-hover:text-red-550 group-hover:translate-x-1 transition-all" />
-                                                </button>
-                                            </>
-                                        )}
+                                                    )}
+                                                    {user.role !== 'admin' && user.role !== 'super_admin' && (
+                                                        <>
+                                                            <Link
+                                                                to="/profile"
+                                                                onClick={() => setAllMenuOpen(false)}
+                                                                className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
+                                                            >
+                                                                <span>My Profile</span>
+                                                                <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                                            </Link>
+                                                            <Link
+                                                                to="/my-orders"
+                                                                onClick={() => setAllMenuOpen(false)}
+                                                                className="py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl"
+                                                            >
+                                                                <span>My Orders</span>
+                                                                <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                                            </Link>
+                                                            <button
+                                                                onClick={() => { setAllMenuOpen(false); setNotificationsOpen(true); }}
+                                                                className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-orange-600 text-xs font-bold text-orange-900/80 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl cursor-pointer"
+                                                            >
+                                                                <span>Notifications</span>
+                                                                <ChevronRight size={14} className="text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    <button
+                                                        onClick={() => { setAllMenuOpen(false); handleLogout(); }}
+                                                        className="w-full text-left py-2 px-3 hover:bg-orange-50 hover:text-red-500 text-xs font-bold text-red-500 hover:pl-4 transition-all duration-300 flex items-center justify-between group rounded-xl border-t border-orange-100/50 mt-2 cursor-pointer"
+                                                    >
+                                                        <span>Logout</span>
+                                                        <ChevronRight size={14} className="text-red-300 group-hover:text-red-550 group-hover:translate-x-1 transition-all" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>,
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>,
                 document.body
             )}
 

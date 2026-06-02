@@ -1,7 +1,8 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../config/db.js';
-import { loginCustomer, registerCustomer, sendOTP, verifyOTP, logout, getMe, customerOnboarding, getCustomerAddresses, updateCustomer, agreeToFleaMarketTerms } from '../controllers/AuthController/customerController.js';
+import { loginCustomer, registerCustomer, logout, getMe, customerOnboarding, getCustomerAddresses, updateCustomer, agreeToFleaMarketTerms } from '../controllers/AuthController/customerController.js';
+import { sendOTP, verifyOTP, resetPassword } from '../controllers/AuthController/otpController.js';
 import { 
     loginSeller, 
     logoutSeller,
@@ -26,7 +27,6 @@ import {
     setupAdmin,
     registerAdmin,
     sendAdminRegisterOTP,
-    verifySuperAdminLogin, 
     logoutAdmin,
     updateAdminProfile,
     requestAdminPasswordReset,
@@ -107,11 +107,15 @@ authRoutes.post('/seller/register', loginLimiter, registerSeller);
 authRoutes.post('/seller/login', loginLimiter, loginSeller);
 
 // Admin Routes (Login and Public Reset)
+authRoutes.post('/admin/send-otp', otpLimiter, sendOTP);
+authRoutes.post('/admin/verify-otp', otpLimiter, verifyOTP);
 authRoutes.post('/admin/login', loginLimiter, loginAdmin);
-authRoutes.post('/admin/verify-super-admin-login', loginLimiter, verifySuperAdminLogin);
 authRoutes.post('/admin/logout', requireAuth(['admin', 'super_admin']), logoutAdmin);
 authRoutes.post('/admin/request-password-reset', otpLimiter, requestAdminPasswordReset);
 authRoutes.post('/admin/verify-password-reset', otpLimiter, verifyAdminPasswordReset);
+
+// Global Reset Password (uses OTP)
+authRoutes.post('/reset-password', otpLimiter, resetPassword);
 
 // Protected Routes
 authRoutes.get('/me', requireAuth(['customer', 'seller', 'admin', 'super_admin']), getMe);

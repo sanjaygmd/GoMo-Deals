@@ -5,6 +5,7 @@ import { useToast } from "../../../hooks/use-toast";
 import { useAuth } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../../lib/utils";
+import ConfirmModal from '../../common/ConfirmModal';
 
 export default function AdministratorsPage() {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export default function AdministratorsPage() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showMasterKeyModal, setShowMasterKeyModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
   const [newPassword, setNewPassword] = useState("");
   const [newMasterKey, setNewMasterKey] = useState("");
   const { toast } = useToast();
@@ -56,8 +58,6 @@ export default function AdministratorsPage() {
   };
 
   const deleteAdmin = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this administrator permanently?")) return;
-    
     setProcessingId(id);
     try {
       const res = await api.delete(`/super-admin/administrator/${id}`);
@@ -69,6 +69,7 @@ export default function AdministratorsPage() {
       toast({ variant: "destructive", title: "Error", description: "Failed to delete administrator" });
     } finally {
       setProcessingId(null);
+      setConfirmModal({ isOpen: false, id: null });
     }
   };
 
@@ -211,7 +212,7 @@ export default function AdministratorsPage() {
               </button>
               
               <button 
-                onClick={() => deleteAdmin(admin.id)}
+                onClick={() => setConfirmModal({ isOpen: true, id: admin.id })}
                 disabled={processingId === admin.id}
                 className="w-11 h-11 rounded-xl bg-orange-50 hover:bg-rose-600 hover:text-white border border-orange-150 hover:border-rose-300 text-orange-600 shadow-sm transition-all cursor-pointer active:scale-95 flex items-center justify-center group/btn"
                 title="Delete Admin"
@@ -318,6 +319,16 @@ export default function AdministratorsPage() {
           <p className="text-xs text-stone-500 font-bold mt-1">There are currently no regular administrators setup in the system.</p>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, id: null })}
+        onConfirm={() => deleteAdmin(confirmModal.id)}
+        title="Delete Administrator"
+        message="Are you sure you want to delete this administrator permanently? This action cannot be undone."
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

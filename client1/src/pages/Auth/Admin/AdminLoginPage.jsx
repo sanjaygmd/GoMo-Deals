@@ -34,8 +34,8 @@ const AdminLoginPage = () => {
             setErrors({});
             try {
                 const response = await authService.loginAdmin(formData.email, formData.password, formData.role);
-                
-                if (response.requires2FA) {
+
+                if (response.requires2FA || response.requiresOtp) {
                     setShow2FA(true);
                 } else {
                     login(response.data);
@@ -43,8 +43,8 @@ const AdminLoginPage = () => {
                 }
             } catch (err) {
                 console.error("ADMIN LOGIN ERROR:", err);
-                setErrors({ 
-                    submit: err.response?.data?.message || 'Authentication failed. Please check your credentials.' 
+                setErrors({
+                    submit: err.response?.data?.message || 'Authentication failed. Please check your credentials.'
                 });
             } finally {
                 setLoading(false);
@@ -57,13 +57,13 @@ const AdminLoginPage = () => {
         setLoading(true);
         setErrors({});
         try {
-            const response = await authService.verifySuperAdminLogin(formData.email, otp);
+            const response = await authService.adminLogin(formData.email, formData.password, formData.role, otp);
             login(response.data);
             navigate('/admin');
         } catch (err) {
             console.error("2FA ERROR:", err);
-            setErrors({ 
-                submit: err.response?.data?.message || 'Invalid or expired code.' 
+            setErrors({
+                submit: err.response?.data?.message || 'Invalid or expired code.'
             });
         } finally {
             setLoading(false);
@@ -108,16 +108,16 @@ const AdminLoginPage = () => {
                                 <span className="text-[10px] text-zinc-500 block">Select administration tier</span>
                             </div>
                             <div className="w-full sm:w-2/3 flex gap-4">
-                                <button 
+                                <button
                                     type="button"
-                                    onClick={() => setFormData({...formData, role: 'admin'})}
+                                    onClick={() => setFormData({ ...formData, role: 'admin' })}
                                     className={`flex-1 py-3 px-4 text-[10px] uppercase tracking-[0.2em] font-black transition-all border rounded-xl ${formData.role === 'admin' ? 'bg-white text-zinc-950 border-white' : 'text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-white'}`}
                                 >
                                     Admin
                                 </button>
-                                <button 
+                                <button
                                     type="button"
-                                    onClick={() => setFormData({...formData, role: 'super_admin'})}
+                                    onClick={() => setFormData({ ...formData, role: 'super_admin' })}
                                     className={`flex-1 py-3 px-4 text-[10px] uppercase tracking-[0.2em] font-black transition-all border rounded-xl ${formData.role === 'super_admin' ? 'bg-orange-600 text-white border-orange-600 shadow-md shadow-orange-600/20' : 'text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-white'}`}
                                 >
                                     Super Admin
@@ -135,11 +135,11 @@ const AdminLoginPage = () => {
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <Mail className="h-4 w-4 text-orange-500/60" />
                                 </div>
-                                <input 
+                                <input
                                     type="email"
                                     required
                                     value={formData.email}
-                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     className="w-full pl-11 pr-4 py-3.5 bg-zinc-900/40 border border-zinc-800 text-white placeholder-zinc-600 focus:border-orange-500 focus:bg-zinc-900/60 outline-none transition-all text-xs rounded-xl focus:shadow-[0_0_15px_rgba(249,115,22,0.1)]"
                                     placeholder="admin@gomo.gift"
                                 />
@@ -157,11 +157,11 @@ const AdminLoginPage = () => {
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                         <Lock className="h-4 w-4 text-orange-500/60" />
                                     </div>
-                                    <input 
+                                    <input
                                         type={showPassword ? "text" : "password"}
                                         required
                                         value={formData.password}
-                                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         className="w-full pl-11 pr-11 py-3.5 bg-zinc-900/40 border border-zinc-800 text-white placeholder-zinc-600 focus:border-orange-500 focus:bg-zinc-900/60 outline-none transition-all text-xs rounded-xl focus:shadow-[0_0_15px_rgba(249,115,22,0.1)]"
                                         placeholder="••••••••"
                                     />
@@ -175,12 +175,12 @@ const AdminLoginPage = () => {
 
                         {/* Submit Button Container */}
                         <div className="pt-8">
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={loading}
                                 className={`w-full py-5 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[10px] uppercase tracking-[0.3em] font-black hover:from-orange-500 hover:to-amber-400 transition-all rounded-xl flex items-center justify-center gap-3 shadow-lg shadow-orange-950/20 active:scale-[0.98] ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
-                                {loading ? 'Initializing...' : 'Initialize Session'} 
+                                {loading ? 'Initializing...' : 'Initialize Session'}
                                 {!loading && <ArrowRight size={16} />}
                             </button>
                         </div>
@@ -202,7 +202,7 @@ const AdminLoginPage = () => {
                                 <span className="text-[10px] text-zinc-500 block">Enter 6-digit OTP code</span>
                             </div>
                             <div className="w-full sm:w-2/3">
-                                <input 
+                                <input
                                     type="text"
                                     required
                                     maxLength={6}
@@ -216,17 +216,17 @@ const AdminLoginPage = () => {
 
                         {/* Action Buttons Row */}
                         <div className="pt-8 space-y-4">
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={loading}
                                 className={`w-full py-5 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[10px] uppercase tracking-[0.3em] font-black hover:from-orange-500 hover:to-amber-400 transition-all rounded-xl flex items-center justify-center gap-3 shadow-lg shadow-orange-950/20 active:scale-[0.98] ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
-                                {loading ? 'Verifying...' : 'Verify & Access'} 
+                                {loading ? 'Verifying...' : 'Verify & Access'}
                                 {!loading && <ArrowRight size={16} />}
                             </button>
 
-                            <button 
-                                type="button" 
+                            <button
+                                type="button"
                                 onClick={() => setShow2FA(false)}
                                 className="w-full py-4 text-[10px] text-orange-500 uppercase tracking-widest font-black hover:text-white transition-colors text-center block bg-zinc-900/20 hover:bg-zinc-900/40 border border-zinc-800/60 rounded-xl"
                             >

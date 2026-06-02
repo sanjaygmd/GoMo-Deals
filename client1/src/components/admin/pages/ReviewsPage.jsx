@@ -6,12 +6,14 @@ import {
 import { api } from "../../../services/api";
 import { useToast } from "../../../hooks/use-toast";
 import { cn } from "../../../lib/utils";
+import ConfirmModal from '../../common/ConfirmModal';
 
 export default function ReviewsPage() {
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterRating, setFilterRating] = useState("all");
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
     const { toast } = useToast();
 
     useEffect(() => {
@@ -37,8 +39,6 @@ export default function ReviewsPage() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this review?")) return;
-        
         try {
             const res = await api.delete(`/admin/reviews/${id}`);
             if (res.data.success) {
@@ -54,6 +54,8 @@ export default function ReviewsPage() {
                 title: "Error",
                 description: "Failed to delete review."
             });
+        } finally {
+            setConfirmModal({ isOpen: false, id: null });
         }
     };
 
@@ -191,7 +193,7 @@ export default function ReviewsPage() {
                                     <div className="flex justify-between items-start">
                                         <h3 className="text-xl font-black text-orange-950 tracking-tight line-clamp-1">{review.title || "No Title"}</h3>
                                         <button 
-                                            onClick={() => handleDelete(review.review_id)}
+                                            onClick={() => setConfirmModal({ isOpen: true, id: review.review_id })}
                                             className="p-3 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                                             title="Delete Review"
                                         >
@@ -210,6 +212,16 @@ export default function ReviewsPage() {
                     ))}
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, id: null })}
+                onConfirm={() => handleDelete(confirmModal.id)}
+                title="Delete Review"
+                message="Are you sure you want to delete this review? This action cannot be undone."
+                confirmText="Yes, Delete"
+                cancelText="Cancel"
+            />
         </div>
     );
 }

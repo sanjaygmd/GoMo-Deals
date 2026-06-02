@@ -65,15 +65,20 @@ export default function AnalyticsPage() {
   ];
 
   const handleExport = () => {
-    const exportData = {
-      "Top Products": analytics.topProducts || [],
-      "Category Distribution": analytics.categoryDistribution || [],
-      "Revenue Trend": analytics.trend || [],
-      "Recent Deliveries": analytics.recentDeliveries || []
-    };
-    
-    exportToExcel(exportData, `GoMo_Intelligence_${range}_${new Date().toLocaleDateString('en-IN').replace(/\//g, '-')}`);
-    toast({ title: "Intelligence Exported", description: "Excel report is now available for review." });
+    try {
+      toast({ title: "Export Started", description: "Preparing analytics data for export..." });
+      const exportData = {
+        "Top Products": analytics.topProducts || [],
+        "Category Distribution": analytics.categoryDistribution || [],
+        "Revenue Trend": analytics.trend || [],
+        "Recent Deliveries": analytics.recentDeliveries || []
+      };
+      
+      exportToExcel(exportData, `GoMo_Intelligence_${range}_${new Date().toLocaleDateString('en-IN').replace(/\//g, '-')}`);
+      toast({ title: "Intelligence Exported", description: "Excel report is now available for review." });
+    } catch (err) {
+      toast({ title: "Export Failed", description: "Could not generate excel file.", variant: "destructive" });
+    }
   };
 
   return (

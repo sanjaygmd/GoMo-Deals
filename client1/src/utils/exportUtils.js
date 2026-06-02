@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { utils, writeFile } from 'xlsx';
 
 /**
  * Export an array of objects to an Excel (.xlsx) file.
@@ -11,22 +11,22 @@ export const exportToExcel = (data, filename) => {
         return;
     }
 
-    const workbook = XLSX.utils.book_new();
+    const workbook = utils.book_new();
 
     if (Array.isArray(data)) {
         // Single sheet
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+        const worksheet = utils.json_to_sheet(data);
+        utils.book_append_sheet(workbook, worksheet, "Data");
     } else {
         // Multiple sheets: data is an object { "Sheet1": [...], "Sheet2": [...] }
         for (const sheetName in data) {
             if (Array.isArray(data[sheetName]) && data[sheetName].length > 0) {
-                const worksheet = XLSX.utils.json_to_sheet(data[sheetName]);
-                XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31)); // Max sheet name length is 31
+                const worksheet = utils.json_to_sheet(data[sheetName]);
+                utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31)); // Max sheet name length is 31
             }
         }
     }
 
     // Generate the Excel file and trigger download
-    XLSX.writeFile(workbook, `${filename}.xlsx`);
+    writeFile(workbook, `${filename}.xlsx`);
 };

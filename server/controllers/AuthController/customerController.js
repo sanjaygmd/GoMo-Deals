@@ -57,6 +57,66 @@ export const loginCustomer = async (req, res) => {
       })
     }
 
+    const { otp } = req.body;
+    const scopedPurpose = 'customer_login_2fa';
+
+    if (!otp) {
+      // Step 1: Password is correct, no OTP provided. Generate and send OTP.
+      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpHash = crypto.createHash("sha256").update(generatedOtp).digest("hex");
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      await pool.query(
+        `INSERT INTO otp_verifications (email, otp_hash, expires_at, purpose)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (email, purpose) DO UPDATE 
+         SET otp_hash = $2, expires_at = $3, is_verified = false, attempts = 0`,
+        [email, otpHash, expiresAt, scopedPurpose]
+      );
+
+      // We need to import sendEmailOtp at the top or we can assume it's imported (wait, it's already imported at line 3)
+      await sendEmailOtp(email, generatedOtp, 'login_2fa');
+
+      return res.status(200).json({
+        success: true,
+        requiresOtp: true,
+        message: 'OTP sent to your email. Please verify to continue.'
+      });
+    }
+
+    // Step 2: OTP provided. Verify it.
+    const otpResult = await pool.query(
+      `SELECT * FROM otp_verifications WHERE email = $1 AND purpose = $2`,
+      [email, scopedPurpose]
+    );
+
+    if (otpResult.rows.length === 0 || new Date() > otpResult.rows[0].expires_at) {
+      return res.status(400).json({ success: false, message: "OTP expired or invalid" });
+    }
+
+    const otpData = otpResult.rows[0];
+    if (otpData.is_verified) {
+      return res.status(400).json({ success: false, message: "OTP already used" });
+    }
+    if (otpData.attempts >= 5) {
+      return res.status(400).json({ success: false, message: "Too many failed attempts" });
+    }
+
+    const hashedInput = crypto.createHash("sha256").update(otp).digest("hex");
+    const hashedInputBuf = Buffer.from(hashedInput, 'utf-8');
+    const otpHashBuf = Buffer.from(otpData.otp_hash, 'utf-8');
+
+    if (hashedInputBuf.length !== otpHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, otpHashBuf)) {
+      await pool.query(
+        "UPDATE otp_verifications SET attempts = attempts + 1 WHERE email = $1 AND purpose = $2",
+        [email, scopedPurpose]
+      );
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    // OTP is valid. Clean it up.
+    await pool.query("DELETE FROM otp_verifications WHERE email = $1 AND purpose = $2", [email, scopedPurpose]);
+
     // Create Auth Session
     const ip = req.ip || '0.0.0.0';
     const device = { agent: req.get('User-Agent') };
@@ -633,113 +693,7 @@ export const logout = async (req, res) => {
 }
 
 
-export const sendOTP = async (req, res) => {
-  try {
-    const { email, purpose, user_type } = req.body;
-    const type = user_type || 'customer';
 
-    // Security Fix: Prefix purpose with user_type namespace to completely segregate customer vs seller OTP domains
-    const scopedPurpose = `${type}_${purpose || 'registration'}`;
-
-    if (!email) {
-      return res.status(400).json({ success: false, message: "Email is required" });
-    }
-
-    // Check existence based on purpose
-    let existingUser;
-    if (type === 'seller') {
-      existingUser = await pool.query(`SELECT seller_id FROM sellers WHERE email = $1`, [email]);
-    } else {
-      existingUser = await pool.query(`SELECT customer_id FROM customers WHERE email = $1`, [email]);
-    }
-
-    if (purpose === 'registration' && existingUser.rows.length > 0) {
-      return res.status(409).json({ success: false, message: "Email already registered" });
-    }
-
-    const otp = generateOtp();
-    const otp_hash = hashOtp(otp);
-    const expires_at = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await pool.query(
-      `INSERT INTO otp_verifications (email, otp_hash, expires_at, purpose)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (email, purpose) DO UPDATE 
-       SET otp_hash = $2, expires_at = $3, is_verified = false, attempts = 0`,
-      [email, otp_hash, expires_at, scopedPurpose]
-    );
-
-    await sendEmailOtp(email, otp);
-
-    return res.status(200).json({ success: true, message: "OTP sent successfully" });
-  } catch (error) {
-    console.error("SEND OTP ERROR:", error.message);
-    return res.status(500).json({ success: false, message: "Failed to send OTP" });
-  }
-};
-
-export const verifyOTP = async (req, res) => {
-  try {
-    const { email, otp, purpose, user_type } = req.body;
-    const type = user_type || 'customer';
-
-    // Security Fix: Prefix purpose with user_type namespace to completely segregate customer vs seller OTP domains
-    const scopedPurpose = `${type}_${purpose || 'registration'}`;
-
-    if (!email || !otp) {
-      return res.status(400).json({ success: false, message: "Email and OTP are required" });
-    }
-
-    const result = await pool.query(
-      `SELECT * FROM otp_verifications 
-       WHERE email = $1 AND purpose = $2`,
-      [email, scopedPurpose]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "OTP not found" });
-    }
-
-    const otpData = result.rows[0];
-
-    if (otpData.is_verified) {
-      return res.status(400).json({ success: false, message: "OTP already used" });
-    }
-
-    if (new Date() > otpData.expires_at) {
-      return res.status(400).json({ success: false, message: "OTP expired" });
-    }
-
-    if (otpData.attempts >= 5) {
-      return res.status(400).json({ success: false, message: "Too many failed attempts" });
-    }
-
-    const hashedInput = hashOtp(otp);
-    
-    // Security Fix: Convert to Buffers and use timingSafeEqual to prevent side-channel timing attacks.
-    const hashedInputBuf = Buffer.from(hashedInput, 'utf-8');
-    const otpHashBuf = Buffer.from(otpData.otp_hash, 'utf-8');
-
-    if (hashedInputBuf.length !== otpHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, otpHashBuf)) {
-      await pool.query(
-        "UPDATE otp_verifications SET attempts = attempts + 1 WHERE email = $1 AND purpose = $2",
-        [email, scopedPurpose]
-      );
-      return res.status(400).json({ success: false, message: "Invalid OTP" });
-    }
-
-    // Mark as used
-    await pool.query(
-      "UPDATE otp_verifications SET is_verified = true WHERE email = $1 AND purpose = $2",
-      [email, scopedPurpose]
-    );
-
-    return res.status(200).json({ success: true, message: "OTP verified successfully" });
-  } catch (error) {
-    console.error("VERIFY OTP ERROR:", error.message);
-    return res.status(500).json({ success: false, message: "Failed to verify OTP" });
-  }
-};
 
 export const agreeToFleaMarketTerms = async (req, res) => {
   try {

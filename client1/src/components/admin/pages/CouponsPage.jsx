@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { StatCard } from '../../admin/components/StatCard';
 import { cn } from '../../../lib/utils';
+import ConfirmModal from '../../common/ConfirmModal';
 
 const inputClass = "w-full h-11 px-4 rounded-xl border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-xs font-bold outline-none transition-all placeholder:text-stone-400 focus:bg-white focus:shadow-[0_0_15px_rgba(249,115,22,0.1)]";
 const labelClass = "text-[9px] font-black text-stone-600 uppercase tracking-widest mb-1.5 block ml-1";
@@ -22,6 +23,7 @@ export default function CouponsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [editingCoupon, setEditingCoupon] = useState(null);
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, code: '' });
     const [formData, setFormData] = useState({
         code: '',
         type: 'percentage',
@@ -125,18 +127,18 @@ export default function CouponsPage() {
     };
 
     const handleDelete = async (id, code) => {
-        if (window.confirm(`Are you sure you want to delete coupon ${code}?`)) {
-            try {
-                const res = await deleteCoupon(id);
-                if (res.success) {
-                    toast({ title: "Coupon Deleted", description: `Code ${code} has been removed.` });
-                    fetchCoupons();
-                } else {
-                    toast({ title: "Delete Failed", description: res.message, variant: "destructive" });
-                }
-            } catch (error) {
-                toast({ title: "Error", description: "Could not delete coupon.", variant: "destructive" });
+        try {
+            const res = await deleteCoupon(id);
+            if (res.success) {
+                toast({ title: "Coupon Deleted", description: `Code ${code} has been removed.` });
+                fetchCoupons();
+            } else {
+                toast({ title: "Delete Failed", description: res.message, variant: "destructive" });
             }
+        } catch (error) {
+            toast({ title: "Error", description: "Could not delete coupon.", variant: "destructive" });
+        } finally {
+            setConfirmModal({ isOpen: false, id: null, code: '' });
         }
     };
 
@@ -299,7 +301,7 @@ export default function CouponsPage() {
                                                     <Edit2 size={14} />
                                                 </button>
                                                 <button 
-                                                    onClick={() => handleDelete(coupon.coupon_id, coupon.code)}
+                                                    onClick={() => setConfirmModal({ isOpen: true, id: coupon.coupon_id, code: coupon.code })}
                                                     className="h-9 w-9 flex items-center justify-center rounded-xl bg-orange-50 hover:bg-rose-600 hover:text-white border border-orange-150 hover:border-rose-300 text-orange-600 shadow-sm transition-all cursor-pointer active:scale-95 animate-none"
                                                 >
                                                     <Trash2 size={14} />
@@ -464,6 +466,16 @@ export default function CouponsPage() {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ isOpen: false, id: null, code: '' })}
+                onConfirm={() => handleDelete(confirmModal.id, confirmModal.code)}
+                title="Delete Coupon"
+                message={`Are you sure you want to delete coupon ${confirmModal.code}? This action cannot be undone.`}
+                confirmText="Yes, Delete"
+                cancelText="Cancel"
+            />
         </div>
     );
 }

@@ -103,6 +103,75 @@ export const loginSeller = async (req, res) => {
       })
     }
 
+    const { otp } = req.body;
+    const scopedPurpose = 'seller_login_2fa';
+
+    if (!otp) {
+      // Step 1: Password is correct, no OTP provided. Generate and send OTP.
+      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpHash = crypto.createHash("sha256").update(generatedOtp).digest("hex");
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      await pool.query(
+        `INSERT INTO otp_verifications (email, otp_hash, expires_at, purpose)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (email, purpose) DO UPDATE 
+         SET otp_hash = $2, expires_at = $3, is_verified = false, attempts = 0`,
+        [email, otpHash, expiresAt, scopedPurpose]
+      );
+
+      // Import sendEmailOtp from mailer at top if missing, though it might not be.
+      // Wait, is sendEmailOtp imported here? No, let me check. Let's just use dynamic import to be safe if it's missing, 
+      // but actually it's better to add the import at the top later. 
+      // I'll add the import in a second chunk.
+      await import('../../utils/mailer.js').then(m => m.sendEmailOtp(email, generatedOtp, 'login_2fa'));
+
+      await ensureConstantTime();
+      return res.status(200).json({
+        success: true,
+        requiresOtp: true,
+        message: 'OTP sent to your email. Please verify to continue.'
+      });
+    }
+
+    // Step 2: OTP provided. Verify it.
+    const otpResult = await pool.query(
+      `SELECT * FROM otp_verifications WHERE email = $1 AND purpose = $2`,
+      [email, scopedPurpose]
+    );
+
+    if (otpResult.rows.length === 0 || new Date() > otpResult.rows[0].expires_at) {
+      await ensureConstantTime();
+      return res.status(400).json({ success: false, message: "OTP expired or invalid" });
+    }
+
+    const otpData = otpResult.rows[0];
+    if (otpData.is_verified) {
+      await ensureConstantTime();
+      return res.status(400).json({ success: false, message: "OTP already used" });
+    }
+    if (otpData.attempts >= 5) {
+      await ensureConstantTime();
+      return res.status(400).json({ success: false, message: "Too many failed attempts" });
+    }
+
+    const hashedInput = crypto.createHash("sha256").update(otp).digest("hex");
+    const hashedInputBuf = Buffer.from(hashedInput, 'utf-8');
+    const otpHashBuf = Buffer.from(otpData.otp_hash, 'utf-8');
+
+    if (hashedInputBuf.length !== otpHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, otpHashBuf)) {
+      await pool.query(
+        "UPDATE otp_verifications SET attempts = attempts + 1 WHERE email = $1 AND purpose = $2",
+        [email, scopedPurpose]
+      );
+      await ensureConstantTime();
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    // OTP is valid. Clean it up.
+    await pool.query("DELETE FROM otp_verifications WHERE email = $1 AND purpose = $2", [email, scopedPurpose]);
+
+
     // Create Auth Session
     const ip = req.ip || '0.0.0.0';
     const device = { agent: req.get('User-Agent') };
@@ -345,6 +414,7 @@ export const sellerOnboarding = async (req, res) => {
       pan,
       gstin,
       aadhar,
+      aadhar_name,
       address_line_1,
       city,
       state,
@@ -362,6 +432,31 @@ export const sellerOnboarding = async (req, res) => {
         success: false,
         message: "Seller not found in DB",
       });
+    }
+
+    // Input Validations
+    if (aadhar_name && full_name && aadhar_name.toLowerCase().trim() !== full_name.toLowerCase().trim()) {
+      return res.status(400).json({ success: false, message: "Aadhar name must match your full name" });
+    }
+
+    if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan.toUpperCase())) {
+      return res.status(400).json({ success: false, message: "Invalid PAN format" });
+    }
+
+    if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin.toUpperCase())) {
+      return res.status(400).json({ success: false, message: "Invalid GSTIN format" });
+    }
+
+    if (aadhar && !/^\d{12}$/.test(aadhar)) {
+      return res.status(400).json({ success: false, message: "Aadhar must be exactly 12 digits" });
+    }
+
+    if (ifsc_code && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc_code.toUpperCase())) {
+      return res.status(400).json({ success: false, message: "Invalid IFSC Code format" });
+    }
+
+    if (account_number && !/^\d{9,18}$/.test(account_number)) {
+      return res.status(400).json({ success: false, message: "Account number must be 9-18 digits" });
     }
 
     const address = await pool.query(

@@ -66,16 +66,21 @@ export default function PaymentsPage() {
   });
 
   const handleExport = () => {
-    const tableRows = filteredPayments.map(p => ({
-      'Transaction ID': p.id,
-      'Status': p.status,
-      'Customer': p.customer,
-      'Amount': p.amount,
-      'Date': p.date,
-      'Method': p.method
-    }));
-    exportToExcel(tableRows, `Payments_Report_${new Date().toISOString().split('T')[0]}`);
-    toast({ title: "Exporting Data", description: "Your transaction report has been generated." });
+    try {
+      toast({ title: "Export Started", description: "Preparing payments data for export..." });
+      const tableRows = filteredPayments.map(p => ({
+        'Transaction ID': p.id,
+        'Status': p.status,
+        'Customer': p.customer,
+        'Amount': p.amount,
+        'Date': p.date,
+        'Method': p.method
+      }));
+      exportToExcel(tableRows, `Payments_Report_${new Date().toISOString().split('T')[0]}`);
+      toast({ title: "Exporting Data", description: "Your transaction report has been generated." });
+    } catch (err) {
+      toast({ title: "Export Failed", description: "Could not generate excel file.", variant: "destructive" });
+    }
   };
 
   return (

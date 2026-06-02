@@ -16,6 +16,7 @@ import DealsPage from './pages/Deals/DealsPage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
+import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import OnboardingPage from './pages/Auth/OnboardingPage';
 import CustomerLayout from './components/layout/CustomerLayout';
 
@@ -166,6 +167,9 @@ function App() {
             <Route path="/seller" element={<Navigate to="/seller-dashboard" replace />} />
             <Route path="/admin-login" element={<AdminAuthPage />} />
             <Route path="/admin-register" element={<AdminSignupPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/seller/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/admin/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/flea-market/conference/:id" element={<CustomerConferenceRoom />} />
 
             {/* Customer Routes */}

@@ -146,17 +146,23 @@ export default function ProductsPage() {
   const handleExport = () => {
     if (filtered.length === 0) return;
 
-    const tableRows = filtered.map(p => ({
-      'ID': p.product_id.split('-')[0].toUpperCase(),
-      'PRODUCT NAME': p.name,
-      'SKU': p.sku || 'N/A',
-      'CATEGORY': p.room || 'General',
-      'PRICE': `INR ${Number(p.price || 0).toLocaleString()}`,
-      'STOCK': p.stock,
-      'STATUS': p.status
-    }));
+    try {
+      toast({ title: "Export Started", description: "Preparing product catalog for export..." });
+      const tableRows = filtered.map(p => ({
+        'ID': p.product_id.split('-')[0].toUpperCase(),
+        'PRODUCT NAME': p.name,
+        'SKU': p.sku || 'N/A',
+        'CATEGORY': p.room || 'General',
+        'PRICE': `INR ${Number(p.price || 0).toLocaleString()}`,
+        'STOCK': p.stock,
+        'STATUS': p.status
+      }));
 
-    exportToExcel(tableRows, `GoMo_Catalog_Report_${new Date().toISOString().split('T')[0]}`);
+      exportToExcel(tableRows, `GoMo_Catalog_Report_${new Date().toISOString().split('T')[0]}`);
+      toast({ title: "Export Complete", description: "Product catalog has been downloaded." });
+    } catch (err) {
+      toast({ title: "Export Failed", description: "Could not generate excel file.", variant: "destructive" });
+    }
   };
 
   if (loading) return (

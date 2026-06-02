@@ -401,42 +401,7 @@ p {
   }
 }`;
 
-  const handleRequestReset = async (e) => {
-    e.preventDefault();
-    setResetLoading(true);
-    
-    if (resetStep === 1) {
-      try {
-        const resData = await requestAdminPasswordReset(resetEmail);
-        if (resData.success) {
-          toast({ title: "Code Sent", description: resData.message });
-          setResetStep(2);
-        } else {
-          toast({ variant: "destructive", title: "Request Failed", description: resData.message });
-        }
-      } catch (err) {
-        const isValidationError = !!err.response?.data?.message;
-        toast({ variant: "destructive", title: isValidationError ? "Request Failed" : "Network Error", description: err.response?.data?.message || "Failed to send request." });
-      } finally {
-        setResetLoading(false);
-      }
-    } else {
-      try {
-        const resData = await verifyAdminPasswordReset({ email: resetEmail, otp: resetOtp, newPassword: resetNewPassword });
-        if (resData.success) {
-          toast({ title: "Password Reset", description: "You can now log in with your new password." });
-          closeResetModal();
-        } else {
-          toast({ variant: "destructive", title: "Verification Failed", description: resData.message });
-        }
-      } catch (err) {
-        const isValidationError = !!err.response?.data?.message;
-        toast({ variant: "destructive", title: isValidationError ? "Verification Failed" : "Network Error", description: err.response?.data?.message || "Failed to verify code." });
-      } finally {
-        setResetLoading(false);
-      }
-    }
-  };
+
 
   const closeResetModal = () => {
     setShowResetModal(false);
@@ -778,13 +743,12 @@ p {
 
                 {isLogin && (
                   <div style={{ textAlign: "right", marginTop: "1rem" }}>
-                    <button 
-                      type="button"
-                      onClick={() => setShowResetModal(true)}
-                      style={{ background: "none", border: "none", color: G.muted, fontSize: "0.7rem", cursor: "pointer", fontWeight: 400, letterSpacing: "0.05em" }}
+                    <Link 
+                      to="/admin/forgot-password"
+                      style={{ background: "none", border: "none", color: G.muted, fontSize: "0.7rem", cursor: "pointer", fontWeight: 400, letterSpacing: "0.05em", textDecoration: "none" }}
                     >
                       Forgot Password?
-                    </button>
+                    </Link>
                   </div>
                 )}
 
@@ -809,56 +773,6 @@ p {
           )}
         </div>
       </div>
-
-      {showResetModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={closeResetModal}>
-          <div style={{ background: "var(--card-bg)", width: "100%", maxWidth: "450px", padding: "4rem 3rem", borderRadius: "24px", border: "1px solid rgba(255, 255, 255, 0.85)", boxShadow: "0 25px 50px -12px rgba(124, 45, 18, 0.3)", margin: "auto" }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ fontSize: "2rem", fontFamily: "var(--font-sans)", fontWeight: 800, marginBottom: "1rem", color: G.text }}>Reset Access</h3>
-            <p style={{ color: G.muted, fontSize: "0.85rem", marginBottom: "3rem", lineHeight: 1.6, fontWeight: 300 }}>
-              {resetStep === 1 ? "A verification token will be dispatched to your registered address." : "Enter the 6-digit token and define your new access sequence."}
-            </p>
-            <form onSubmit={handleRequestReset} className="space-y-6">
-              
-              {resetStep === 1 && (
-                <div className="admin-field-group">
-                  <label style={{ fontSize: "0.65rem", fontWeight: 700, color: G.text, textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: "0.5rem", display: "block" }}>Registered Email</label>
-                  <div className="admin-input-box">
-                    <Mail size={16} />
-                    <input type="email" placeholder="email@domain.com" required value={resetEmail} onChange={e => setResetEmail(e.target.value)} />
-                  </div>
-                </div>
-              )}
-
-              {resetStep === 2 && (
-                <>
-                  <div className="admin-field-group">
-                    <label style={{ fontSize: "0.65rem", fontWeight: 700, color: G.text, textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: "0.5rem", display: "block" }}>Verification Token</label>
-                    <div className="admin-input-box">
-                      <ShieldCheck size={16} />
-                      <input type="text" placeholder="------" maxLength={6} required value={resetOtp} onChange={e => setResetOtp(e.target.value.replace(/[^0-9]/g, ''))} style={{ letterSpacing: "0.5em", fontWeight: 400, textAlign: "center", paddingLeft: 0 }} />
-                    </div>
-                  </div>
-
-                  <div className="admin-field-group">
-                    <label style={{ fontSize: "0.65rem", fontWeight: 700, color: G.text, textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: "0.5rem", display: "block" }}>New Password</label>
-                    <div className="admin-input-box">
-                      <Lock size={16} />
-                      <input type="password" placeholder="••••••••" required minLength={8} value={resetNewPassword} onChange={e => setResetNewPassword(e.target.value)} />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div style={{ display: "flex", gap: "15px", marginTop: "2rem" }}>
-                <button type="button" onClick={closeResetModal} style={{ flex: 1, padding: "1rem", borderRadius: "12px", border: "1px solid " + G.border, background: "transparent", fontWeight: 700, cursor: "pointer", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.1em", color: G.text }}>Cancel</button>
-                <button type="submit" disabled={resetLoading} className="admin-submit-btn" style={{ flex: 1.5, margin: 0, padding: "1rem", borderRadius: "12px", fontSize: "0.75rem", letterSpacing: "0.1em" }}>
-                  {resetLoading ? "Processing..." : (resetStep === 1 ? "Dispatch" : "Update")}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

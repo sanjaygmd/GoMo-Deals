@@ -17,6 +17,8 @@ const AdminRegisterPage = () => {
         secretCode: ''
     });
     const [errors, setErrors] = useState({});
+    const [showOTP, setShowOTP] = useState(false);
+    const [otp, setOtp] = useState('');
     const navigate = useNavigate();
 
     const validate = () => {
@@ -30,30 +32,60 @@ const AdminRegisterPage = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = async (e) => {
+    const handleSendOTP = async (e) => {
         e.preventDefault();
         if (validate()) {
             setLoading(true);
             setErrors({});
             try {
-                const response = await authService.registerAdmin({
-                    name: formData.staffName,
-                    email: formData.email,
-                    password: formData.password,
-                    type: formData.role,
-                    masterKey: formData.secretCode
-                });
-                
-                login(response.data);
-                navigate('/admin-login'); // Or to dashboard if automatically logged in
+                await authService.sendAdminRegisterOTP({ email: formData.email });
+                setShowOTP(true);
             } catch (err) {
-                console.error("ADMIN REGISTER ERROR:", err);
+                console.error("ADMIN SEND OTP ERROR:", err);
                 setErrors({ 
-                    submit: err.response?.data?.message || 'Admin registration failed. Please check your credentials.' 
+                    submit: err.response?.data?.message || 'Failed to send OTP.' 
                 });
             } finally {
                 setLoading(false);
             }
+        }
+    };
+
+    const handleVerifyAndRegister = async (e) => {
+        e.preventDefault();
+        
+        if (!otp || otp.length !== 6) {
+            setErrors({ submit: 'Please enter a valid 6-digit OTP' });
+            return;
+        }
+
+        setLoading(true);
+        setErrors({});
+        try {
+            // Re-use verifyOtp for admin since the backend route is generic enough if we use the admin endpoint
+            // Wait, we need an endpoint for verifying admin registration OTP.
+            // Actually, we can use the same verifyOTP if we provide purpose="admin_registration"
+            // But let's just use a new service method or add purpose in the backend. 
+            // In otpController, we saw admin route infers 'admin_registration'. Let's call /admin/verify-otp
+            await authService.handleApiCall('post', '/admin/verify-otp', { email: formData.email, otp });
+
+            const response = await authService.registerAdmin({
+                name: formData.staffName,
+                email: formData.email,
+                password: formData.password,
+                type: formData.role,
+                masterKey: formData.secretCode
+            });
+            
+            login(response.data);
+            navigate('/admin-login'); 
+        } catch (err) {
+            console.error("ADMIN REGISTER ERROR:", err);
+            setErrors({ 
+                submit: err.response?.data?.message || 'Admin registration failed.' 
+            });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -74,7 +106,8 @@ const AdminRegisterPage = () => {
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="divide-y divide-zinc-800/60">
+                {!showOTP ? (
+                <form onSubmit={handleSendOTP} className="divide-y divide-zinc-800/60">
                     {errors.submit && (
                         <div className="pb-6">
                             <div className="p-4 bg-red-950/20 border border-red-900/40 text-red-400 text-[10px] uppercase tracking-widest font-bold text-center rounded-xl">
@@ -197,18 +230,62 @@ const AdminRegisterPage = () => {
                         </div>
                     </div>
 
-                    {/* Submit Button Container */}
                     <div className="pt-8">
                         <button 
                             type="submit" 
                             disabled={loading}
                             className={`w-full py-5 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[10px] uppercase tracking-[0.3em] font-black hover:from-orange-500 hover:to-amber-400 transition-all rounded-xl flex items-center justify-center gap-3 shadow-lg shadow-orange-950/20 active:scale-[0.98] ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
-                            {loading ? 'Initializing...' : 'Register Admin'} 
+                            {loading ? 'Initializing...' : 'Continue to Verification'} 
                             {!loading && <ArrowRight size={16} />}
                         </button>
                     </div>
                 </form>
+                ) : (
+                <form onSubmit={handleVerifyAndRegister} className="divide-y divide-zinc-800/60">
+                    {errors.submit && (
+                        <div className="pb-6">
+                            <div className="p-4 bg-red-950/20 border border-red-900/40 text-red-400 text-[10px] uppercase tracking-widest font-bold text-center rounded-xl">
+                                {errors.submit}
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
+                        <div className="w-full sm:w-1/3 space-y-1">
+                            <label className="text-[10px] uppercase tracking-[0.25em] font-black text-orange-500 block">Verification Code</label>
+                            <span className="text-[10px] text-zinc-500 block">Enter 6-digit OTP code sent to {formData.email}</span>
+                        </div>
+                        <div className="w-full sm:w-2/3">
+                            <input 
+                                type="text"
+                                required
+                                maxLength={6}
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className="w-full px-4 py-3.5 bg-zinc-900/40 border border-zinc-800 text-white focus:border-orange-500 focus:bg-zinc-900/60 outline-none transition-all text-xs rounded-xl text-center tracking-[0.5em] font-bold focus:shadow-[0_0_15px_rgba(249,115,22,0.1)]"
+                                placeholder="••••••"
+                            />
+                        </div>
+                    </div>
+                    <div className="pt-8 space-y-4">
+                        <button 
+                            type="submit" 
+                            disabled={loading}
+                            className={`w-full py-5 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[10px] uppercase tracking-[0.3em] font-black hover:from-orange-500 hover:to-amber-400 transition-all rounded-xl flex items-center justify-center gap-3 shadow-lg shadow-orange-950/20 active:scale-[0.98] ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                            {loading ? 'Verifying...' : 'Verify & Register'} 
+                            {!loading && <ArrowRight size={16} />}
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={() => setShowOTP(false)}
+                            className="w-full py-4 text-[10px] text-orange-500 uppercase tracking-widest font-black hover:text-white transition-colors text-center block bg-zinc-900/20 hover:bg-zinc-900/40 border border-zinc-800/60 rounded-xl"
+                        >
+                            Back to Form
+                        </button>
+                    </div>
+                </form>
+                )}
 
                 <div className="mt-8 text-center">
                     <p className="text-[10px] text-orange-400 uppercase tracking-widest">

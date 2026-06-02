@@ -406,30 +406,65 @@ export const loginAdmin = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
-    if (type === 'super_admin') {
-      // 2FA required for Super Admin
-      const otp = generateOtp();
-      const otp_hash = hashOtp(otp);
-      const expires_at = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const { otp } = req.body;
+    const scopedPurpose = 'admin_login_2fa';
+
+    if (!otp) {
+      // Step 1: Password is correct, no OTP provided. Generate and send OTP.
+      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpHash = crypto.createHash("sha256").update(generatedOtp).digest("hex");
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
       await pool.query(
         `INSERT INTO otp_verifications (email, otp_hash, expires_at, purpose)
-         VALUES ($1, $2, $3, 'super_admin_login')
+         VALUES ($1, $2, $3, $4)
          ON CONFLICT (email, purpose) DO UPDATE 
          SET otp_hash = $2, expires_at = $3, is_verified = false, attempts = 0`,
-        [user.email, otp_hash, expires_at]
+        [user.email, otpHash, expiresAt, scopedPurpose]
       );
 
-      await sendSuperAdminLoginOTP(user.email, user.name, otp);
+      await import('../../utils/mailer.js').then(m => m.sendEmailOtp(user.email, generatedOtp, 'login_2fa'));
 
       return res.status(200).json({
         success: true,
-        requires2FA: true,
-        message: "2FA verification code sent to your registered email",
-        email: user.email,
-        data: { email: user.email }
+        requiresOtp: true, // Same format as customer/seller
+        requires2FA: true, // Keeping this for backward compatibility with older admin frontend
+        message: 'OTP sent to your email. Please verify to continue.'
       });
     }
+
+    // Step 2: OTP provided. Verify it.
+    const otpResult = await pool.query(
+      `SELECT * FROM otp_verifications WHERE email = $1 AND purpose = $2`,
+      [email, scopedPurpose]
+    );
+
+    if (otpResult.rows.length === 0 || new Date() > otpResult.rows[0].expires_at) {
+      return res.status(400).json({ success: false, message: "OTP expired or invalid" });
+    }
+
+    const otpData = otpResult.rows[0];
+    if (otpData.is_verified) {
+      return res.status(400).json({ success: false, message: "OTP already used" });
+    }
+    if (otpData.attempts >= 5) {
+      return res.status(400).json({ success: false, message: "Too many failed attempts" });
+    }
+
+    const hashedInput = crypto.createHash("sha256").update(otp).digest("hex");
+    const hashedInputBuf = Buffer.from(hashedInput, 'utf-8');
+    const otpHashBuf = Buffer.from(otpData.otp_hash, 'utf-8');
+
+    if (hashedInputBuf.length !== otpHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, otpHashBuf)) {
+      await pool.query(
+        "UPDATE otp_verifications SET attempts = attempts + 1 WHERE email = $1 AND purpose = $2",
+        [email, scopedPurpose]
+      );
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    // OTP is valid. Clean it up.
+    await pool.query("DELETE FROM otp_verifications WHERE email = $1 AND purpose = $2", [email, scopedPurpose]);
 
     try {
       if (type === 'super_admin') {
@@ -457,8 +492,6 @@ export const loginAdmin = async (req, res) => {
 
     setSessionCookie(res, typeof type !== 'undefined' ? type : 'admin', session.token);
 
-
-
     return res.status(200).json({
       success: true,
       message: `${type} login successful`,
@@ -471,114 +504,13 @@ export const loginAdmin = async (req, res) => {
       }
     });
 
-
   } catch (error) {
     console.error("ADMIN LOGIN ERROR:", error);
     return res.status(500).json({ success: false, message: "Internal server error during login" });
   }
 };
 
-/**
- * Verify Super Admin 2FA Login
- */
-export const verifySuperAdminLogin = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
 
-    if (!email || !otp) {
-      return res.status(400).json({ success: false, message: "Email and OTP are required" });
-    }
-
-    const result = await pool.query(
-      `SELECT * FROM otp_verifications WHERE email = $1 AND purpose = 'super_admin_login'`,
-      [email]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Verification code not found" });
-    }
-
-    const otpData = result.rows[0];
-
-    if (otpData.is_verified) {
-      return res.status(400).json({ success: false, message: "Verification code already used" });
-    }
-
-    if (new Date() > otpData.expires_at) {
-      return res.status(400).json({ success: false, message: "Verification code has expired" });
-    }
-
-    if (otpData.attempts >= 5) {
-      return res.status(400).json({ success: false, message: "Too many failed attempts. Please request a new code." });
-    }
-
-    const hashedInput = hashOtp(otp);
-    if (hashedInput !== otpData.otp_hash) {
-      await pool.query(
-        "UPDATE otp_verifications SET attempts = attempts + 1 WHERE email = $1 AND purpose = 'super_admin_login'",
-        [email]
-      );
-      return res.status(400).json({ success: false, message: "Invalid verification code" });
-    }
-
-    // OTP is valid, fetch user details
-    const userRes = await pool.query(
-      "SELECT super_admin_id, name, email, role FROM super_admins WHERE email = $1",
-      [email]
-    );
-    
-    if (userRes.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Account not found" });
-    }
-
-    const user = userRes.rows[0];
-    const userId = user.super_admin_id;
-
-    try {
-      await pool.query(`UPDATE super_admins SET last_login_at = NOW() WHERE super_admin_id = $1`, [userId]);
-    } catch (dbErr) {
-      console.error("Failed to update last_login_at in verifySuperAdminLogin:", dbErr);
-    }
-
-    const ip = req.ip || '0.0.0.0';
-    const device = { agent: req.get('User-Agent') };
-    const session = await createAuthSession(userId, 'super_admin', ip, device, { name: user.name, email: user.email });
-
-    await logAudit({
-      admin_id: userId,
-      action: 'LOGIN',
-      table_name: 'super_admins',
-      record_id: userId,
-      req,
-      is_super_admin: true
-    });
-
-    // Mark OTP as used
-    await pool.query(
-      "UPDATE otp_verifications SET is_verified = true WHERE email = $1 AND purpose = 'super_admin_login'",
-      [email]
-    );
-
-    setSessionCookie(res, 'super_admin', session.token);
-
-    return res.status(200).json({
-      success: true,
-      message: "Super Admin login successful",
-      data: {
-        id: userId,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        sessionId: session.sessionId
-      }
-    });
-
-
-  } catch (error) {
-    console.error("VERIFY SUPER ADMIN LOGIN ERROR:", error);
-    return res.status(500).json({ success: false, message: "Internal server error" });
-  }
-};
 
 export const logoutAdmin = async (req, res) => {
   try {
