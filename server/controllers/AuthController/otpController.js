@@ -92,8 +92,8 @@ export const verifyOTP = async (req, res) => {
     }
 
     const hashedInput = hashOtp(otp);
-    const hashedInputBuf = Buffer.from(hashedInput, 'utf-8');
-    const otpHashBuf = Buffer.from(otpData.otp_hash, 'utf-8');
+    const hashedInputBuf = Buffer.from(hashedInput, 'hex');
+    const otpHashBuf = Buffer.from(otpData.otp_hash, 'hex');
 
     if (hashedInputBuf.length !== otpHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, otpHashBuf)) {
       await pool.query(
@@ -145,8 +145,8 @@ export const resetPassword = async (req, res) => {
     // We expect the OTP to have been marked 'is_verified' by verifyOTP step, but if not we can just verify it again
     if (!otpCheck.rows[0].is_verified) {
       const hashedInput = hashOtp(otp);
-      const hashedInputBuf = Buffer.from(hashedInput, 'utf-8');
-      const otpHashBuf = Buffer.from(otpCheck.rows[0].otp_hash, 'utf-8');
+      const hashedInputBuf = Buffer.from(hashedInput, 'hex');
+      const otpHashBuf = Buffer.from(otpCheck.rows[0].otp_hash, 'hex');
       
       if (hashedInputBuf.length !== otpHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, otpHashBuf)) {
         return res.status(400).json({ success: false, message: "Invalid OTP" });

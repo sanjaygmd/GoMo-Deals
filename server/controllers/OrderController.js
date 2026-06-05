@@ -8,6 +8,7 @@ import { sendOrderStatusNotifications } from '../utils/notifications.js';
 
 export const createOrder = async (req, res, next) => {
   const client = await pool.connect();
+  let actual_paid_amount = null;
   try {
     const {
       address_details, // { full_name, phone, address_line_1, city, state, pincode }
@@ -107,10 +108,12 @@ export const createOrder = async (req, res, next) => {
       let dbSellerId = null;
       let categoryName = null;
       let parentCategoryName = null;
+      let categoryId = null;
+      let parentCategoryId = null;
 
       if (vId) {
         const vCheck = await client.query(
-          "SELECT pv.price, p.seller_id, pv.stock_quantity, p.name as product_name, c.name as category_name, (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name, pv.variant_name, pv.variant_value FROM product_variants pv JOIN products p ON pv.product_id = p.product_id LEFT JOIN categories c ON p.category_id = c.category_id WHERE pv.variant_id = $1 FOR UPDATE OF pv, p",
+          "SELECT pv.price, p.seller_id, pv.stock_quantity, p.name as product_name, c.name as category_name, c.category_id, c.parent_category_id, (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name, pv.variant_name, pv.variant_value FROM product_variants pv JOIN products p ON pv.product_id = p.product_id LEFT JOIN categories c ON p.category_id = c.category_id WHERE pv.variant_id = $1 FOR UPDATE OF pv, p",
           [vId]
         );
         if (vCheck.rows.length === 0) throw new Error(`Product variant not found.`);
@@ -118,6 +121,8 @@ export const createOrder = async (req, res, next) => {
         const row = vCheck.rows[0];
         categoryName = row.category_name;
         parentCategoryName = row.parent_category_name;
+        categoryId = row.category_id;
+        parentCategoryId = row.parent_category_id;
         const itemName = `${row.product_name} (${row.variant_name}: ${row.variant_value})`;
         
         if (row.stock_quantity < qty) throw new Error(`Insufficient stock for ${itemName}. Available: ${row.stock_quantity}`);
@@ -129,7 +134,7 @@ export const createOrder = async (req, res, next) => {
         if (updateRes.rowCount === 0) throw new Error(`Insufficient stock for ${itemName}.`);
       } else {
         const pCheck = await client.query(
-          "SELECT p.price, p.seller_id, p.stock_quantity, p.name as product_name, c.name as category_name, (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name FROM products p LEFT JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = $1 FOR UPDATE OF p",
+          "SELECT p.price, p.seller_id, p.stock_quantity, p.name as product_name, c.name as category_name, c.category_id, c.parent_category_id, (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name FROM products p LEFT JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = $1 FOR UPDATE OF p",
           [item.product_id]
         );
         if (pCheck.rows.length === 0) throw new Error(`Product not found.`);
@@ -137,6 +142,8 @@ export const createOrder = async (req, res, next) => {
         const row = pCheck.rows[0];
         categoryName = row.category_name;
         parentCategoryName = row.parent_category_name;
+        categoryId = row.category_id;
+        parentCategoryId = row.parent_category_id;
         if (row.stock_quantity < qty) throw new Error(`Insufficient stock for ${row.product_name}. Available: ${row.stock_quantity}`);
 
         dbSellerId = row.seller_id;
@@ -187,7 +194,9 @@ export const createOrder = async (req, res, next) => {
         unit_price: dbPrice,
         total_price: itemTotal,
         category_name: categoryName,
-        parent_category_name: parentCategoryName
+        parent_category_name: parentCategoryName,
+        category_id: categoryId,
+        parent_category_id: parentCategoryId
       });
     }
 
@@ -210,44 +219,15 @@ export const createOrder = async (req, res, next) => {
         let eligibleSubtotal = 0;
         let hasEligibleItem = false;
 
-        const getCategoryMapping = (couponCategory) => {
-            const mapping = {
-                'electronics': ['electronics', 'mobiles and accessories', 'mobiles & accessories', 'laptops and tablets', 'laptops & tablets', 'smart wearables', 'audio devices', 'cameras and photography', 'cameras & photography', 'gaming'],
-                'fashion': ['fashion', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'footwear', 'accessories', 'ethnic wear', 'activewear'],
-                'clothing': ['clothing', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'ethnic wear', 'activewear'],
-                'mens': ['men\'s wear', 'mens wear', 'footwear', 'accessories'],
-                'women': ['women\'s wear', 'womens wear', 'footwear', 'accessories'],
-                'kids': ['kids collection', 'children books', 'toys'],
-                'toys': ['toys', 'kids collection'],
-                'gifts': ['gifts', 'home decor', 'fragrances'],
-                'home-living': ['home & living', 'home and living', 'furniture', 'home decor', 'kitchenware', 'bedding & bath', 'bedding and bath', 'lighting', 'garden & outdoor', 'garden and outdoor'],
-                'books': ['books', 'fiction & novels', 'fiction and novels', 'non-fiction', 'stationery', 'textbooks', 'comics & manga', 'comics and manga', 'children books'],
-                'beauty': ['beauty', 'skincare', 'cosmetics', 'fragrances', 'haircare', 'men grooming', 'wellness'],
-                'sports-fitness': ['sports & fitness', 'sports and fitness', 'fitness gear', 'activewear', 'outdoor & camping', 'sports equipment', 'yoga & pilates', 'yoga and pilates', 'nutrition & supplements', 'nutrition and supplements'],
-                'healthy-foods': ['daily essentials & groceries', 'daily essentials and groceries', 'grains & rice', 'grains and rice', 'lentils & dals', 'lentils and dals', 'healthy foods']
-            };
-            return mapping[couponCategory?.toLowerCase()] || [couponCategory?.toLowerCase()];
-        };
-
-        const isCategoryMatch = (itemCategory, itemParentCategory, couponCategory) => {
-            if (!couponCategory || couponCategory.toLowerCase() === 'all') return true;
-            if (!itemCategory) return false;
-
-            const targetCategories = getCategoryMapping(couponCategory);
-            const norm = (s) => s ? s.toLowerCase().replace(/[^a-z0-9]/g, '').trim() : '';
-            const normalizedTargets = targetCategories.map(norm);
-            
-            const normItemCat = norm(itemCategory);
-            const normItemParentCat = norm(itemParentCategory);
-            
-            return normalizedTargets.includes(normItemCat) || 
-                   normalizedTargets.includes(normItemParentCat) ||
-                   normItemCat.includes(norm(couponCategory)) ||
-                   normItemParentCat.includes(norm(couponCategory));
-        };
+        const catRes = await client.query("SELECT category_id FROM coupon_categories WHERE coupon_id = $1", [coupon_id]);
+        const couponCategoryIds = catRes.rows.map(r => r.category_id);
 
         for (const pItem of processedItems) {
-            if (isCategoryMatch(pItem.category_name, pItem.parent_category_name, coupon.category)) {
+            let isMatch = true;
+            if (couponCategoryIds.length > 0) {
+                isMatch = couponCategoryIds.includes(pItem.category_id) || couponCategoryIds.includes(pItem.parent_category_id);
+            }
+            if (isMatch) {
                 eligibleSubtotal += pItem.total_price;
                 hasEligibleItem = true;
             }
@@ -324,7 +304,7 @@ export const createOrder = async (req, res, next) => {
     }
 
     let pending_balance = 0;
-    let actual_paid_amount = final_total_amount;
+    actual_paid_amount = final_total_amount;
     
     if (payment_split === 'advance_20') {
       actual_paid_amount = final_total_amount * 0.20;
@@ -357,14 +337,15 @@ export const createOrder = async (req, res, next) => {
     // 8. Insert into order_sellers and notifications
     for (const seller_id in sellerSubtotals) {
       const seller_subtotal = parseFloat(sellerSubtotals[seller_id]);
-      const seller_earnings = Math.max(0, seller_subtotal - sellerPlatformFee);
+      const effective_fee = Math.min(sellerPlatformFee, seller_subtotal * 0.15);
+      const seller_earnings = Math.max(0, seller_subtotal - effective_fee);
 
       await client.query(
         `INSERT INTO order_sellers (
           order_seller_id, order_id, seller_id, seller_subtotal, 
           seller_platform_fee, seller_earnings, payout_status
          ) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'Pending')`,
-        [order_id, seller_id, seller_subtotal, sellerPlatformFee, seller_earnings]
+        [order_id, seller_id, seller_subtotal, effective_fee, seller_earnings]
       );
 
       await client.query(
@@ -452,7 +433,11 @@ export const createOrder = async (req, res, next) => {
                     key_id: process.env.RAZORPAY_KEY_ID, 
                     key_secret: process.env.RAZORPAY_KEY_SECRET 
                 });
-                await razorpay.payments.refund(payment_id);
+                if (actual_paid_amount) {
+                    await razorpay.payments.refund(payment_id, { amount: Math.round(actual_paid_amount * 100) });
+                } else {
+                    await razorpay.payments.refund(payment_id);
+                }
                 console.log(`[TRANSACTION SAFETY] Auto-refunded orphaned payment ${payment_id}`);
             } catch (refundErr) {
                 console.error(`[CRITICAL ALERT] Failed to auto-refund orphaned payment ${payment_id}:`, refundErr);
@@ -897,13 +882,11 @@ export const sendOrderEmail = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Unauthorized access to this order.' });
     }
 
-    // 2. Fetch completed details directly from DB (JOINS with customers and addresses tables)
-    // to prevent spoofing of user emails, recipient addresses, and order totals.
+    // 2. Fetch completed details directly from DB (JOINS with addresses tables)
     const orderDetails = await pool.query(
-      `SELECT o.total_amount, o.payment_method, c.full_name as customer_name, c.email as customer_email,
+      `SELECT o.total_amount, o.payment_method, o.customer_id,
               a.full_name as shipping_name, a.phone as shipping_phone, a.address_line_1, a.city, a.state, a.pincode
        FROM orders o
-       JOIN customers c ON o.customer_id = c.customer_id
        JOIN addresses a ON o.address_id = a.address_id
        WHERE o.order_id = $1`,
       [orderId]
@@ -916,9 +899,21 @@ export const sendOrderEmail = async (req, res, next) => {
     const oData = orderDetails.rows[0];
     const fullAddress = `${oData.shipping_name}, ${oData.shipping_phone}, ${oData.address_line_1}, ${oData.city}, ${oData.state} - ${oData.pincode}`;
 
+    // 3. Fetch customer email from auth_sessions user_profile
+    const sessionRes = await pool.query(
+        "SELECT user_profile FROM auth_sessions WHERE user_ref_id = $1 ORDER BY created_at DESC LIMIT 1",
+        [oData.customer_id]
+    );
+    const customerName = sessionRes.rows.length > 0 ? (sessionRes.rows[0].user_profile?.name || 'Customer') : 'Customer';
+    const customerEmail = sessionRes.rows.length > 0 ? (sessionRes.rows[0].user_profile?.email || '') : '';
+
+    if (!customerEmail) {
+        console.warn(`[SEND ORDER EMAIL] No email found in auth_sessions for customer_id ${oData.customer_id}`);
+    }
+
     const result = await sendOrderConfirmationEmail({
-      customerName: oData.customer_name,
-      customerEmail: oData.customer_email,
+      customerName: customerName,
+      customerEmail: customerEmail,
       orderId: orderId,
       total: oData.total_amount,
       paymentMethod: oData.payment_method,
@@ -946,6 +941,9 @@ export const createRazorpayOrder = async (req, res) => {
     // Detect placeholder keys or development bypass
     const isPlaceholder = !secret || secret.includes('your_razorpay') || secret === 'razorpay_secret_2026';
     if (isPlaceholder) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error("Critical: Real payment credentials are required in production.");
+      }
       console.warn('[RAZORPAY WARNING] Using placeholder credentials. Activating secure Sandbox Bypass mode for development.');
       return res.status(200).json({
         success: true,

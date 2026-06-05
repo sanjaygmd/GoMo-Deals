@@ -41,7 +41,6 @@ export const AuthProvider = ({ children }) => {
                     saveSanitizedUser(normalized);
                 }
             } catch (err) {
-                console.log("No active session found");
                 // If token is invalid/expired, clear local storage
                 saveSanitizedUser(null);
                 setUser(null);

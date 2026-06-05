@@ -308,8 +308,18 @@ export const initSchema = async () => {
                 used_count INTEGER DEFAULT 0,
                 is_active BOOLEAN DEFAULT TRUE,
                 admin_id UUID,
+                category VARCHAR(255) DEFAULT 'all',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Coupon Categories Join Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS coupon_categories (
+                coupon_id UUID REFERENCES coupons(coupon_id) ON DELETE CASCADE,
+                category_id UUID REFERENCES categories(category_id) ON DELETE CASCADE,
+                PRIMARY KEY (coupon_id, category_id)
             )
         `);
 

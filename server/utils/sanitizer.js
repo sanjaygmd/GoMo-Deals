@@ -37,8 +37,8 @@ export const isValidImageUrl = (urlStr) => {
             return false;
         }
 
-        // Support local relative URLs (e.g. /uploads/image.jpg)
-        if (urlStr.startsWith('/') || urlStr.startsWith('./') || urlStr.startsWith('../')) {
+        // Support local relative URLs strictly from known prefixes
+        if (urlStr.startsWith('/uploads/')) {
             return true;
         }
 

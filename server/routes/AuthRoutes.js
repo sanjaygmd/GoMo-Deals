@@ -76,23 +76,7 @@ import { loginLimiter, otpLimiter, setupLimiter } from '../middleware/rateLimite
 
 const authRoutes = express.Router();
 
-// Rate limiting for auth routes
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 50, // limit each IP to 50 requests per windowMs
-    message: { success: false, message: "Too many authentication attempts, please try again after 15 minutes" }
-});
 
-authRoutes.use('/customer/login', authLimiter);
-authRoutes.use('/customer/send-otp', authLimiter);
-authRoutes.use('/customer/verify-otp', authLimiter);
-authRoutes.use('/customer/register', authLimiter);
-authRoutes.use('/seller/login', authLimiter);
-authRoutes.use('/seller/send-otp', authLimiter);
-authRoutes.use('/seller/verify-otp', authLimiter);
-authRoutes.use('/seller/register', authLimiter);
-authRoutes.use('/admin/login', authLimiter);
-authRoutes.use('/admin/setup', authLimiter);
 
 // Customer Routes
 authRoutes.post('/customer/send-otp', otpLimiter, sendOTP);
@@ -149,9 +133,17 @@ authRoutes.post('/admin/setup', setupLimiter, setupAdmin); // First Super Admin 
 authRoutes.post('/admin/send-register-otp', otpLimiter, sendAdminRegisterOTP); // Step 1: send OTP
 authRoutes.post('/admin/register', async (req, res, next) => {
     try {
+        if (process.env.DISABLE_ADMIN_SETUP === 'true') {
+            return res.status(403).json({ success: false, message: 'Admin setup is disabled' });
+        }
+
         const saCount = await pool.query("SELECT COUNT(*) FROM super_admins");
         const count = parseInt(saCount.rows[0].count);
         if (count === 0) {
+            const secret = process.env.ADMIN_SETUP_SECRET;
+            if (!secret || req.body.adminSetupSecret !== secret) {
+                return res.status(403).json({ success: false, message: 'Invalid or missing admin setup secret' });
+            }
             return registerAdmin(req, res, next);
         }
     } catch (err) {

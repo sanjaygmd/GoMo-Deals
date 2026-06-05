@@ -243,8 +243,8 @@ export const registerAdmin = async (req, res) => {
     }
 
     const hashedInput = hashOtp(otp);
-    const hashedInputBuf = Buffer.from(hashedInput, 'utf8');
-    const dbHashBuf = Buffer.from(otpData.otp_hash, 'utf8');
+    const hashedInputBuf = Buffer.from(hashedInput, 'hex');
+    const dbHashBuf = Buffer.from(otpData.otp_hash, 'hex');
     
     if (hashedInputBuf.length !== dbHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, dbHashBuf)) {
       await pool.query(
@@ -452,8 +452,8 @@ export const loginAdmin = async (req, res) => {
     }
 
     const hashedInput = crypto.createHash("sha256").update(otp).digest("hex");
-    const hashedInputBuf = Buffer.from(hashedInput, 'utf-8');
-    const otpHashBuf = Buffer.from(otpData.otp_hash, 'utf-8');
+    const hashedInputBuf = Buffer.from(hashedInput, 'hex');
+    const otpHashBuf = Buffer.from(otpData.otp_hash, 'hex');
 
     if (hashedInputBuf.length !== otpHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, otpHashBuf)) {
       await pool.query(

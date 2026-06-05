@@ -46,54 +46,43 @@ export class CouponService {
                 return { isValid: false, message: "This coupon is currently inactive", statusCode: 400 };
             }
 
+            // Exclude fetching the join table on initial validation query since we need the coupon first
             // Category & Eligible Subtotal Check
             let eligibleSubtotal = subtotal || 0;
-            if (coupon.category && coupon.category !== 'all') {
+            
+            // Fetch category_ids for this coupon
+            const catRes = await client.query("SELECT category_id FROM coupon_categories WHERE coupon_id = $1", [coupon.coupon_id]);
+            const couponCategoryIds = catRes.rows.map(r => r.category_id);
+
+            // Keep backward compatibility: if coupon_CategoryIds is empty but coupon.category exists and is not 'all', try legacy mapping? 
+            // We'll enforce the new data model where `coupon_categories` stores the eligible categories.
+            if (couponCategoryIds.length > 0) {
                 if (!items || items.length === 0) {
                     await client.query('ROLLBACK');
                     return { isValid: false, message: "Your cart is empty", statusCode: 400 };
                 }
 
-                const getCategoryMapping = (couponCategory) => {
-                    const mapping = {
-                        'electronics': ['electronics', 'mobiles and accessories', 'mobiles & accessories', 'laptops and tablets', 'laptops & tablets', 'smart wearables', 'audio devices', 'cameras and photography', 'cameras & photography', 'gaming'],
-                        'fashion': ['fashion', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'footwear', 'accessories', 'ethnic wear', 'activewear'],
-                        'clothing': ['clothing', 'men\'s wear', 'mens wear', 'women\'s wear', 'womens wear', 'ethnic wear', 'activewear'],
-                        'mens': ['men\'s wear', 'mens wear', 'footwear', 'accessories'],
-                        'women': ['women\'s wear', 'womens wear', 'footwear', 'accessories'],
-                        'kids': ['kids collection', 'children books', 'toys'],
-                        'toys': ['toys', 'kids collection'],
-                        'gifts': ['gifts', 'home decor', 'fragrances'],
-                        'home-living': ['home & living', 'home and living', 'furniture', 'home decor', 'kitchenware', 'bedding & bath', 'bedding and bath', 'lighting', 'garden & outdoor', 'garden and outdoor'],
-                        'books': ['books', 'fiction & novels', 'fiction and novels', 'non-fiction', 'stationery', 'textbooks', 'comics & manga', 'comics and manga', 'children books'],
-                        'beauty': ['beauty', 'skincare', 'cosmetics', 'fragrances', 'haircare', 'men grooming', 'wellness'],
-                        'sports-fitness': ['sports & fitness', 'sports and fitness', 'fitness gear', 'activewear', 'outdoor & camping', 'sports equipment', 'yoga & pilates', 'yoga and pilates', 'nutrition & supplements', 'nutrition and supplements'],
-                        'healthy-foods': ['daily essentials & groceries', 'daily essentials and groceries', 'grains & rice', 'grains and rice', 'lentils & dals', 'lentils and dals', 'healthy foods']
-                    };
-                    return mapping[couponCategory?.toLowerCase()] || [couponCategory?.toLowerCase()];
-                };
-
-                const isCategoryMatch = (itemCategory, itemParentCategory, couponCategory) => {
-                    if (!couponCategory || couponCategory.toLowerCase() === 'all') return true;
-                    if (!itemCategory) return false;
-
-                    const targetCategories = getCategoryMapping(couponCategory);
-                    const norm = (s) => s ? s.toLowerCase().replace(/[^a-z0-9]/g, '').trim() : '';
-                    const normalizedTargets = targetCategories.map(norm);
-                    
-                    const normItemCat = norm(itemCategory);
-                    const normItemParentCat = norm(itemParentCategory);
-                    
-                    return normalizedTargets.includes(normItemCat) || 
-                           normalizedTargets.includes(normItemParentCat) ||
-                           normItemCat.includes(norm(couponCategory)) ||
-                           normItemParentCat.includes(norm(couponCategory));
-                };
+                // Fetch category info for all items in cart to get their category_id and parent_category_id
+                const productIds = items.map(i => i.product_id).filter(Boolean);
+                let itemCategories = {};
+                if (productIds.length > 0) {
+                    const prodCatRes = await client.query(
+                        "SELECT p.product_id, p.category_id, c.parent_category_id FROM products p LEFT JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = ANY($1)",
+                        [productIds]
+                    );
+                    prodCatRes.rows.forEach(r => {
+                        itemCategories[r.product_id] = { cat: r.category_id, parentCat: r.parent_category_id };
+                    });
+                }
 
                 eligibleSubtotal = items.reduce((acc, item) => {
-                    const itemCategory = item.category || item.category_name || '';
-                    const itemParentCategory = item.parent_category || item.parent_category_name || '';
-                    if (isCategoryMatch(itemCategory, itemParentCategory, coupon.category)) {
+                    const pCat = itemCategories[item.product_id];
+                    let isMatch = false;
+                    if (pCat && (couponCategoryIds.includes(pCat.cat) || couponCategoryIds.includes(pCat.parentCat))) {
+                        isMatch = true;
+                    }
+
+                    if (isMatch) {
                         const itemPrice = parseFloat(item.price || item.discountPrice || 0);
                         const itemQty = parseInt(item.quantity || 1);
                         return acc + (itemPrice * itemQty);
@@ -103,8 +92,7 @@ export class CouponService {
 
                 if (eligibleSubtotal <= 0) {
                     await client.query('ROLLBACK');
-                    const formattedCategory = coupon.category.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                    return { isValid: false, message: `This coupon is only valid for ${formattedCategory} products.`, statusCode: 400 };
+                    return { isValid: false, message: `This coupon is not valid for the products in your cart.`, statusCode: 400 };
                 }
             }
 
@@ -159,50 +147,97 @@ export class CouponService {
     }
 
     static async getAllCoupons() {
-        const result = await pool.query("SELECT * FROM coupons ORDER BY created_at DESC");
+        const result = await pool.query(
+            `SELECT c.*, array_remove(array_agg(cc.category_id), NULL) as category_ids 
+             FROM coupons c 
+             LEFT JOIN coupon_categories cc ON c.coupon_id = cc.coupon_id 
+             GROUP BY c.coupon_id 
+             ORDER BY c.created_at DESC`
+        );
         return result.rows;
     }
 
     static async createCoupon(data, adminId, isAdmin) {
-        const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category } = data;
+        const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, category_ids } = data;
         const db_admin_id = isAdmin ? adminId : null;
 
-        const result = await pool.query(
-            `INSERT INTO coupons (coupon_id, code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, admin_id, created_at)
-             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
-             RETURNING *`,
-            [code.toUpperCase(), type || 'percentage', discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active ?? true, category || 'all', db_admin_id]
-        );
-        return result.rows[0];
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const result = await client.query(
+                `INSERT INTO coupons (coupon_id, code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, admin_id, created_at)
+                 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+                 RETURNING *`,
+                [code.toUpperCase(), type || 'percentage', discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active ?? true, category || 'all', db_admin_id]
+            );
+            
+            const coupon = result.rows[0];
+            
+            if (category_ids && Array.isArray(category_ids) && category_ids.length > 0) {
+                for (const catId of category_ids) {
+                    await client.query("INSERT INTO coupon_categories (coupon_id, category_id) VALUES ($1, $2)", [coupon.coupon_id, catId]);
+                }
+            }
+            
+            await client.query('COMMIT');
+            return { ...coupon, category_ids: category_ids || [] };
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     static async updateCoupon(id, data, adminId, isAdmin) {
-        const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category } = data;
+        const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, category_ids } = data;
         const db_admin_id = isAdmin ? adminId : null;
 
-        // Get old values for auditing
-        const oldRes = await pool.query("SELECT * FROM coupons WHERE coupon_id = $1", [id]);
-        if (oldRes.rows.length === 0) return null;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            // Get old values for auditing
+            const oldRes = await client.query("SELECT * FROM coupons WHERE coupon_id = $1", [id]);
+            if (oldRes.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return null;
+            }
 
-        const result = await pool.query(
-            `UPDATE coupons 
-             SET code = COALESCE($1, code),
-                 type = COALESCE($2, type),
-                 discount_percent = COALESCE($3, discount_percent),
-                 discount_amount = COALESCE($4, discount_amount),
-                 max_discount = COALESCE($5, max_discount),
-                 min_order_value = COALESCE($6, min_order_value),
-                 valid_until = COALESCE($7, valid_until),
-                 max_usage = COALESCE($8, max_usage),
-                 is_active = COALESCE($9, is_active),
-                 category = COALESCE($10, category),
-                 admin_id = COALESCE($11, admin_id),
-                 updated_at = NOW()
-             WHERE coupon_id = $12
-             RETURNING *`,
-            [code?.toUpperCase(), type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, db_admin_id, id]
-        );
-        return { old: oldRes.rows[0], updated: result.rows[0] };
+            const result = await client.query(
+                `UPDATE coupons 
+                 SET code = COALESCE($1, code),
+                     type = COALESCE($2, type),
+                     discount_percent = COALESCE($3, discount_percent),
+                     discount_amount = COALESCE($4, discount_amount),
+                     max_discount = COALESCE($5, max_discount),
+                     min_order_value = COALESCE($6, min_order_value),
+                     valid_until = COALESCE($7, valid_until),
+                     max_usage = COALESCE($8, max_usage),
+                     is_active = COALESCE($9, is_active),
+                     category = COALESCE($10, category),
+                     admin_id = COALESCE($11, admin_id),
+                     updated_at = NOW()
+                 WHERE coupon_id = $12
+                 RETURNING *`,
+                [code?.toUpperCase(), type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, db_admin_id, id]
+            );
+            
+            if (category_ids && Array.isArray(category_ids)) {
+                await client.query("DELETE FROM coupon_categories WHERE coupon_id = $1", [id]);
+                for (const catId of category_ids) {
+                    await client.query("INSERT INTO coupon_categories (coupon_id, category_id) VALUES ($1, $2)", [id, catId]);
+                }
+            }
+
+            await client.query('COMMIT');
+            return { old: oldRes.rows[0], updated: { ...result.rows[0], category_ids: category_ids || [] } };
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     static async deleteCoupon(id) {

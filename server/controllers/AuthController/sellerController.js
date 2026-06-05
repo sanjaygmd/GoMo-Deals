@@ -156,8 +156,8 @@ export const loginSeller = async (req, res) => {
     }
 
     const hashedInput = crypto.createHash("sha256").update(otp).digest("hex");
-    const hashedInputBuf = Buffer.from(hashedInput, 'utf-8');
-    const otpHashBuf = Buffer.from(otpData.otp_hash, 'utf-8');
+    const hashedInputBuf = Buffer.from(hashedInput, 'hex');
+    const otpHashBuf = Buffer.from(otpData.otp_hash, 'hex');
 
     if (hashedInputBuf.length !== otpHashBuf.length || !crypto.timingSafeEqual(hashedInputBuf, otpHashBuf)) {
       await pool.query(

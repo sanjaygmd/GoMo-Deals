@@ -11,6 +11,8 @@ import { StatCard } from '../../admin/components/StatCard';
 import { cn } from '../../../lib/utils';
 import ConfirmModal from '../../common/ConfirmModal';
 
+import api from '../../../services/api.js';
+
 const inputClass = "w-full h-11 px-4 rounded-xl border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-xs font-bold outline-none transition-all placeholder:text-stone-400 focus:bg-white focus:shadow-[0_0_15px_rgba(249,115,22,0.1)]";
 const labelClass = "text-[9px] font-black text-stone-600 uppercase tracking-widest mb-1.5 block ml-1";
 
@@ -33,12 +35,26 @@ export default function CouponsPage() {
         valid_until: '',
         max_usage: '',
         is_active: true,
-        category: 'all'
+        category: 'all',
+        category_ids: []
     });
+    const [categoriesList, setCategoriesList] = useState([]);
 
     useEffect(() => {
         fetchCoupons();
+        fetchCategories();
     }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const res = await api.get('/products/categories');
+            if (res.data.success) {
+                setCategoriesList(res.data.data);
+            }
+        } catch (error) {
+            console.error("Failed to load categories", error);
+        }
+    };
 
     const fetchCoupons = async () => {
         setLoading(true);
@@ -82,7 +98,8 @@ export default function CouponsPage() {
                 valid_until: coupon.valid_until ? new Date(coupon.valid_until).toISOString().split('T')[0] : '',
                 max_usage: coupon.max_usage || '',
                 is_active: coupon.is_active,
-                category: coupon.category || 'all'
+                category: coupon.category || 'all',
+                category_ids: coupon.category_ids || []
             });
         } else {
             setEditingCoupon(null);
@@ -95,7 +112,8 @@ export default function CouponsPage() {
                 valid_until: '',
                 max_usage: '',
                 is_active: true,
-                category: 'all'
+                category: 'all',
+                category_ids: []
             });
         }
         setIsModalOpen(true);
@@ -349,27 +367,21 @@ export default function CouponsPage() {
                                             />
                                         </div>
                                         <div>
-                                            <label className={labelClass}>Category Target</label>
+                                            <label className={labelClass}>Category Target (Multi-Select)</label>
                                             <select 
-                                                value={formData.category} 
-                                                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                                                className="w-full h-12 px-4 rounded-xl border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-[10px] font-bold uppercase tracking-wider focus:bg-white focus:shadow-[0_0_15px_rgba(249,115,22,0.1)] outline-none transition-all"
+                                                multiple
+                                                value={formData.category_ids} 
+                                                onChange={(e) => {
+                                                    const selected = Array.from(e.target.selectedOptions, option => option.value);
+                                                    setFormData({...formData, category_ids: selected, category: selected.length === 0 ? 'all' : 'specific'});
+                                                }}
+                                                className="w-full h-24 px-4 py-2 rounded-xl border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-[10px] font-bold uppercase tracking-wider focus:bg-white focus:shadow-[0_0_15px_rgba(249,115,22,0.1)] outline-none transition-all no-scrollbar"
                                             >
-                                                <option value="all">All Departments</option>
-                                                <option value="electronics">Electronics</option>
-                                                <option value="fashion">Fashion</option>
-                                                <option value="home-living">Home & Living</option>
-                                                <option value="healthy-foods">Healthy Foods</option>
-                                                <option value="books">Books</option>
-                                                <option value="beauty">Beauty</option>
-                                                <option value="sports-fitness">Sports & Fitness</option>
-                                                <option value="clothing">Clothing</option>
-                                                <option value="mens">Mens</option>
-                                                <option value="women">Women</option>
-                                                <option value="kids">Kids</option>
-                                                <option value="toys">Toys</option>
-                                                <option value="gifts">Gifts</option>
+                                                {categoriesList.map(cat => (
+                                                    <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
+                                                ))}
                                             </select>
+                                            <p className="text-[8px] text-stone-400 mt-1 uppercase tracking-widest font-black ml-1">Hold CTRL/CMD to select multiple. Leave empty for all categories.</p>
                                         </div>
                                     </div>
 

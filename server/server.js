@@ -5,11 +5,13 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import crypto from 'crypto';
 
 import { testDB } from './config/db.js';
 import { initSchema } from './config/initDb.js';
 import { validateEnv } from './config/validateEnv.js';
 import { pruneExpiredRecords } from './utils/cleanupTask.js';
+import cron from 'node-cron';
 
 // Validate environment variables on startup
 validateEnv();
@@ -77,10 +79,22 @@ app.use(helmet({
 
 app.use(cookieParser())
 
-// Security Hardening: Project-specific CSRF Protection (Priority 10)
-// This middleware blocks state-changing requests (POST, PUT, DELETE) unless they come from 
-// an authorized origin AND include a custom security header.
+// Security Hardening: CSRF Protection using Double-Submit Cookie Pattern (Priority 10)
+// This middleware implements the double-submit cookie pattern. It generates a token in a cookie
+// and verifies that state-changing requests include the exact same token in the X-XSRF-TOKEN header.
 app.use((req, res, next) => {
+    // 1. Generate and set CSRF token if it doesn't exist
+    let csrfToken = req.cookies['XSRF-TOKEN'];
+    if (!csrfToken) {
+        csrfToken = crypto.randomBytes(32).toString('hex');
+        res.cookie('XSRF-TOKEN', csrfToken, {
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            httpOnly: false // Must be false so the frontend JS can read it to set the header
+        });
+    }
+
+    // 2. Verify CSRF token for mutating methods
     const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
     if (mutatingMethods.includes(req.method)) {
         const origin = req.headers.origin || req.headers.referer;
@@ -95,16 +109,13 @@ app.use((req, res, next) => {
             }
         }
 
-        // We require the purpose-built X-GoMo-Protection header for all browser-based mutating requests.
-        // We do NOT accept X-Requested-With: XMLHttpRequest as it is a legacy fallback that 
-        // can be spoofed in certain older environments or via specific browser plugins.
-        const hasSecurityHeader = req.headers['x-gomo-protection'] === 'active';
+        const headerToken = req.headers['x-xsrf-token'];
         
-        if (!isSafeOrigin && !hasSecurityHeader) {
-            console.warn(`[SECURITY ALERT] Blocked ${req.method} request to ${req.url} from origin: ${origin || 'Unknown'}. Missing X-GoMo-Protection header.`);
+        if (!isSafeOrigin || !headerToken || headerToken !== csrfToken) {
+            console.warn(`[SECURITY ALERT] Blocked ${req.method} request to ${req.url} from origin: ${origin || 'Unknown'}. Invalid CSRF token.`);
             return res.status(403).json({ 
                 success: false, 
-                message: 'Security validation failed. Please ensure the X-GoMo-Protection header is present.' 
+                message: 'Security validation failed. Invalid CSRF token.' 
             });
         }
     }
@@ -149,9 +160,10 @@ app.listen(port, () => {
 
         // Run cleanup tasks
         pruneExpiredRecords().catch(err => console.error("Initial cleanup error:", err));
-        setInterval(() => {
+        
+        cron.schedule('0 2 * * *', () => {
             pruneExpiredRecords().catch(err => console.error("Periodic cleanup error:", err));
-        }, 1000 * 60 * 60 * 24);
+        });
 
     }).catch(err => {
         console.error("FATAL: Database connection failed. Shutting down.", err);

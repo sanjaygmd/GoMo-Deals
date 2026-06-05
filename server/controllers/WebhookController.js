@@ -112,8 +112,8 @@ export const handleRazorpayWebhook = async (req, res) => {
 
                 // Revert finance ledger
                 await client.query(`
-                    INSERT INTO finance_transactions (order_id, transaction_type, amount)
-                    VALUES ($1, 'refund', $2)
+                    INSERT INTO finance_transactions (finance_transactions_id, order_id, transaction_type, amount)
+                    VALUES (gen_random_uuid(), $1, 'refund', $2)
                 `, [order_id, -amount]);
             } else {
                 // Refund for an orphaned payment
