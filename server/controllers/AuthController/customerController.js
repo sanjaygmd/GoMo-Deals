@@ -665,7 +665,7 @@ export const logout = async (req, res) => {
       if (token) {
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         const sessionRes = await pool.query(
-          "SELECT session_id FROM auth_sessions WHERE token_hash = $1 AND is_blacklisted = false",
+          "SELECT session_id FROM auth_sessions WHERE token_hash = $1",
           [tokenHash]
         );
         if (sessionRes.rows.length > 0) {

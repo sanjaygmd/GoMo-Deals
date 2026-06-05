@@ -97,7 +97,19 @@ export const createOrder = async (req, res, next) => {
       console.warn("[SETTINGS] Failed to read platform fees from database, using fallbacks:", err.message);
     }
 
-    for (const item of items) {
+    // Sort items consistently by product_id and variant_id to prevent PostgreSQL deadlocks during FOR UPDATE locking
+    const sortedItems = [...items].sort((a, b) => {
+        const idA = a.product_id || '';
+        const idB = b.product_id || '';
+        if (idA === idB) {
+            const vA = a.variant_id || a.variantId || '';
+            const vB = b.variant_id || b.variantId || '';
+            return vA.localeCompare(vB);
+        }
+        return idA.localeCompare(idB);
+    });
+
+    for (const item of sortedItems) {
       let qty = parseInt(item.quantity);
       if (isNaN(qty) || qty <= 0) throw new Error(`Invalid quantity for one or more items.`);
 
@@ -266,6 +278,14 @@ export const createOrder = async (req, res, next) => {
     const final_cod_fee = payment_method === 'cod' ? 50 : 0;
     const final_total_amount = serverCalculatedSubtotal + calculatedShipping + final_tax_amount + final_platform_fee + final_cod_fee - serverDiscountAmount;
 
+    let pending_balance = 0;
+    let actual_paid_amount = final_total_amount;
+    
+    if (payment_split === 'advance_20') {
+      actual_paid_amount = final_total_amount * 0.20;
+      pending_balance = final_total_amount - actual_paid_amount;
+    }
+
     // 5b. Verify Payment Amount & Signature
     if (payment_method === 'online' || payment_method === 'razorpay') {
       const isMock = process.env.NODE_ENV !== 'production' && razorpay_order_id.startsWith('order_mock_');
@@ -287,11 +307,11 @@ export const createOrder = async (req, res, next) => {
           throw new Error("Invalid payment signature");
         }
         
-        // CRITICAL SECURITY FIX: Validate that the Razorpay order amount strictly matches the server-calculated total
+        // CRITICAL SECURITY FIX: Validate that the Razorpay order amount strictly matches the expected paid amount
         try {
           const razorpay = new Razorpay({ key_id, key_secret: secret });
           const rzpOrder = await razorpay.orders.fetch(razorpay_order_id);
-          const expectedAmount = Math.round(final_total_amount * 100);
+          const expectedAmount = Math.round(actual_paid_amount * 100);
           
           if (rzpOrder.amount !== expectedAmount) {
              throw new Error(`Payment amount mismatch. Expected ₹${expectedAmount / 100}, but order was for ₹${rzpOrder.amount / 100}`);
@@ -301,14 +321,6 @@ export const createOrder = async (req, res, next) => {
           throw new Error(rzpErr.message?.includes("mismatch") ? rzpErr.message : "Failed to verify payment amount with Razorpay");
         }
       }
-    }
-
-    let pending_balance = 0;
-    actual_paid_amount = final_total_amount;
-    
-    if (payment_split === 'advance_20') {
-      actual_paid_amount = final_total_amount * 0.20;
-      pending_balance = final_total_amount - actual_paid_amount;
     }
 
     // 6. Insert into orders

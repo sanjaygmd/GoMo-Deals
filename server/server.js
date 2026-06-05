@@ -96,7 +96,14 @@ app.use((req, res, next) => {
 
     // 2. Verify CSRF token for mutating methods
     const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+    // Webhooks are server-to-server and rely on cryptographic HMAC validation, not CSRF.
+    const skipCsrfPaths = ['/api/orders/razorpay/webhook', '/api/shipping/webhook'];
+    
     if (mutatingMethods.includes(req.method)) {
+        if (skipCsrfPaths.some(p => req.path.startsWith(p))) {
+            return next();
+        }
+
         const origin = req.headers.origin || req.headers.referer;
         let isSafeOrigin = false;
         
