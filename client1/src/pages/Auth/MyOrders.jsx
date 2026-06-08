@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyOrders, cancelOrder, createReturnRequest } from '../../services/orderService';
-import { ShoppingBag, Truck, X, Clock, AlertCircle, ChevronRight, Package, Search, RotateCcw, ShieldAlert, CheckCircle } from 'lucide-react';
+import { ShoppingBag, Truck, X, Clock, AlertCircle, ChevronRight, Package, Search, RotateCcw, ShieldAlert, CheckCircle, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { useShop } from '../../context/ShopContext';
 import TrackOrderModal from '../../components/common/TrackOrderModal';
+import { openDispute } from '../../services/disputeService';
 
 const MyOrders = () => {
     const { user } = useAuth();
@@ -25,6 +26,8 @@ const MyOrders = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
     const [trackingOrder, setTrackingOrder] = useState(null);
+    const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+    const [disputeReason, setDisputeReason] = useState('');
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -127,6 +130,40 @@ const MyOrders = () => {
             toast({
                 title: "Cancellation Failed",
                 description: err.message || "We couldn't cancel your order at this moment.",
+                variant: "destructive"
+            });
+        }
+    };
+
+    const handleDisputeClick = (order) => {
+        setSelectedOrder(order);
+        setIsDisputeModalOpen(true);
+    };
+
+    const handleConfirmDispute = async () => {
+        if (!disputeReason.trim()) return;
+        try {
+            const res = await openDispute(selectedOrder.order_id, disputeReason);
+            if (res.success) {
+                setIsDisputeModalOpen(false);
+                setDisputeReason('');
+                setSelectedOrder(null);
+                toast({
+                    title: "Issue Reported",
+                    description: "Your dispute has been escalated. Our team will review it shortly.",
+                    variant: "default"
+                });
+            } else {
+                toast({
+                    title: "Action Failed",
+                    description: res.error || "Could not report issue.",
+                    variant: "destructive"
+                });
+            }
+        } catch (err) {
+            toast({
+                title: "Action Failed",
+                description: "Could not report issue.",
                 variant: "destructive"
             });
         }
@@ -356,6 +393,14 @@ const MyOrders = () => {
                                                 </button>
                                             )
                                         )}
+                                        {order.order_status !== 'Pending' && order.order_status !== 'Cancelled' && (
+                                            <button 
+                                                onClick={() => handleDisputeClick(order)}
+                                                className="w-full h-12 flex items-center justify-center gap-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-100 transition-all"
+                                            >
+                                                <Shield size={14} /> Report Issue
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>
@@ -529,6 +574,72 @@ const MyOrders = () => {
                                         className="flex-2 h-14 bg-orange-600 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-700 transition-all disabled:opacity-50 shadow-xl shadow-orange-500/20"
                                     >
                                         Submit Request
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Dispute Modal */}
+            <AnimatePresence>
+                {isDisputeModalOpen && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsDisputeModalOpen(false)}
+                            className="absolute inset-0 bg-rose-900/40 backdrop-blur-sm"
+                        />
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative w-full max-w-lg bg-white shadow-2xl rounded-sm overflow-hidden z-10"
+                        >
+                            <div className="bg-rose-600 px-8 py-8 text-white flex justify-between items-center">
+                                <div>
+                                    <h3 className="text-sm uppercase tracking-[0.3em] font-bold">Report an Issue</h3>
+                                    <p className="text-[9px] uppercase tracking-widest text-rose-200 mt-1">Order #{selectedOrder?.order_id.slice(0, 8).toUpperCase()}</p>
+                                </div>
+                                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                                    <Shield size={24} />
+                                </div>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div className="p-4 bg-rose-50 border border-rose-100 rounded-lg">
+                                    <p className="text-[10px] text-rose-800 font-bold uppercase tracking-widest leading-relaxed">
+                                        Use this only for severe issues (fraud, missing items, uncooperative seller). This escalates the issue to GoMo Deals administrators.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-[9px] uppercase tracking-widest font-black text-rose-900 ml-1">Describe the Issue</label>
+                                    <textarea 
+                                        rows="4"
+                                        placeholder="Please provide details about the problem with this order..."
+                                        value={disputeReason}
+                                        onChange={(e) => setDisputeReason(e.target.value)}
+                                        className="w-full bg-orange-50 border border-orange-100 p-6 text-xs font-bold tracking-wide focus:outline-none focus:border-rose-500 transition-all custom-scrollbar resize-none"
+                                    />
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <button 
+                                        onClick={() => setIsDisputeModalOpen(false)}
+                                        className="flex-1 h-14 bg-orange-100 text-orange-900 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-200 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        onClick={handleConfirmDispute}
+                                        disabled={!disputeReason.trim()}
+                                        className="flex-2 h-14 bg-rose-600 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-700 transition-all disabled:opacity-50 shadow-xl shadow-rose-500/20"
+                                    >
+                                        Submit Report
                                     </button>
                                 </div>
                             </div>

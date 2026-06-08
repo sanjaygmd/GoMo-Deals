@@ -287,7 +287,7 @@ export const createOrder = async (req, res, next) => {
     }
 
     let pending_balance = 0;
-    let actual_paid_amount = final_total_amount;
+    actual_paid_amount = final_total_amount;
     
     if (payment_split === 'advance_20') {
       actual_paid_amount = final_total_amount * 0.20;
@@ -367,6 +367,15 @@ export const createOrder = async (req, res, next) => {
          ) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'Pending')`,
         [order_id, seller_id, seller_subtotal, effective_fee, seller_earnings]
       );
+
+      await client.query(`
+        INSERT INTO daily_finances (daily_finance_id, seller_id, date, total_revenue, platform_commission, net_seller_earnings)
+        VALUES (gen_random_uuid(), $1, CURRENT_DATE, $2, $3, $4)
+        ON CONFLICT (seller_id, date) DO UPDATE SET
+            total_revenue = daily_finances.total_revenue + EXCLUDED.total_revenue,
+            platform_commission = daily_finances.platform_commission + EXCLUDED.platform_commission,
+            net_seller_earnings = daily_finances.net_seller_earnings + EXCLUDED.net_seller_earnings
+      `, [seller_id, seller_subtotal, effective_fee, seller_earnings]);
 
       await client.query(
         `INSERT INTO notifications (notification_id, customer_id, seller_id, order_id, is_read, type, message, created_at)
@@ -650,6 +659,14 @@ export const updateOrderStatus = async (req, res, next) => {
       if (sellerItemCheck.rows.length === 0) {
         return res.status(403).json({ success: false, message: "Unauthorized access to this order" });
       }
+
+      const distinctSellersCheck = await client.query(
+        "SELECT COUNT(DISTINCT seller_id) as count FROM order_items WHERE order_id = $1",
+        [order_id]
+      );
+      if (parseInt(distinctSellersCheck.rows[0].count) > 1) {
+        return res.status(403).json({ success: false, message: "Cannot modify the entire order because it contains items from other sellers. Please contact support to manage your specific items." });
+      }
     }
 
     await client.query('BEGIN');
@@ -830,7 +847,7 @@ export const createReturnRequest = async (req, res, next) => {
         }
 
         const { unit_price, quantity, seller_id } = itemCheck.rows[0];
-        const refund_amount = unit_price * quantity;
+        const refund_amount = (unit_price * quantity) * 1.05; // Base price + 5% tax
 
         // 3. Insert into return_requests
         const returnRes = await client.query(
@@ -919,16 +936,16 @@ export const sendOrderEmail = async (req, res, next) => {
     const oData = orderDetails.rows[0];
     const fullAddress = `${oData.shipping_name}, ${oData.shipping_phone}, ${oData.address_line_1}, ${oData.city}, ${oData.state} - ${oData.pincode}`;
 
-    // 3. Fetch customer email from auth_sessions user_profile
-    const sessionRes = await pool.query(
-        "SELECT user_profile FROM auth_sessions WHERE user_ref_id = $1 ORDER BY created_at DESC LIMIT 1",
+    // 3. Fetch customer email from customers
+    const customerDetails = await pool.query(
+        "SELECT full_name as name, email FROM customers WHERE customer_id = $1",
         [oData.customer_id]
     );
-    const customerName = sessionRes.rows.length > 0 ? (sessionRes.rows[0].user_profile?.name || 'Customer') : 'Customer';
-    const customerEmail = sessionRes.rows.length > 0 ? (sessionRes.rows[0].user_profile?.email || '') : '';
+    const customerName = customerDetails.rows.length > 0 ? (customerDetails.rows[0].name || 'Customer') : 'Customer';
+    const customerEmail = customerDetails.rows.length > 0 ? (customerDetails.rows[0].email || '') : '';
 
     if (!customerEmail) {
-        console.warn(`[SEND ORDER EMAIL] No email found in auth_sessions for customer_id ${oData.customer_id}`);
+        console.warn(`[SEND ORDER EMAIL] No email found in customers table for customer_id ${oData.customer_id}`);
     }
 
     const result = await sendOrderConfirmationEmail({

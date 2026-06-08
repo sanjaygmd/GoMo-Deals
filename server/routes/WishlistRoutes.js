@@ -1,5 +1,5 @@
 import express from 'express';
-import { getWishlist, addToWishlist, removeFromWishlist, clearWishlist } from '../controllers/WishlistController.js';
+import { getWishlist, addToWishlist, removeFromWishlist, clearWishlist, createWishlistShare, getSharedWishlist } from '../controllers/WishlistController.js';
 
 import { requireAuth } from '../middleware/authMiddleware.js';
 
@@ -10,5 +10,7 @@ wishlistRoutes.get('/:customer_id', requireAuth(['customer', 'admin', 'super_adm
 wishlistRoutes.post('/add', requireAuth(['customer', 'admin', 'super_admin']), addToWishlist);
 wishlistRoutes.delete('/remove/:wishlist_item_id', requireAuth(['customer', 'admin', 'super_admin']), removeFromWishlist);
 wishlistRoutes.delete('/clear/:customer_id', requireAuth(['customer', 'admin', 'super_admin']), clearWishlist);
+wishlistRoutes.post('/share', requireAuth(['customer', 'admin', 'super_admin']), createWishlistShare);
+wishlistRoutes.get('/share/:token', getSharedWishlist);
 
 export default wishlistRoutes;

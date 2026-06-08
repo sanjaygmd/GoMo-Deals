@@ -11,7 +11,7 @@ import { StatCard } from '../../admin/components/StatCard';
 import { cn } from '../../../lib/utils';
 import ConfirmModal from '../../common/ConfirmModal';
 
-import api from '../../../services/api.js';
+import { api } from "../../../services/api.js";
 
 const inputClass = "w-full h-11 px-4 rounded-xl border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-xs font-bold outline-none transition-all placeholder:text-stone-400 focus:bg-white focus:shadow-[0_0_15px_rgba(249,115,22,0.1)]";
 const labelClass = "text-[9px] font-black text-stone-600 uppercase tracking-widest mb-1.5 block ml-1";

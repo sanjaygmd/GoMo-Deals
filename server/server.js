@@ -13,6 +13,8 @@ import { initSchema } from './config/initDb.js';
 import { validateEnv } from './config/validateEnv.js';
 import { pruneExpiredRecords } from './utils/cleanupTask.js';
 import { runLowStockCheck } from './utils/stockAlertCron.js';
+import { runAutoPayouts } from './utils/payoutCron.js';
+import { runAbandonedCartCheck } from './utils/abandonedCartCron.js';
 import cron from 'node-cron';
 
 // Validate environment variables on startup
@@ -21,6 +23,10 @@ validateEnv();
 import authRoutes from './routes/AuthRoutes.js';
 import cartRoutes from './routes/CartRoutes.js';
 import wishlistRoutes from './routes/WishlistRoutes.js';
+import disputeRoutes from './routes/DisputeRoutes.js';
+import configRoutes from './routes/ConfigRoutes.js';
+import questionRoutes from './routes/QuestionRoutes.js';
+import bundleRoutes from './routes/BundleRoutes.js';
 import productRoutes from './routes/ProductRoutes.js';
 import couponRoutes from './routes/CouponRoutes.js';
 import orderRoutes from './routes/OrderRoutes.js';
@@ -51,6 +57,7 @@ const allowedOrigins = [
     process.env.CLIENT_URL,
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://localhost:5175",
     "http://localhost:3000"
 ].filter(Boolean);
 
@@ -138,11 +145,13 @@ app.use((req, res, next) => {
 
         const headerToken = req.headers['x-xsrf-token'];
         
-        if (!isSafeOrigin || !headerToken || headerToken !== csrfToken) {
+        let isValidToken = false;
+        if (headerToken && csrfToken && headerToken.length === csrfToken.length) {
+            isValidToken = crypto.timingSafeEqual(Buffer.from(headerToken), Buffer.from(csrfToken));
+        }
+        
+        if (!isSafeOrigin || !isValidToken) {
             console.warn(`[SECURITY ALERT] Blocked ${req.method} request to ${req.url} from origin: ${origin || 'Unknown'}.`);
-            console.warn(`Expected Token (from cookie/new): ${csrfToken}`);
-            console.warn(`Received Header Token: ${headerToken}`);
-            console.warn(`Cookies received: ${JSON.stringify(req.cookies)}`);
             return res.status(403).json({ 
                 success: false, 
                 message: 'Security validation failed. Invalid CSRF token.' 
@@ -153,7 +162,7 @@ app.use((req, res, next) => {
 });
 
 // HTTP Request Logging
-app.use(morgan('combined'));
+// app.use(morgan('combined'));
 
 // Mount Razorpay webhook BEFORE express.json() so we can retrieve the raw buffer for HMAC validation
 app.use('/api/v1/orders/razorpay/webhook', express.raw({ type: 'application/json' }), webhookRoutes);
@@ -164,6 +173,10 @@ app.use(express.urlencoded({ limit: '1mb', extended: true }));
 app.use('/api/v1', authRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
+app.use('/api/v1/disputes', disputeRoutes);
+app.use('/api/v1/config', configRoutes);
+app.use('/api/v1/questions', questionRoutes);
+app.use('/api/v1/bundles', bundleRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/coupons', couponRoutes);
 app.use('/api/v1/orders', orderRoutes);
@@ -184,12 +197,8 @@ app.use(errorHandler);
 app.listen(port, () => {
     console.log(`Server is running on localhost:${port}`);
     testDB().then(() => {
-        if (process.env.NODE_ENV !== 'production') {
-            console.log("Development environment detected. Running initSchema()...");
-            initSchema();
-        } else {
-            console.log("Production environment. Skipping initSchema(). Run 'npm run db:migrate' to apply schema changes.");
-        }
+        console.log("Running initSchema() to ensure schema is up-to-date...");
+        initSchema().catch(err => console.error("Schema init error:", err));
 
         // Run cleanup tasks
         pruneExpiredRecords().catch(err => console.error("Initial cleanup error:", err));
@@ -213,6 +222,16 @@ app.listen(port, () => {
         // Daily Low-Stock Alerts (4:00 AM)
         cron.schedule('0 4 * * *', () => {
             runLowStockCheck().catch(err => console.error("Low stock cron error:", err));
+        });
+
+        // Daily Auto-Payouts Schedule Check (1:00 AM)
+        cron.schedule('0 1 * * *', () => {
+            runAutoPayouts().catch(err => console.error("Auto payouts cron error:", err));
+        });
+
+        // Daily Abandoned Cart Emails (5:00 AM)
+        cron.schedule('0 5 * * *', () => {
+            runAbandonedCartCheck().catch(err => console.error("Abandoned cart cron error:", err));
         });
 
     }).catch(err => {

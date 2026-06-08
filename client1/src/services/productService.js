@@ -24,6 +24,15 @@ export const bulkUploadProducts = async (file) => {
     }
 }
 
+export const getSellerProducts = async () => {
+    try {
+        const res = await api.get('/products/allproducts');
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message }
+    }
+}
+
 export const addVariants = async (variantData) => {
     try {
         const res = await api.post('/products/add-variants', variantData);

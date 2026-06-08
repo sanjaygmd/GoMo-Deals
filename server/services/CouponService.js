@@ -249,7 +249,10 @@ export class CouponService {
     }
 
     static async deleteCoupon(id) {
-        const result = await pool.query("DELETE FROM coupons WHERE coupon_id = $1 RETURNING *", [id]);
+        const result = await pool.query(
+            "UPDATE coupons SET is_active = false, valid_until = NOW() WHERE coupon_id = $1 RETURNING *", 
+            [id]
+        );
         return result.rows.length > 0 ? result.rows[0] : null;
     }
 }

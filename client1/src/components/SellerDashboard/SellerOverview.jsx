@@ -103,8 +103,17 @@ const SellerOverview = () => {
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 border-b border-orange-100">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <ShieldCheck size={14} className="text-orange-600" />
-            <span className="text-[10px] uppercase tracking-[0.4em] text-orange-500 font-black">Verified Business Account</span>
+            {user?.is_verified ? (
+              <>
+                <ShieldCheck size={14} className="text-emerald-600" />
+                <span className="text-[10px] uppercase tracking-[0.4em] text-emerald-600 font-black">Verified Business Account</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={14} className="text-rose-600" />
+                <span className="text-[10px] uppercase tracking-[0.4em] text-rose-600 font-black">KYC Pending - Action Required</span>
+              </>
+            )}
           </div>
           <h1 className="text-4xl font-semibold text-orange-950 tracking-tight">
             Welcome back, <span className="font-bold text-orange-600">{user?.store_name || user?.full_name}</span>
@@ -126,6 +135,26 @@ const SellerOverview = () => {
           </button>
         </div>
       </div>
+
+      {!user?.is_verified && (
+        <div className="bg-rose-50 border border-rose-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 shrink-0">
+              <ShieldCheck size={24} />
+            </div>
+            <div>
+              <h3 className="text-rose-900 font-bold mb-1">Verify Your Business Details</h3>
+              <p className="text-sm text-rose-700">Your account is currently unverified. Please complete the KYC process (Aadhar, PAN, GSTIN) to enable payouts and remove restrictions.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => navigate('/seller-dashboard/settings')}
+            className="px-6 py-3 bg-rose-600 text-white text-[10px] uppercase tracking-widest font-black hover:bg-rose-700 transition-colors whitespace-nowrap shrink-0"
+          >
+            Complete KYC
+          </button>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -775,7 +775,7 @@ export const getSellerProfile = async (req, res) => {
     }
 
     const seller = await pool.query(`
-      SELECT s.full_name as name, s.email, s.store_name, s.phone, a.address_line_1 as address
+      SELECT s.full_name as name, s.email, s.store_name, s.phone, s.payout_schedule, a.address_line_1 as address
       FROM sellers s
       LEFT JOIN addresses a ON s.seller_id = a.user_id AND a.user_type = 'seller'
       WHERE s.seller_id = $1
@@ -801,7 +801,7 @@ export const updateSellerProfile = async (req, res) => {
     if (req.user.id !== sellerId && !['admin', 'super_admin'].includes(req.user.type)) {
       return res.status(403).json({ success: false, message: "Unauthorized access" });
     }
-    const { name, email, storeName, phone, address, currentPassword, newPassword } = req.body;
+    const { name, email, storeName, phone, address, currentPassword, newPassword, payout_schedule } = req.body;
 
     // Handle password update if requested
     if (currentPassword && newPassword) {
@@ -828,11 +828,21 @@ export const updateSellerProfile = async (req, res) => {
       await pool.query("UPDATE sellers SET password_hash = $1 WHERE seller_id = $2", [newHash, sellerId]);
     }
 
+    let updateScheduleQuery = '';
+    let queryParams = [name, email, storeName, phone, sellerId];
+    if (payout_schedule) {
+      if (!['manual', 'daily', 'weekly', 'bi-weekly', 'monthly'].includes(payout_schedule)) {
+        return res.status(400).json({ success: false, message: "Invalid payout schedule option" });
+      }
+      updateScheduleQuery = ', payout_schedule = $6';
+      queryParams.push(payout_schedule);
+    }
+
     await pool.query(`
       UPDATE sellers 
-      SET full_name = $1, email = $2, store_name = $3, phone = $4
+      SET full_name = $1, email = $2, store_name = $3, phone = $4${updateScheduleQuery}
       WHERE seller_id = $5
-    `, [name, email, storeName, phone, sellerId]);
+    `, queryParams);
 
     // Check if address exists
     const addrCheck = await pool.query("SELECT * FROM addresses WHERE user_id = $1 AND user_type = 'seller'", [sellerId]);

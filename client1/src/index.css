@@ -31,7 +31,7 @@
 
 @layer base {
   body {
-    @apply antialiased text-orange-900 bg-white font-sans;
+    @apply antialiased text-orange-900 bg-[#fdfbf9] font-sans;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";
   }
 
@@ -822,4 +822,11 @@
 .admin-dashboard tr:hover td,
 .admin-dashboard tbody tr:hover td {
   background-color: #fffaf0 !important; /* soft warm highlights on hover */
+}
+
+/* Custom override for the global boutique background color to prevent pure white cards from blending into page background */
+.bg-\[\#fdfbf9\],
+body.bg-\[\#fdfbf9\],
+body {
+  background-color: #faf6f0 !important;
 }

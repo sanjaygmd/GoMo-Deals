@@ -37,6 +37,7 @@ const SellerSettings = () => {
     confirmPassword: "",
     shippingMethod: "Standard",
     payoutMethod: "UPI",
+    payout_schedule: "manual",
   });
 
   // Sync form with user context when it loads
@@ -73,6 +74,7 @@ const SellerSettings = () => {
           address: profileData.address || "",
           shippingMethod: profileData.shipping_method || prev.shippingMethod,
           payoutMethod: profileData.payout_method || prev.payoutMethod,
+          payout_schedule: profileData.payout_schedule || prev.payout_schedule,
         }));
       }
       setLoading(false);
@@ -328,6 +330,21 @@ const SellerSettings = () => {
                          <option value="Standard">Standard Logistics (3-5 Business Days)</option>
                          <option value="Express">Priority Courier (1-2 Business Days)</option>
                          <option value="Self">Direct Handover (Self-managed)</option>
+                       </select>
+                     </div>
+                     <div className="space-y-3">
+                       <label className="text-[9px] font-black text-orange-400 uppercase tracking-[0.3em]">Payout Frequency</label>
+                       <select 
+                         name="payout_schedule"
+                         value={form.payout_schedule}
+                         onChange={handleChange}
+                         className="w-full px-6 py-4 bg-orange-50 border border-orange-100 text-[10px] font-black uppercase tracking-widest outline-none focus:border-orange-950 transition-all shadow-sm"
+                       >
+                         <option value="manual">Manual (Request when needed)</option>
+                         <option value="daily">Daily</option>
+                         <option value="weekly">Weekly</option>
+                         <option value="bi-weekly">Bi-Weekly</option>
+                         <option value="monthly">Monthly</option>
                        </select>
                      </div>
                      <div className="p-10 bg-orange-50 border border-orange-100 flex items-start gap-6">

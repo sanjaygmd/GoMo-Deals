@@ -1,4 +1,5 @@
 import { pool } from '../config/db.js';
+import crypto from 'crypto';
 
 // Helper: get or create wishlist for customer
 const getOrCreateWishlist = async (client, customer_id) => {
@@ -197,5 +198,97 @@ export const clearWishlist = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Error clearing wishlist' });
     } finally {
         client.release();
+    }
+};
+
+// POST /wishlist/share
+export const createWishlistShare = async (req, res) => {
+    try {
+        const { id: customer_id } = req.user;
+        const { items } = req.body; // Array of product/variant details
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ success: false, message: 'Wishlist is empty or invalid' });
+        }
+
+        const shareToken = crypto.randomBytes(16).toString('hex');
+        
+        // Expires in 30 days
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            // Delete old shares for this customer to prevent bloat
+            await client.query('DELETE FROM wishlist_shares WHERE customer_id = $1', [customer_id]);
+
+            const result = await client.query(`
+                INSERT INTO wishlist_shares (share_id, customer_id, share_token, items_snapshot, expires_at)
+                VALUES (gen_random_uuid(), $1, $2, $3, $4)
+                RETURNING share_token
+            `, [customer_id, shareToken, JSON.stringify(items), expiresAt]);
+
+            await client.query('COMMIT');
+            
+            const token = result.rows[0].share_token;
+            return res.status(200).json({ 
+                success: true, 
+                message: 'Wishlist shared successfully',
+                shareToken: token,
+                shareUrl: `${process.env.CLIENT_URL || 'http://localhost:5173'}/shared-wishlist/${token}`
+            });
+
+        } catch (dbError) {
+            await client.query('ROLLBACK');
+            throw dbError;
+        } finally {
+            client.release();
+        }
+
+    } catch (error) {
+        console.error('CREATE WISHLIST SHARE ERROR:', error);
+        return res.status(500).json({ success: false, message: 'Failed to share wishlist' });
+    }
+};
+
+// GET /wishlist/share/:token
+export const getSharedWishlist = async (req, res) => {
+    try {
+        const { token } = req.params;
+
+        if (!token) {
+            return res.status(400).json({ success: false, message: 'Share token is required' });
+        }
+
+        const result = await pool.query(`
+            SELECT ws.items_snapshot, ws.expires_at, c.full_name as owner_name
+            FROM wishlist_shares ws
+            JOIN customers c ON ws.customer_id = c.customer_id
+            WHERE ws.share_token = $1
+        `, [token]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Shared wishlist not found or has expired' });
+        }
+
+        const share = result.rows[0];
+
+        if (new Date() > new Date(share.expires_at)) {
+            return res.status(410).json({ success: false, message: 'This shared wishlist link has expired' });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                ownerName: share.owner_name,
+                items: share.items_snapshot
+            }
+        });
+
+    } catch (error) {
+        console.error('GET SHARED WISHLIST ERROR:', error);
+        return res.status(500).json({ success: false, message: 'Failed to retrieve shared wishlist' });
     }
 };

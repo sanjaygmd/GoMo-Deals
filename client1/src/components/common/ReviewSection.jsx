@@ -278,9 +278,15 @@ const ReviewSection = ({ productId, selectedVariant }) => {
                                         "{review.body}"
                                     </p>
                                     {review.variant_value && (
-                                        <span className="px-3 py-1 bg-orange-50 text-[9px] font-black text-orange-400 uppercase tracking-widest rounded-full border border-orange-100">
+                                        <span className="px-3 py-1 bg-orange-50 text-[9px] font-black text-orange-400 uppercase tracking-widest rounded-full border border-orange-100 mb-4 inline-block">
                                             Edition: {review.variant_value}
                                         </span>
+                                    )}
+                                    {review.seller_reply && (
+                                        <div className="mt-4 p-4 bg-orange-50 border-l-2 border-orange-300">
+                                            <p className="text-[10px] font-bold text-orange-955 uppercase tracking-widest mb-2">Seller Response</p>
+                                            <p className="text-sm text-orange-900">{review.seller_reply}</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>

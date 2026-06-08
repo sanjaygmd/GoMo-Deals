@@ -23,6 +23,28 @@ export const getAllReviews = async (req, res, next) => {
     }
 };
 
+// Get reviews for seller's products (Seller)
+export const getSellerReviews = async (req, res, next) => {
+    try {
+        const seller_id = req.user.id;
+        const query = `
+            SELECT 
+                r.*, 
+                p.name as product_name, 
+                c.full_name as customer_name
+            FROM reviews r
+            JOIN products p ON r.product_id = p.product_id
+            JOIN customers c ON r.customer_id = c.customer_id
+            WHERE p.seller_id = $1
+            ORDER BY r.created_at DESC
+        `;
+        const result = await pool.query(query, [seller_id]);
+        return res.status(200).json({ success: true, data: result.rows });
+    } catch (error) {
+        next(error);
+    }
+};
+
 
 // Delete a review (Admin)
 export const deleteReview = async (req, res, next) => {
@@ -212,6 +234,67 @@ export const updateReview = async (req, res, next) => {
         `;
         const result = await pool.query(query, [parsedRating, cleanTitle, cleanBody, id]);
         return res.status(200).json({ success: true, message: "Review updated successfully", data: result.rows[0] });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Admin: Moderate a review (Approve/Reject)
+export const moderateReview = async (req, res, next) => {
+    const { id } = req.params;
+    const { status } = req.body; // 'approved' or 'rejected'
+
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+        return res.status(400).json({ success: false, message: "Invalid status" });
+    }
+
+    try {
+        const result = await pool.query(
+            "UPDATE reviews SET status = $1, updated_at = NOW() WHERE review_id = $2 RETURNING *",
+            [status, id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: "Review not found" });
+        }
+
+        return res.status(200).json({ success: true, message: `Review ${status} successfully`, data: result.rows[0] });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Seller: Reply to a review
+export const replyToReview = async (req, res, next) => {
+    const { id } = req.params;
+    const { seller_reply } = req.body;
+    const seller_id = req.user.id;
+
+    if (!seller_reply || seller_reply.trim() === '') {
+        return res.status(400).json({ success: false, message: "Reply cannot be empty" });
+    }
+
+    try {
+        // Ensure review belongs to a product owned by the seller
+        const reviewCheck = await pool.query(`
+            SELECT r.review_id 
+            FROM reviews r
+            JOIN products p ON r.product_id = p.product_id
+            WHERE r.review_id = $1 AND p.seller_id = $2
+        `, [id, seller_id]);
+
+        if (reviewCheck.rows.length === 0) {
+            return res.status(403).json({ success: false, message: "Unauthorized or review not found" });
+        }
+
+        const cleanReply = sanitizeText(seller_reply);
+
+        const result = await pool.query(
+            "UPDATE reviews SET seller_reply = $1, updated_at = NOW() WHERE review_id = $2 RETURNING *",
+            [cleanReply, id]
+        );
+
+        return res.status(200).json({ success: true, message: "Replied to review successfully", data: result.rows[0] });
     } catch (error) {
         next(error);
     }

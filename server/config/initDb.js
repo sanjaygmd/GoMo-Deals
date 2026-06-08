@@ -192,6 +192,7 @@ export const initSchema = async () => {
                 is_active BOOLEAN DEFAULT TRUE,
                 onboarding_completed BOOLEAN DEFAULT FALSE,
                 block_reason TEXT,
+                payout_schedule VARCHAR(50) DEFAULT 'manual',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -581,8 +582,34 @@ export const initSchema = async () => {
             ALTER TABLE orders ADD COLUMN IF NOT EXISTS estimated_delivery DATE;
 
             ALTER TABLE reviews ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+            ALTER TABLE reviews ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'approved';
+            ALTER TABLE reviews ADD COLUMN IF NOT EXISTS seller_reply TEXT;
             
             ALTER TABLE half_yearly_finances ADD COLUMN IF NOT EXISTS annual_finance_id UUID;
+        `);
+
+        // Product Bundles (Feature 4)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS product_bundles (
+                bundle_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                seller_id UUID REFERENCES sellers(seller_id) ON DELETE CASCADE,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                discount_percentage DECIMAL(5,2) DEFAULT 0,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS bundle_items (
+                bundle_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                bundle_id UUID REFERENCES product_bundles(bundle_id) ON DELETE CASCADE,
+                product_id UUID REFERENCES products(product_id) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(bundle_id, product_id)
+            )
         `);
 
         // Performance indexes for high-frequency lookup columns
@@ -947,6 +974,49 @@ export const initSchema = async () => {
                 console.warn('Warning when adding unique_coupon_customer constraint:', err.message);
             }
         }
+
+        try {
+            await pool.query(`
+                ALTER TABLE sellers 
+                ADD COLUMN IF NOT EXISTS payout_schedule VARCHAR(50) DEFAULT 'manual'
+            `);
+            console.log('payout_schedule column added successfully');
+        } catch (err) {
+            console.warn('Warning when adding payout_schedule column:', err.message);
+        }
+
+        // Add recovery_email_sent to existing cart table
+        await pool.query(`
+            ALTER TABLE cart 
+            ADD COLUMN IF NOT EXISTS recovery_email_sent BOOLEAN DEFAULT FALSE
+        `);
+
+        // Wishlist Shares Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS wishlist_shares (
+                share_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                customer_id UUID REFERENCES customers(customer_id) ON DELETE CASCADE,
+                share_token VARCHAR(255) UNIQUE NOT NULL,
+                items_snapshot JSONB NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP
+            )
+        `);
+
+        // Product Questions Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS product_questions (
+                question_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                product_id UUID REFERENCES products(product_id) ON DELETE CASCADE,
+                customer_id UUID REFERENCES customers(customer_id) ON DELETE CASCADE,
+                seller_id UUID REFERENCES sellers(seller_id) ON DELETE CASCADE,
+                question TEXT NOT NULL,
+                answer TEXT,
+                status VARCHAR(50) DEFAULT 'pending', -- pending, answered, rejected
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
         console.log('Database schema synchronized and security constraints applied');
 

@@ -34,9 +34,9 @@ export const apiLimiter = rateLimit({
     skip: (req) => {
         // Skip global limiting for auth routes that have their own stricter limiters
         const authPaths = [
-            '/api/customer/send-otp', '/api/customer/verify-otp', '/api/customer/login', '/api/customer/register',
-            '/api/seller/send-otp', '/api/seller/verify-otp', '/api/seller/login', '/api/seller/register',
-            '/api/admin/login', '/api/admin/verify-super-admin-login', '/api/admin/request-password-reset', '/api/admin/verify-password-reset'
+            '/api/v1/customer/send-otp', '/api/v1/customer/verify-otp', '/api/v1/customer/login', '/api/v1/customer/register',
+            '/api/v1/seller/send-otp', '/api/v1/seller/verify-otp', '/api/v1/seller/login', '/api/v1/seller/register',
+            '/api/v1/admin/login', '/api/v1/admin/verify-super-admin-login', '/api/v1/admin/request-password-reset', '/api/v1/admin/verify-password-reset'
         ];
         return authPaths.some(path => req.originalUrl.startsWith(path));
     }

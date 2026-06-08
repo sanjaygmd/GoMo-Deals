@@ -385,3 +385,70 @@ export const sendLowStockAlertEmail = async (email, storeName, products) => {
     console.error("[MAILER] Error sending low stock email:", error);
   }
 };
+
+/**
+ * Sends an abandoned cart recovery email to a customer.
+ * @param {string} email - Customer email
+ * @param {string} name - Customer name
+ * @param {Array} items - List of cart items
+ */
+export const sendAbandonedCartEmail = async (email, name, items) => {
+  const itemRows = items.map(item => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #f1f5f9;">${item.product_name}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center;">${item.quantity}</td>
+    </tr>
+  `).join('');
+
+  const frontendUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+  const mailOptions = {
+    from: `"GoMo Deals" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `You left something behind, ${name}!`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h2 style="color: #6366f1; margin: 0;">GoMo Deals</h2>
+          <p style="color: #64748b; font-size: 14px; text-transform: uppercase; font-weight: bold;">We saved your cart</p>
+        </div>
+        
+        <p style="font-size: 16px; color: #0f172a;">Hi <strong>${name}</strong>,</p>
+        <p style="font-size: 14px; color: #334155; line-height: 1.6;">
+          It looks like you left some items in your shopping cart. We've saved them for you so you can easily complete your purchase whenever you're ready!
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+          <thead>
+            <tr style="background-color: #f8fafc;">
+              <th style="padding: 10px; text-align: left; border-bottom: 2px solid #e2e8f0;">Product</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #e2e8f0;">Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+          </tbody>
+        </table>
+
+        <div style="text-align: center; margin-top: 30px;">
+          <a href="${frontendUrl}/cart" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">
+            Return to Cart
+          </a>
+        </div>
+
+        <p style="font-size: 13px; color: #64748b; text-align: center; margin-top: 30px;">
+          &copy; 2026 GoMo Deals Marketplace
+        </p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`[MAILER] Abandoned cart email sent to ${email}`);
+    return { success: true };
+  } catch (error) {
+    console.error("[MAILER] Error sending abandoned cart email:", error);
+    return { success: false, error };
+  }
+};

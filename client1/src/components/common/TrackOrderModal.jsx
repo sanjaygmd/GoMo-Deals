@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Truck, PackageCheck, PackageOpen, CheckCircle, PackageSearch, Clock } from 'lucide-react';
-import { api } from '../../../services/api'; // or appropriate path
+import { api } from "../../services/api";
 
 const TrackOrderModal = ({ order, isOpen, onClose }) => {
     const [trackingData, setTrackingData] = useState(null);
@@ -108,21 +108,22 @@ const TrackOrderModal = ({ order, isOpen, onClose }) => {
                                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-orange-100 -z-10" />
                                 <div 
                                     className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-orange-500 transition-all duration-1000 -z-10" 
-                                    style={{ width: \`\${(currentStep / (steps.length - 1)) * 100}%\` }}
+                                    style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
                                 />
                                 {steps.map((step, idx) => {
                                     const isCompleted = idx <= currentStep;
                                     const isCurrent = idx === currentStep;
+                                    const Icon = step.icon;
                                     return (
                                         <div key={idx} className="flex flex-col items-center gap-2 group relative">
-                                            <div className={\`w-8 h-8 rounded-full flex items-center justify-center text-white transition-all duration-500 shadow-sm \${
-                                                isCompleted ? 'bg-orange-600 scale-110' : 'bg-orange-100 text-orange-300'
-                                            }\`}>
-                                                {step.icon}
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white transition-all duration-500 shadow-sm ${
+                                                isCompleted ? 'bg-orange-500 shadow-orange-500/20' : 'bg-orange-100 text-orange-300'
+                                            }`}>
+                                                <Icon size={14} className={isCompleted ? "scale-100" : "scale-90"} />
                                             </div>
-                                            <span className={\`absolute top-10 w-20 text-center text-[8px] uppercase tracking-wider font-black \${
+                                            <span className={`absolute top-10 w-20 text-center text-[8px] uppercase tracking-wider font-black ${
                                                 isCurrent ? 'text-orange-900' : isCompleted ? 'text-orange-500' : 'text-stone-300'
-                                            }\`}>
+                                            }`}>
                                                 {step.title}
                                             </span>
                                         </div>

@@ -17,14 +17,19 @@ import {
   RotateCcw,
   Handshake,
   Crown,
-  Lock
+  Lock,
+  ShieldAlert
 } from "lucide-react";
 
 const menu = [
   { name: "Overview", path: "/seller-dashboard", icon: LayoutDashboard },
   { name: "Products", path: "/seller-dashboard/products", icon: Package },
   { name: "Orders", path: "/seller-dashboard/orders", icon: ShoppingBag },
+  { name: "Combos", path: "/seller-dashboard/bundles", icon: Package },
   { name: "Flea Market", path: "/seller-dashboard/flea-market", icon: Handshake },
+  { name: "Q&A", path: "/seller-dashboard/qa", icon: MessageSquare },
+  { name: "Reviews", path: "/seller-dashboard/reviews", icon: MessageSquare },
+  { name: "Disputes", path: "/seller-dashboard/disputes", icon: ShieldAlert },
   { name: "Returns", path: "/seller-dashboard/returns", icon: RotateCcw },
   { name: "Customers", path: "/seller-dashboard/customers", icon: Users },
   { name: "Reports", path: "/seller-dashboard/analytics", icon: BarChart3 },

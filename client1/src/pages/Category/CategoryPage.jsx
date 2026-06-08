@@ -596,7 +596,7 @@ const CategoryPage = () => {
 };
 
   return (
-    <div className="pt-8 pb-20 min-h-screen bg-white">
+    <div className="pt-8 pb-20 min-h-screen bg-[#fdfbf9]">
       <div className="max-w-[1700px] mx-auto px-6 sm:px-12">
         
         {/* Curated Compact Premium Header Section */}

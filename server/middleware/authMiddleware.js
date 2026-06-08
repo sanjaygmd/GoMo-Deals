@@ -58,7 +58,11 @@ export const requireAuth = (allowedRoles = []) => async (req, res, next) => {
 
         let session = null;
         if (allowedRoles.length > 0) {
-            session = sortedSessions.find(r => allowedRoles.includes(r.user_type));
+            // Prioritize the role explicitly requested by the route's allowedRoles array
+            for (const role of allowedRoles) {
+                session = result.rows.find(r => r.user_type === role);
+                if (session) break;
+            }
             if (!session) {
                 return res.status(403).json({ 
                     success: false, 

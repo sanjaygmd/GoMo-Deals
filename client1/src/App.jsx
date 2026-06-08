@@ -38,6 +38,10 @@ const SellerPayments = React.lazy(() => import('./components/SellerDashboard/Sel
 const SellerSettings = React.lazy(() => import('./components/SellerDashboard/SellerSettings'));
 const SellerReturns = React.lazy(() => import('./components/SellerDashboard/SellerReturns'));
 const SellerMessages = React.lazy(() => import('./components/SellerDashboard/SellerMessages'));
+const SellerQA = React.lazy(() => import('./components/SellerDashboard/SellerQA'));
+const SellerReviews = React.lazy(() => import('./components/SellerDashboard/SellerReviews'));
+const SellerDisputes = React.lazy(() => import('./components/SellerDashboard/SellerDisputes'));
+const SellerBundles = React.lazy(() => import('./components/SellerDashboard/SellerBundles'));
 const SellerLoginPage = React.lazy(() => import('./components/SellerDashboard/SellerLoginPage'));
 const SellerRegistration = React.lazy(() => import('./components/SellerDashboard/SellerRegistration'));
 const SellerOnboarding = React.lazy(() => import('./components/SellerDashboard/SellerOnboarding/Onboarding'));
@@ -56,6 +60,8 @@ const AdminFinance = React.lazy(() => import('./components/admin/pages/FinancePa
 const AdminAnalytics = React.lazy(() => import('./components/admin/pages/AnalyticsPage'));
 const AdminLogs = React.lazy(() => import('./components/admin/pages/SystemLogsPage'));
 const AdminSettings = React.lazy(() => import('./components/admin/pages/SettingsPage'));
+const AdminReviews = React.lazy(() => import('./components/AdminDashboard/AdminReviews'));
+const AdminDisputes = React.lazy(() => import('./components/AdminDashboard/AdminDisputes'));
 const Administrators = React.lazy(() => import('./components/admin/pages/AdministratorsPage'));
 const ReturnsPage = React.lazy(() => import('./components/admin/pages/ReturnsPage'));
 const PayoutsPage = React.lazy(() => import('./components/admin/pages/PayoutsPage'));
@@ -65,6 +71,7 @@ const CheckoutPage = React.lazy(() => import('./components/CheckoutPage/Checkout
 const OrderPlaced = React.lazy(() => import('./components/CheckoutPage/OrderPlaced'));
 const Cart = React.lazy(() => import('./pages/Cart/Cart'));
 const Wishlist = React.lazy(() => import('./pages/Wishlist/Wishlist'));
+const SharedWishlist = React.lazy(() => import('./pages/Wishlist/SharedWishlist'));
 const MembershipPage = React.lazy(() => import('./pages/Membership/MembershipPage'));
 const FleaMarketPage = React.lazy(() => import('./pages/FleaMarket/FleaMarketPage'));
 const FleaMarketTerms = React.lazy(() => import('./pages/FleaMarket/FleaMarketTerms'));
@@ -188,7 +195,8 @@ function App() {
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="/onboarding/:id" element={<OnboardingPage />} />
               <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/legal/:type" element={<LegalPage />} />
+              <Route path="/legal/:policyType" element={<LegalPage />} />
+              <Route path="/shared-wishlist/:token" element={<SharedWishlist />} />
               <Route path="/membership" element={<MembershipPage />} />
               <Route path="/flea-market" element={<FleaMarketPage />} />
               <Route path="/flea-market/terms" element={<FleaMarketTerms />} />
@@ -200,12 +208,16 @@ function App() {
               <Route path="/seller-dashboard" element={<SellerOverview />} />
               <Route path="/seller-dashboard/products" element={<SellerProducts />} />
               <Route path="/seller-dashboard/orders" element={<SellerOrders />} />
+              <Route path="/seller-dashboard/bundles" element={<SellerBundles />} />
               <Route path="/seller-dashboard/flea-market" element={<SellerFleaMarket />} />
               <Route path="/seller-dashboard/customers" element={<SellerCustomers />} />
               <Route path="/seller-dashboard/analytics" element={<SellerAnalytics />} />
               <Route path="/seller-dashboard/payments" element={<SellerPayments />} />
               <Route path="/seller-dashboard/settings" element={<SellerSettings />} />
               <Route path="/seller-dashboard/returns" element={<SellerReturns />} />
+              <Route path="/seller-dashboard/qa" element={<SellerQA />} />
+              <Route path="/seller-dashboard/reviews" element={<SellerReviews />} />
+              <Route path="/seller-dashboard/disputes" element={<SellerDisputes />} />
               <Route path="/seller-dashboard/messages" element={<SellerMessages />} />
               <Route path="/seller-dashboard/subscription" element={<SellerSubscription />} />
             </Route>
@@ -223,8 +235,10 @@ function App() {
               <Route path="/admin/coupons" element={<AdminCoupons />} />
               <Route path="/admin/finance" element={<AdminFinance />} />
               <Route path="/admin/payouts" element={<PayoutsPage />} />
-              <Route path="/admin/mediator" element={<FleaMarketMediator />} />
+              <Route path="/admin/mediator" element={<AdminDisputes />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
+
+              <Route path="/admin/reviews" element={<AdminReviews />} />
               <Route path="/admin/logs" element={<AdminLogs />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/administrators" element={<Administrators />} />

@@ -1,58 +1,53 @@
 import { api } from "./api";
 
-export const getWishlist = async (customer_id) => {
+export const openDispute = async (orderId, reason) => {
     try {
-        const res = await api.get(`/wishlist/${customer_id}`);
+        const res = await api.post('/disputes', { order_id: orderId, reason });
         return res.data;
     } catch (error) {
         return { success: false, error: error?.response?.data?.message || error.message };
     }
 };
 
-export const addToWishlist = async (customer_id, product_id, variant_id = null) => {
+export const getCustomerDisputes = async () => {
     try {
-        // Handle both object and positional arguments for flexibility
-        const payload = typeof customer_id === 'object' 
-            ? customer_id 
-            : { customer_id, product_id, variant_id };
-            
-        const res = await api.post('/wishlist/add', payload);
+        const res = await api.get('/disputes/customer');
         return res.data;
     } catch (error) {
         return { success: false, error: error?.response?.data?.message || error.message };
     }
 };
 
-export const removeItem = async (wishlist_item_id) => {
+export const getSellerDisputes = async () => {
     try {
-        const res = await api.delete(`/wishlist/remove/${wishlist_item_id}`);
+        const res = await api.get('/disputes/seller');
         return res.data;
     } catch (error) {
         return { success: false, error: error?.response?.data?.message || error.message };
     }
 };
 
-export const clearWishlist = async (customer_id) => {
+export const getAllDisputes = async () => {
     try {
-        const res = await api.delete(`/wishlist/clear/${customer_id}`);
+        const res = await api.get('/disputes');
         return res.data;
     } catch (error) {
         return { success: false, error: error?.response?.data?.message || error.message };
     }
 };
 
-export const shareWishlist = async (items) => {
+export const updateDisputeSeller = async (disputeId, resolution, status) => {
     try {
-        const res = await api.post('/wishlist/share', { items });
+        const res = await api.put(`/disputes/${disputeId}/seller`, { resolution, status });
         return res.data;
     } catch (error) {
         return { success: false, error: error?.response?.data?.message || error.message };
     }
 };
 
-export const getSharedWishlist = async (token) => {
+export const updateDisputeAdmin = async (disputeId, resolution, status) => {
     try {
-        const res = await api.get(`/wishlist/share/${token}`);
+        const res = await api.put(`/disputes/${disputeId}/admin`, { resolution, status });
         return res.data;
     } catch (error) {
         return { success: false, error: error?.response?.data?.message || error.message };

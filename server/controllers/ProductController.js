@@ -3,6 +3,7 @@ import { logAction } from "../utils/auditLogger.js";
 import { sanitizeText, sanitizeDescription, isValidImageUrl } from "../utils/sanitizer.js";
 import { sendRestockNotificationEmail } from "../utils/mailer.js";
 import { parse } from 'csv-parse/sync';
+import crypto from 'crypto';
 
 export const addProduct = async (req, res) => {
     try {
@@ -83,7 +84,7 @@ export const addProduct = async (req, res) => {
                 height || 0,
                 cleanBrand,
                 (images && images.length > 0) ? images.map(img => typeof img === 'string' ? img : img.url) : [],
-                slug || cleanName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+                slug || cleanName.toLowerCase().replace(/\s+/g, '-') + '-' + crypto.randomBytes(4).toString('hex'),
                 color,
                 size,
                 room || cleanOccasion, // Support both for now

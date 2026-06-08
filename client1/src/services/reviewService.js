@@ -50,3 +50,21 @@ export const updateReview = async (id, reviewData) => {
         return { success: false, error: error?.response?.data?.message || error.message };
     }
 };
+
+export const moderateReview = async (id, status) => {
+    try {
+        const res = await api.put(`/reviews/${id}/moderate`, { status });
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+};
+
+export const replyToReview = async (id, seller_reply) => {
+    try {
+        const res = await api.put(`/reviews/${id}/reply`, { seller_reply });
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+};

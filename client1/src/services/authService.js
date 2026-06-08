@@ -8,7 +8,7 @@ const normalizeEmail = (email) => {
     return email;
 };
 
-const handleApiCall = async (method, url, data) => {
+export const handleApiCall = async (method, url, data) => {
     try {
         const res = await api[method](url, data);
         return res.data;
@@ -134,3 +134,6 @@ export const customerOnboarding = (customerId, data) =>
     handleApiCall('post', `/customer-onboarding/${customerId}`, data);
 
 export const agreeToTerms = () => handleApiCall('put', '/agree-terms');
+
+export const verifySuperAdminLogin = adminLogin;
+export const loginSeller = sellerLogin;

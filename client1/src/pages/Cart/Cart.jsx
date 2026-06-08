@@ -10,7 +10,7 @@ const Cart = () => {
 
   if (cart.length === 0) {
     return (
-      <div className="pt-16 pb-24 min-h-screen bg-white text-orange-900 flex items-center justify-center">
+      <div className="pt-16 pb-24 min-h-screen bg-[#fdfbf9] text-orange-900 flex items-center justify-center">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -38,7 +38,7 @@ const Cart = () => {
   }
 
   return (
-    <div className="pt-16 pb-24 min-h-screen bg-white">
+    <div className="pt-16 pb-24 min-h-screen bg-[#fdfbf9]">
       <div className="max-w-[1800px] mx-auto px-6 sm:px-12">
         <div className="flex flex-col lg:flex-row gap-16 lg:gap-24">
           {/* Cart Items */}

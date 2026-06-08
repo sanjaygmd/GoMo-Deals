@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, Star, ShoppingBag, Check } from 'lucide-react';
+import { X, Star, ShoppingBag, Check, Scale } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { useNavigate } from 'react-router-dom';
 

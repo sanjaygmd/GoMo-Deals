@@ -8,6 +8,8 @@ import { useShop } from '../../context/ShopContext';
 import { useAuth } from '../../context/AuthContext';
 import ProductCard from '../../components/common/ProductCard';
 import ReviewSection from '../../components/common/ReviewSection';
+import ProductQA from '../../components/common/ProductQA';
+import ProductBundles from '../../components/common/ProductBundles';
 import ScheduleModal from '../../components/common/ScheduleModal';
 import { useToast } from '../../context/ToastContext';
 
@@ -949,6 +951,8 @@ const ProductDetails = () => {
           </div>
         </div>
  
+        <ProductBundles productId={id} />
+        <ProductQA productId={id} />
         <ReviewSection productId={id} selectedVariant={selectedVariant} />
 
         {!isFleaMarketItem && (

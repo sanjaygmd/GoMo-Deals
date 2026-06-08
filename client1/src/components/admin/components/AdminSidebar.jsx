@@ -19,6 +19,7 @@ const navItems = [
   { title: "Finance", path: "/admin/finance", icon: Landmark },
   { title: "Payouts", path: "/admin/payouts", icon: CreditCard },
   { title: "Mediator", path: "/admin/mediator", icon: Video },
+  { title: "Reviews", path: "/admin/reviews", icon: MessageSquare },
   { title: "Analytics", path: "/admin/analytics", icon: BarChart3 },
   { title: "Logs", path: "/admin/logs", icon: Shield },
 ];

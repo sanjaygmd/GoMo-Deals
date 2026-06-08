@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
+import { api } from '../services/api';
 import * as cartService from '../services/cartService';
 import * as wishlistService from '../services/wishlistService';
 
@@ -1798,10 +1799,22 @@ export const ShopProvider = ({ children }) => {
         if (isFresh) {
           rates = JSON.parse(cachedStr);
         } else {
-          const res = await fetch('https://open.er-api.com/v6/latest/INR');
-          const json = await res.json();
-          if (json && json.result === 'success' && json.rates) {
-            rates = json.rates;
+          try {
+            // First try the backend config endpoint
+            const res = await api.get('/config/currency-rates');
+            if (res.data && res.data.success && res.data.rates) {
+              rates = res.data.rates;
+            }
+          } catch (e) {
+            // Fallback to external API if backend is unreachable
+            const res = await fetch('https://open.er-api.com/v6/latest/INR');
+            const json = await res.json();
+            if (json && json.result === 'success' && json.rates) {
+              rates = json.rates;
+            }
+          }
+          
+          if (rates) {
             localStorage.setItem('gmd_exchange_rates', JSON.stringify(rates));
             localStorage.setItem('gmd_exchange_rates_time', Date.now().toString());
           }
