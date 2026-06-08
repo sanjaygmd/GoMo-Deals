@@ -1,4 +1,5 @@
 import sanitizeHtml from 'sanitize-html';
+import path from 'path';
 
 /**
  * Basic sanitizer for general text inputs.
@@ -39,7 +40,11 @@ export const isValidImageUrl = (urlStr) => {
 
         // Support local relative URLs strictly from known prefixes
         if (urlStr.startsWith('/uploads/')) {
-            return true;
+            const normalized = path.normalize(urlStr).replace(/\\/g, '/');
+            if (normalized.startsWith('/uploads/') && !normalized.includes('..')) {
+                return true;
+            }
+            return false;
         }
 
         const parsed = new URL(urlStr);

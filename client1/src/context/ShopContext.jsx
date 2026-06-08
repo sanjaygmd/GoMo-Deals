@@ -1716,6 +1716,7 @@ export const ShopProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [compareItems, setCompareItems] = useState([]);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [wishlistDrawerOpen, setWishlistDrawerOpen] = useState(false);
 
@@ -2158,6 +2159,26 @@ export const ShopProvider = ({ children }) => {
     return wishlist.some(item => item.id === productId || item.product_id === productId);
   };
 
+  const addToCompare = (product) => {
+    setCompareItems(prev => {
+      if (prev.some(item => item.product_id === product.product_id)) return prev;
+      if (prev.length >= 3) {
+        toast('You can only compare up to 3 items.', { type: 'warning' });
+        return prev;
+      }
+      toast('Added to comparison.', { type: 'success' });
+      return [...prev, product];
+    });
+  };
+
+  const removeFromCompare = (productId) => {
+    setCompareItems(prev => prev.filter(item => item.product_id !== productId));
+  };
+
+  const clearCompare = () => {
+    setCompareItems([]);
+  };
+
   const isInCart = (productId, selectedColor = undefined) => {
     return cart.some(item => {
       const isSameProduct = item.id === productId || item.product_id === productId;
@@ -2210,6 +2231,10 @@ export const ShopProvider = ({ children }) => {
       isInCart,
       cartCount,
       cartTotal,
+      compareItems,
+      addToCompare,
+      removeFromCompare,
+      clearCompare,
       cartDrawerOpen,
       setCartDrawerOpen,
       wishlistDrawerOpen,

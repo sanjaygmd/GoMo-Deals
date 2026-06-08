@@ -283,3 +283,105 @@ export const sendOrderConfirmationEmail = async ({ customerName, customerEmail, 
     return { success: false, error };
   }
 };
+
+/**
+ * Sends a restock notification email to customers who wishlisted a product.
+ */
+export const sendRestockNotificationEmail = async (email, customerName, productName, productUrl) => {
+  const mailOptions = {
+    from: `"GoMo Deals Boutique" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `Back in Stock: ${productName}`,
+    html: `
+      <div style="font-family: Georgia, 'Times New Roman', serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #fafaf9; border: 1px solid #e5e7eb;">
+        <div style="text-align: center; margin-bottom: 40px; padding-bottom: 30px; border-bottom: 1px solid #e5e7eb;">
+          <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 400; color: #171717; font-style: italic;">GoMo Deals Boutique</h1>
+          <p style="margin: 0; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: #9ca3af;">Wishlist Alert</p>
+        </div>
+
+        <div style="margin-bottom: 36px; text-align: center;">
+          <p style="font-size: 16px; color: #374151; margin: 0 0 16px 0;">Dear <strong>${customerName}</strong>,</p>
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.7; margin: 0 0 24px 0;">
+            Good news! An item from your wishlist, <strong>${productName}</strong>, is now back in stock and available for purchase.
+          </p>
+          
+          <a href="${productUrl}" style="display: inline-block; padding: 14px 32px; background-color: #ea580c; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px;">
+            Shop Now
+          </a>
+        </div>
+
+        <div style="text-align: center; padding-top: 28px; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 11px; color: #d1d5db; margin: 0; letter-spacing: 2px; text-transform: uppercase;">© 2026 GoMo Deals Boutique · All Rights Reserved</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`[MAILER] Restock notification sent to ${email} for ${productName}`);
+    return { success: true };
+  } catch (error) {
+    console.error('[MAILER] Restock notification email failed:', error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Sends a low stock alert to a seller.
+ * @param {string} email - Seller email
+ * @param {string} storeName - Store name
+ * @param {Array} products - List of products with low stock
+ */
+export const sendLowStockAlertEmail = async (email, storeName, products) => {
+  const productRows = products.map(p => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #f1f5f9;">${p.product_name}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center; color: #ef4444; font-weight: bold;">${p.stock_quantity}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center;">${p.low_stock_threshold || 5}</td>
+    </tr>
+  `).join('');
+
+  const mailOptions = {
+    from: `"GoMo Deals Inventory" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `Low Stock Alert for ${storeName}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h2 style="color: #f97316; margin: 0;">GoMo Deals</h2>
+          <p style="color: #64748b; font-size: 14px; text-transform: uppercase; font-weight: bold;">Inventory Alert</p>
+        </div>
+        
+        <p style="font-size: 16px; color: #0f172a;">Hello <strong>${storeName}</strong>,</p>
+        <p style="font-size: 14px; color: #334155; line-height: 1.6;">
+          The following products have dropped to or below their low stock threshold. Please restock them to avoid losing sales.
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+          <thead>
+            <tr style="background-color: #f8fafc;">
+              <th style="padding: 10px; text-align: left; border-bottom: 2px solid #e2e8f0;">Product Name</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #e2e8f0;">Current Stock</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #e2e8f0;">Threshold</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${productRows}
+          </tbody>
+        </table>
+
+        <p style="font-size: 13px; color: #64748b; text-align: center; margin-top: 30px;">
+          &copy; 2026 GoMo Deals Marketplace
+        </p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`[MAILER] Low stock alert sent to ${email}`);
+  } catch (error) {
+    console.error("[MAILER] Error sending low stock email:", error);
+  }
+};

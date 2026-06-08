@@ -11,3 +11,5 @@ debug_requests.log
 returns_audit_log.txt
 check_finances_output.txt
 scratch/
+scripts/
+tools/

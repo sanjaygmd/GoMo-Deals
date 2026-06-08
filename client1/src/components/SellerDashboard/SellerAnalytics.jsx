@@ -41,7 +41,11 @@ const SellerAnalytics = () => {
     monthly: [],
     quarterly: [],
     halfYearly: [],
-    annual: []
+    annual: [],
+    paymentMethods: [],
+    revenuePerProduct: [],
+    returnRatePerProduct: [],
+    retentionRate: 0
   });
   const [selectedPeriod, setSelectedPeriod] = useState("daily");
   const [stats, setStats] = useState(null);
@@ -367,6 +371,65 @@ const SellerAnalytics = () => {
                   </div>
                </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Product Deep-Dive Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white p-10 border border-orange-100 shadow-sm flex flex-col group">
+          <div className="flex items-center justify-between mb-8">
+            <div className="space-y-1">
+              <h4 className="text-lg font-bold text-orange-950 tracking-tight">Revenue By Product</h4>
+              <p className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">Top 10 performing items</p>
+            </div>
+            <BarChart3 size={20} className="text-orange-400 group-hover:text-orange-950 transition-colors" />
+          </div>
+          
+          <div className="flex-1 min-h-[300px] relative">
+            {financeData.revenuePerProduct?.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={financeData.revenuePerProduct} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" opacity={0.5} />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontWeight: 900, fontSize: 10, fill: '#737373' }} tickFormatter={(val) => `₹${val}`} />
+                  <YAxis type="category" dataKey="name" width={100} axisLine={false} tickLine={false} tick={{ fontWeight: 900, fontSize: 9, fill: '#737373' }} />
+                  <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '0px', border: '0.5px solid #e5e5e5', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontWeight: 900, fontSize: '12px' }} />
+                  <Bar dataKey="value" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-orange-400 bg-orange-50/50 border-[0.5px] border-dashed border-orange-200">
+                <p className="font-black text-[10px] uppercase tracking-[0.4em]">No Sales Data Yet</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-10 border border-orange-100 shadow-sm flex flex-col group">
+          <div className="flex items-center justify-between mb-8">
+            <div className="space-y-1">
+              <h4 className="text-lg font-bold text-orange-950 tracking-tight">Product Return Rates</h4>
+              <p className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">Top items with highest return rates</p>
+            </div>
+            <TrendingDown size={20} className="text-rose-400 group-hover:text-rose-600 transition-colors" />
+          </div>
+          
+          <div className="flex-1 min-h-[300px] relative">
+            {financeData.returnRatePerProduct?.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={financeData.returnRatePerProduct} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" opacity={0.5} />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontWeight: 900, fontSize: 10, fill: '#737373' }} tickFormatter={(val) => `${val}%`} />
+                  <YAxis type="category" dataKey="name" width={100} axisLine={false} tickLine={false} tick={{ fontWeight: 900, fontSize: 9, fill: '#737373' }} />
+                  <RechartsTooltip cursor={{ fill: '#fff1f2' }} contentStyle={{ borderRadius: '0px', border: '0.5px solid #e5e5e5', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontWeight: 900, fontSize: '12px' }} />
+                  <Bar dataKey="return_rate" fill="#e11d48" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-orange-400 bg-orange-50/50 border-[0.5px] border-dashed border-orange-200">
+                <p className="font-black text-[10px] uppercase tracking-[0.4em]">No Return Data Found</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

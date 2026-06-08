@@ -193,7 +193,7 @@ ${userContextString}
         if (!geminiPackage) {
             return res.json({
                 success: true,
-                reply: "Hello! GoMo Deals Guide is currently online but initializing its AI engine. Please make sure to run 'npm install' inside your server folder to download my Gemini AI package, and I'll be ready to chat immediately!",
+                reply: "Our AI assistant is currently unavailable. Please contact support at support@gomodeals.com.",
                 suggestedReplies: ["What is your return policy?", "Browse Categories"]
             });
         }

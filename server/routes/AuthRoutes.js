@@ -56,7 +56,9 @@ import {
     getCustomerDetails,
     deleteCustomer,
     verifySeller,
-    getSellerDetails
+    getSellerDetails,
+    getOrphanedPayments,
+    resolveOrphanedPayment
 } from '../controllers/AuthController/adminController.js';
 import { getAllAdminProducts } from '../controllers/ProductController.js';
 import { 
@@ -163,6 +165,8 @@ authRoutes.post('/admin/orders/auto-dispatch', requireAuth(['admin', 'super_admi
 authRoutes.get('/admin/customers', requireAuth(['admin', 'super_admin']), getAllCustomers);
 authRoutes.get('/admin/products', requireAuth(['admin', 'super_admin']), getAllAdminProducts);
 authRoutes.get('/admin/payments', requireAuth(['admin', 'super_admin']), getAllPayments);
+authRoutes.get('/admin/orphaned-payments', requireAuth(['admin', 'super_admin']), getOrphanedPayments);
+authRoutes.post('/admin/orphaned-payments/:id/resolve', requireAuth(['admin', 'super_admin']), resolveOrphanedPayment);
 authRoutes.get('/admin/returns', requireAuth(['admin', 'super_admin']), getAllReturns);
 authRoutes.post('/admin/returns/:id/resolve', requireAuth(['admin', 'super_admin']), resolveReturnRequest);
 authRoutes.get('/admin/customer/:id', requireAuth(['admin', 'super_admin']), getCustomerDetails);

@@ -5,6 +5,7 @@ import {
   ArrowUpRight, ArrowDownRight, LayoutDashboard, Landmark, ArrowRight, Eye, CheckCircle2, XCircle
 } from "lucide-react";
 import PayoutRequestsManager from "../components/PayoutRequestsManager";
+import OrphanedPaymentsManager from "../components/OrphanedPaymentsManager";
 import { Button } from "../../ui/button";
 import { cn } from "../../../lib/utils";
 import { useToast } from "../../../hooks/use-toast";
@@ -224,7 +225,12 @@ export default function FinancePage() {
       )}
 
       {/* Render payout request segment below if loading is done */}
-      {!loading && <PayoutRequestsManager payouts={payouts} onRefresh={fetchFinanceData} />}
+      {!loading && (
+        <>
+          <PayoutRequestsManager payouts={payouts} onRefresh={fetchFinanceData} />
+          <OrphanedPaymentsManager />
+        </>
+      )}
     </div>
   );
 }

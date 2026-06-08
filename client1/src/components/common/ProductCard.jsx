@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 // Force rebuild watcher trigger for sharp luxury cards
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Heart, Eye, Check, Star, Video } from 'lucide-react';
+import { ShoppingBag, Heart, Eye, Check, Star, Video, Scale } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { useAuth } from '../../context/AuthContext';
 import QuickViewModal from './QuickViewModal';
 
 const ProductCard = ({ product }) => {
-  const { addToCart, removeFromCart, toggleWishlist, isInWishlist, isInCart, formatPrice, t, translateRecipient, translateOccasion } = useShop();
+  const { addToCart, removeFromCart, toggleWishlist, isInWishlist, isInCart, addToCompare, formatPrice, t, translateRecipient, translateOccasion } = useShop();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -185,6 +185,18 @@ const ProductCard = ({ product }) => {
                 title={t("quick_view")}
               >
                 <Eye size={15} />
+              </button>
+              {/* Compare Button */}
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  addToCompare(product);
+                }}
+                className="w-9 h-9 bg-[#fdfaf8] border border-orange-100 rounded-full flex items-center justify-center text-orange-900 hover:text-orange-955 hover:bg-[#faebe3] hover:border-orange-200 hover:scale-110 active:scale-90 shadow-sm transition-all duration-300 cursor-pointer"
+                title="Compare"
+              >
+                <Scale size={15} />
               </button>
             </div>
           </div>

@@ -991,6 +991,47 @@ export const getSellerFinanceAnalytics = async (req, res) => {
     const repeatCust = parseInt(retention.rows[0].repeat_customers);
     const retentionRate = totalCust > 0 ? ((repeatCust / totalCust) * 100).toFixed(1) : 0;
 
+    // 9. Revenue Per Product Breakdown
+    const revenuePerProductQuery = await pool.query(`
+        SELECT p.name, COALESCE(SUM(oi.seller_earnings), 0) as value
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.product_id
+        JOIN orders o ON oi.order_id = o.order_id
+        WHERE oi.seller_id = $1 AND o.order_status != 'Cancelled'
+        GROUP BY p.product_id, p.name
+        ORDER BY value DESC
+        LIMIT 10
+    `, [sellerId]);
+
+    // 10. Return Rate Per Product
+    const returnRateQuery = await pool.query(`
+        WITH product_sales AS (
+            SELECT oi.product_id, p.name, COUNT(oi.order_item_id) as total_sold
+            FROM order_items oi
+            JOIN products p ON oi.product_id = p.product_id
+            JOIN orders o ON oi.order_id = o.order_id
+            WHERE oi.seller_id = $1 AND o.order_status != 'Cancelled'
+            GROUP BY oi.product_id, p.name
+        ),
+        product_returns AS (
+            SELECT oi.product_id, COUNT(rr.return_request_id) as total_returned
+            FROM return_requests rr
+            JOIN order_items oi ON rr.order_item_id = oi.order_item_id
+            WHERE oi.seller_id = $1 AND rr.refund_status = 'Approved'
+            GROUP BY oi.product_id
+        )
+        SELECT 
+            ps.name, 
+            ps.total_sold, 
+            COALESCE(pr.total_returned, 0) as total_returned,
+            CASE WHEN ps.total_sold > 0 THEN ROUND((COALESCE(pr.total_returned, 0)::numeric / ps.total_sold::numeric) * 100, 1) ELSE 0 END as return_rate
+        FROM product_sales ps
+        LEFT JOIN product_returns pr ON ps.product_id = pr.product_id
+        WHERE COALESCE(pr.total_returned, 0) > 0
+        ORDER BY return_rate DESC
+        LIMIT 10
+    `, [sellerId]);
+
     return res.status(200).json({
       success: true,
       data: {
@@ -1001,7 +1042,9 @@ export const getSellerFinanceAnalytics = async (req, res) => {
         halfYearly: halfYearly.rows,
         annual: annual.rows,
         paymentMethods: paymentMethods,
-        retentionRate: retentionRate
+        retentionRate: retentionRate,
+        revenuePerProduct: revenuePerProductQuery.rows,
+        returnRatePerProduct: returnRateQuery.rows
       }
     });
   } catch (error) {

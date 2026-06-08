@@ -1,6 +1,8 @@
 import { pool } from "../config/db.js";
 import { logAction } from "../utils/auditLogger.js";
 import { sanitizeText, sanitizeDescription, isValidImageUrl } from "../utils/sanitizer.js";
+import { sendRestockNotificationEmail } from "../utils/mailer.js";
+import { parse } from 'csv-parse/sync';
 
 export const addProduct = async (req, res) => {
     try {
@@ -401,7 +403,7 @@ export const updateProduct = async (req, res) => {
         await client.query('BEGIN');
 
         // Ownership Check: Only the owner (seller) or an admin can update
-        const ownershipCheck = await client.query("SELECT seller_id FROM products WHERE product_id = $1", [product_id]);
+        const ownershipCheck = await client.query("SELECT seller_id, stock_quantity, name, slug FROM products WHERE product_id = $1", [product_id]);
         if (ownershipCheck.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ success: false, message: 'Product not found' });
@@ -459,6 +461,26 @@ export const updateProduct = async (req, res) => {
         );
 
         const product = result.rows[0];
+
+        // Restock Notification Logic
+        if (Number(ownershipCheck.rows[0].stock_quantity) === 0 && Number(stock_quantity) > 0) {
+            const pName = ownershipCheck.rows[0].name;
+            const pSlug = ownershipCheck.rows[0].slug;
+            const pUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/product/${product_id}`;
+            
+            client.query(`
+                SELECT c.email, c.full_name 
+                FROM wishlist_items wi 
+                JOIN wishlist w ON wi.wishlist_id = w.wishlist_id 
+                JOIN customers c ON w.customer_id = c.customer_id 
+                WHERE wi.product_id = $1
+                GROUP BY c.email, c.full_name
+            `, [product_id]).then(res => {
+                res.rows.forEach(customer => {
+                    sendRestockNotificationEmail(customer.email, customer.full_name || 'Customer', pName, pUrl);
+                });
+            }).catch(err => console.error("Error triggering restock emails:", err));
+        }
 
         // Sync Product Images Table
         if (images && Array.isArray(images)) {
@@ -615,7 +637,7 @@ export const updateVariant = async (req, res) => {
         await client.query('BEGIN');
 
         // 1. Ownership Check (Before Update)
-        const vCheck = await client.query("SELECT product_id FROM product_variants WHERE variant_id = $1", [variant_id]);
+        const vCheck = await client.query("SELECT product_id, stock_quantity, variant_name, variant_value FROM product_variants WHERE variant_id = $1", [variant_id]);
         if (vCheck.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ success: false, message: 'Variant not found' });
@@ -651,6 +673,25 @@ export const updateVariant = async (req, res) => {
         );
 
         const variant = vResult.rows[0];
+
+        // Restock Notification Logic
+        if (Number(vCheck.rows[0].stock_quantity) === 0 && Number(stock_quantity) > 0) {
+            const pName = `${name || 'Product'} - ${vCheck.rows[0].variant_value}`;
+            const pUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/product/${variant.product_id}`;
+            
+            client.query(`
+                SELECT c.email, c.full_name 
+                FROM wishlist_items wi 
+                JOIN wishlist w ON wi.wishlist_id = w.wishlist_id 
+                JOIN customers c ON w.customer_id = c.customer_id 
+                WHERE wi.product_id = $1 AND (wi.variant_id = $2 OR wi.variant_id IS NULL)
+                GROUP BY c.email, c.full_name
+            `, [variant.product_id, variant_id]).then(res => {
+                res.rows.forEach(customer => {
+                    sendRestockNotificationEmail(customer.email, customer.full_name || 'Customer', pName, pUrl);
+                });
+            }).catch(err => console.error("Error triggering restock emails:", err));
+        }
 
         // 2. Log the action
         // 2. Log the action (Atomic within transaction)
@@ -785,4 +826,105 @@ export const getProductStats = async (req, res) => {
         console.error("GET PRODUCT STATS ERROR:", error);
         return res.status(500).json({ success: false, message: 'Internal server error' });
     }
-};
+}
+
+export const bulkUploadProducts = async (req, res) => {
+    try {
+        const seller_id = req.user.type === 'seller' ? req.user.id : req.body.seller_id;
+        
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "No CSV file uploaded." });
+        }
+
+        const csvData = req.file.buffer.toString('utf-8');
+        
+        let records;
+        try {
+            records = parse(csvData, {
+                columns: true,
+                skip_empty_lines: true,
+                trim: true
+            });
+        } catch (parseError) {
+            return res.status(400).json({ success: false, message: `Invalid CSV format: ${parseError.message}` });
+        }
+
+        if (records.length === 0) {
+            return res.status(400).json({ success: false, message: "The CSV file is empty." });
+        }
+
+        // Pre-validate required fields for all rows
+        for (let i = 0; i < records.length; i++) {
+            const row = records[i];
+            if (!row.name || !row.price || !row.category_id) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Row ${i + 1} is missing required fields (name, price, category_id).` 
+                });
+            }
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            const insertedProducts = [];
+
+            for (const row of records) {
+                const cleanName = sanitizeText(row.name);
+                const cleanDescription = row.description ? sanitizeDescription(row.description) : null;
+                const cleanBrand = row.brand ? sanitizeText(row.brand) : null;
+                
+                // Allow dynamic slugs or auto-generate
+                const slug = row.slug || cleanName.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substring(7);
+
+                const productResult = await client.query(
+                    `INSERT INTO products 
+                    (product_id, category_id, seller_id, name, description, sku, price, mrp, stock_quantity, weight, length, breadth, height, brand, slug, is_active) 
+                    VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, true) 
+                    RETURNING product_id, name`,
+                    [
+                        row.category_id,
+                        seller_id,
+                        cleanName,
+                        cleanDescription,
+                        row.sku || null,
+                        parseFloat(row.price),
+                        row.mrp ? parseFloat(row.mrp) : null,
+                        row.stock_quantity ? parseInt(row.stock_quantity, 10) : 0,
+                        row.weight ? parseFloat(row.weight) : 0,
+                        row.length ? parseFloat(row.length) : 0,
+                        row.breadth ? parseFloat(row.breadth) : 0,
+                        row.height ? parseFloat(row.height) : 0,
+                        cleanBrand,
+                        slug
+                    ]
+                );
+                
+                insertedProducts.push(productResult.rows[0]);
+            }
+
+            await client.query('COMMIT');
+
+            if (seller_id) {
+                await logAction(seller_id, "BULK_UPLOAD_PRODUCTS", { count: records.length }, null, req.ip);
+            }
+
+            return res.status(201).json({
+                success: true,
+                message: `Successfully uploaded and created ${records.length} products.`,
+                data: insertedProducts
+            });
+
+        } catch (dbError) {
+            await client.query('ROLLBACK');
+            console.error("BULK UPLOAD DB ERROR:", dbError);
+            return res.status(500).json({ success: false, message: `Database error during import: ${dbError.message}` });
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error("BULK UPLOAD FATAL ERROR:", error);
+        return res.status(500).json({ success: false, message: "Internal server error during bulk upload." });
+    }
+};;

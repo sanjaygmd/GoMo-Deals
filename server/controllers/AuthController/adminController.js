@@ -42,10 +42,21 @@ export const setupAdmin = async (req, res) => {
     }
 
     // 1. Initial Setup Check: Are there any super admins?
+    // First check the explicit flag
+    const setupCheckRes = await pool.query(`SELECT value FROM app_config WHERE key = 'admin_setup_done'`);
+    if (setupCheckRes.rows.length > 0 && setupCheckRes.rows[0].value === true) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Initial setup is already complete. Please use standard registration via a Super Admin."
+      });
+    }
+
     const superAdminCountRes = await pool.query(`SELECT COUNT(*) FROM super_admins`);
     const isInitialSetup = parseInt(superAdminCountRes.rows[0].count) === 0;
 
     if (!isInitialSetup) {
+      // Heal the flag if it was missing but admins exist
+      await pool.query(`INSERT INTO app_config (key, value) VALUES ('admin_setup_done', 'true'::jsonb) ON CONFLICT (key) DO NOTHING`);
       return res.status(403).json({
         success: false,
         message: "Forbidden: Initial setup is already complete. Please use standard registration via a Super Admin."
@@ -102,6 +113,9 @@ export const setupAdmin = async (req, res) => {
       req,
       is_super_admin: true
     });
+
+    // Mark setup as completed in the database flag
+    await pool.query(`INSERT INTO app_config (key, value) VALUES ('admin_setup_done', 'true'::jsonb) ON CONFLICT (key) DO UPDATE SET value = 'true'::jsonb, updated_at = NOW()`);
 
     setSessionCookie(res, 'super_admin', session.token);
 
@@ -2580,4 +2594,46 @@ export const getAuditLogs = async (req, res) => {
     console.error("GET AUDIT LOGS ERROR:", error);
     return res.status(500).json({ success: false, message: "Failed to fetch audit logs" });
   }
+};
+
+/**
+ * Orphaned Payments Endpoints
+ */
+export const getOrphanedPayments = async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM orphaned_payments ORDER BY created_at DESC");
+        return res.status(200).json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error("GET ORPHANED PAYMENTS ERROR:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
+export const resolveOrphanedPayment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { action, order_id } = req.body;
+        
+        let status = 'Resolved';
+        let notes = '';
+        if (action === 'match') {
+            status = 'Matched';
+            notes = `Manually matched to order ${order_id}`;
+        } else if (action === 'refund') {
+            status = 'Refunded';
+            notes = 'Manually refunded via admin action';
+        }
+
+        await pool.query(
+            `UPDATE orphaned_payments 
+             SET status = $1, notes = COALESCE(notes, '') || ' | ' || $2, matched_order_id = $3, resolved_at = NOW(), resolved_by = $4 
+             WHERE payment_id = $5`,
+            [status, notes, order_id || null, req.user.id, id]
+        );
+
+        return res.status(200).json({ success: true, message: `Orphaned payment successfully marked as ${status}` });
+    } catch (error) {
+        console.error("RESOLVE ORPHANED PAYMENT ERROR:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
 };

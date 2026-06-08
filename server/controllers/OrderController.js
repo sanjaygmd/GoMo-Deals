@@ -82,15 +82,17 @@ export const createOrder = async (req, res, next) => {
     // Retrieve dynamic platform fees from admin settings (with default fallbacks)
     let customerPlatformFee = 10.00;
     let sellerPlatformFee = 15.00;
+    let sellerPlatformFeePercent = 0.15;
     try {
       const settingsQuery = await client.query(
-        "SELECT key, value FROM admin_settings WHERE key IN ('customer_platform_fee', 'seller_platform_fee')"
+        "SELECT key, value FROM admin_settings WHERE key IN ('customer_platform_fee', 'seller_platform_fee', 'seller_platform_fee_percent')"
       );
       for (const row of settingsQuery.rows) {
         const val = typeof row.value === 'object' && row.value !== null ? parseFloat(row.value.fee || row.value) : parseFloat(JSON.parse(row.value));
         if (!isNaN(val) && val >= 0) {
           if (row.key === 'customer_platform_fee') customerPlatformFee = val;
           if (row.key === 'seller_platform_fee') sellerPlatformFee = val;
+          if (row.key === 'seller_platform_fee_percent') sellerPlatformFeePercent = val;
         }
       }
     } catch (err) {
@@ -261,7 +263,8 @@ export const createOrder = async (req, res, next) => {
         if (coupon.max_usage && coupon.used_count >= coupon.max_usage) throw new Error("Coupon expired.");
 
         if (coupon.type === 'percentage') {
-          serverDiscountAmount = (eligibleSubtotal * parseFloat(coupon.discount_percent)) / 100;
+          const effectivePercent = Math.min(parseFloat(coupon.discount_percent), 90);
+          serverDiscountAmount = (eligibleSubtotal * effectivePercent) / 100;
           if (coupon.max_discount) {
             serverDiscountAmount = Math.min(serverDiscountAmount, parseFloat(coupon.max_discount));
           }
@@ -276,7 +279,12 @@ export const createOrder = async (req, res, next) => {
     const final_tax_amount = Math.round(serverCalculatedSubtotal * 0.05); // 5% Tax
     const final_platform_fee = 10;
     const final_cod_fee = payment_method === 'cod' ? 50 : 0;
-    const final_total_amount = serverCalculatedSubtotal + calculatedShipping + final_tax_amount + final_platform_fee + final_cod_fee - serverDiscountAmount;
+    let final_total_amount = serverCalculatedSubtotal + calculatedShipping + final_tax_amount + final_platform_fee + final_cod_fee - serverDiscountAmount;
+
+    // Security Fix: Minimum charge floor to ensure Razorpay works
+    if (final_total_amount < 1) {
+        final_total_amount = 1;
+    }
 
     let pending_balance = 0;
     let actual_paid_amount = final_total_amount;
@@ -349,7 +357,7 @@ export const createOrder = async (req, res, next) => {
     // 8. Insert into order_sellers and notifications
     for (const seller_id in sellerSubtotals) {
       const seller_subtotal = parseFloat(sellerSubtotals[seller_id]);
-      const effective_fee = Math.min(sellerPlatformFee, seller_subtotal * 0.15);
+      const effective_fee = Math.min(sellerPlatformFee, seller_subtotal * sellerPlatformFeePercent);
       const seller_earnings = Math.max(0, seller_subtotal - effective_fee);
 
       await client.query(

@@ -395,6 +395,7 @@ export default function CouponsPage() {
                                                 onChange={(e) => setFormData({...formData, discount_percent: e.target.value})}
                                                 className={inputClass}
                                                 placeholder="10"
+                                                max="90"
                                                 required
                                             />
                                         </div>

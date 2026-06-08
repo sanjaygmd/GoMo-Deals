@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { 
     createMeeting, 
     getSellerMeetings, 
@@ -14,8 +15,15 @@ import { requireAuth } from '../middleware/authMiddleware.js';
 
 const meetingRoutes = express.Router();
 
+const meetingLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => req.user?.id || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown',
+    message: { success: false, message: "You have reached the limit of 5 meetings per hour. Please try again later." }
+});
+
 // Schedule a new B2B video conference (Customer required)
-meetingRoutes.post('/', requireAuth(['customer', 'admin', 'super_admin']), createMeeting);
+meetingRoutes.post('/', requireAuth(['customer', 'admin', 'super_admin']), meetingLimiter, createMeeting);
 
 // Fetch scheduled video conferences for the currently logged-in seller (Seller required)
 meetingRoutes.get('/seller', requireAuth(['seller', 'admin', 'super_admin']), getSellerMeetings);

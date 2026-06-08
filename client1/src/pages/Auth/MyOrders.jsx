@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { useShop } from '../../context/ShopContext';
+import TrackOrderModal from '../../components/common/TrackOrderModal';
 
 const MyOrders = () => {
     const { user } = useAuth();
@@ -22,6 +23,8 @@ const MyOrders = () => {
     const [returnType, setReturnType] = useState('Refund');
     const [filterStatus, setFilterStatus] = useState('All');
     const [searchTerm, setSearchTerm] = useState('');
+    const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
+    const [trackingOrder, setTrackingOrder] = useState(null);
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -304,14 +307,15 @@ const MyOrders = () => {
                                     {/* Actions */}
                                     <div className="flex flex-col gap-3 md:w-52 border-t md:border-t-0 md:border-l border-orange-50 pt-6 md:pt-0 md:pl-8">
                                         {order.tracking_id && (
-                                            <a 
-                                                href={`https://shiprocket.co/tracking/${order.tracking_id}`} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
+                                            <button 
+                                                onClick={() => {
+                                                    setTrackingOrder(order);
+                                                    setIsTrackModalOpen(true);
+                                                }}
                                                 className="w-full h-12 flex items-center justify-center gap-3 bg-orange-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-700 transition-all shadow-lg shadow-orange-500/20"
                                             >
                                                 <Truck size={14} /> Track Order
-                                            </a>
+                                            </button>
                                         )}
                                         <button 
                                             onClick={() => navigate(`/product/${order.items?.[0]?.product_id}`)}
@@ -532,6 +536,15 @@ const MyOrders = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            <TrackOrderModal 
+                isOpen={isTrackModalOpen} 
+                onClose={() => {
+                    setIsTrackModalOpen(false);
+                    setTrackingOrder(null);
+                }} 
+                order={trackingOrder} 
+            />
         </div>
     );
 };

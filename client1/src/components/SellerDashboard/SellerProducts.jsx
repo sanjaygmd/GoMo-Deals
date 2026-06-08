@@ -23,6 +23,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { exportToExcel } from "../../utils/exportUtils";
 import { useToast } from "../../hooks/use-toast";
+import { bulkUploadProducts } from "../../services/productService";
 
 const getColorHex = (color) => {
   const lowerColor = color?.toLowerCase() || '';
@@ -108,6 +109,23 @@ const SellerProducts = () => {
     }
   };
 
+  const handleBulkUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    toast({ title: "Uploading...", description: "Please wait while we process your CSV." });
+    
+    const res = await bulkUploadProducts(file);
+    if (res.success) {
+      toast({ title: "Upload Successful", description: res.message });
+      fetchSellerProducts(sellerId);
+    } else {
+      toast({ title: "Upload Failed", description: res.error, variant: "destructive" });
+    }
+    // reset input
+    e.target.value = null;
+  };
+
   return (
     <div className="p-8 lg:p-12 space-y-12 max-w-[1600px] mx-auto animate-fadeIn">
       
@@ -142,6 +160,12 @@ const SellerProducts = () => {
           >
             <Plus size={14} /> Add New Product
           </button>
+          
+          <label className="cursor-pointer px-4 py-3 bg-white text-orange-950 border border-orange-200 hover:bg-orange-50 transition-colors shadow-sm flex items-center gap-2">
+            <input type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Bulk Upload CSV</span>
+          </label>
+
           <button
             onClick={handleExport}
             className="flex items-center gap-2 px-4 py-3 bg-white text-orange-950 border border-orange-200 hover:bg-orange-50 transition-colors shadow-sm"

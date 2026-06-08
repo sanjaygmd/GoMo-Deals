@@ -84,8 +84,8 @@ export const requireAuth = (allowedRoles = []) => async (req, res, next) => {
         req.user = user;
         req.sessionId = session.session_id;
 
-        // Update last accessed only if more than 30 minutes have passed
-        if (new Date() - new Date(session.last_accessed) > 30 * 60 * 1000) {
+        // Update last accessed only if more than 5 minutes have passed
+        if (new Date() - new Date(session.last_accessed) > 5 * 60 * 1000) {
             await pool.query("UPDATE auth_sessions SET last_accessed = NOW() WHERE session_id = $1", [session.session_id]);
         }
 
@@ -132,8 +132,8 @@ export const optionalAuth = async (req, res, next) => {
             };
             req.sessionId = session.session_id;
 
-            // Update last accessed only if more than 30 minutes have passed
-            if (new Date() - new Date(session.last_accessed) > 30 * 60 * 1000) {
+            // Update last accessed only if more than 5 minutes have passed
+            if (new Date() - new Date(session.last_accessed) > 5 * 60 * 1000) {
                 await pool.query("UPDATE auth_sessions SET last_accessed = NOW() WHERE session_id = $1", [session.session_id]);
             }
         }

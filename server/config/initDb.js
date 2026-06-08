@@ -86,6 +86,13 @@ export const initSchema = async () => {
             await pool.query(`DROP TABLE IF EXISTS seller_commissions CASCADE`);
         }
 
+        // 6. Add low_stock_threshold to products table
+        if (await tableExists('products')) {
+            await pool.query(`
+                ALTER TABLE products ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER DEFAULT 5;
+            `);
+        }
+
         // --- TABLE INITIALIZATION ---
 
         // Shiprocket Orders Table
@@ -215,6 +222,7 @@ export const initSchema = async () => {
                 discount_percent DECIMAL(5,2) DEFAULT 0,
                 recipient VARCHAR(100),
                 occasion VARCHAR(100),
+                low_stock_threshold INTEGER DEFAULT 5,
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -449,6 +457,15 @@ export const initSchema = async () => {
                 value JSONB NOT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (admin_id, key)
+            )
+        `);
+
+        // App Config Table (Global System Flags)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS app_config (
+                key VARCHAR(255) PRIMARY KEY,
+                value JSONB NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 

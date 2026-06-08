@@ -9,6 +9,21 @@ export const addProduct = async (productData) => {
     }
 }
 
+export const bulkUploadProducts = async (file) => {
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/products/bulk-upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message }
+    }
+}
+
 export const addVariants = async (variantData) => {
     try {
         const res = await api.post('/products/add-variants', variantData);

@@ -6,11 +6,13 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import crypto from 'crypto';
+import morgan from 'morgan';
 
-import { testDB } from './config/db.js';
+import { testDB, pool } from './config/db.js';
 import { initSchema } from './config/initDb.js';
 import { validateEnv } from './config/validateEnv.js';
 import { pruneExpiredRecords } from './utils/cleanupTask.js';
+import { runLowStockCheck } from './utils/stockAlertCron.js';
 import cron from 'node-cron';
 
 // Validate environment variables on startup
@@ -97,7 +99,25 @@ app.use((req, res, next) => {
     // 2. Verify CSRF token for mutating methods
     const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
     // Webhooks are server-to-server and rely on cryptographic HMAC validation, not CSRF.
-    const skipCsrfPaths = ['/api/orders/razorpay/webhook', '/api/shipping/webhook'];
+    const skipCsrfPaths = [
+        '/api/v1/orders/razorpay/webhook', 
+        '/api/v1/shipping/webhook',
+        '/api/v1/customer/login',
+        '/api/v1/customer/register',
+        '/api/v1/customer/send-otp',
+        '/api/v1/customer/verify-otp',
+        '/api/v1/seller/login',
+        '/api/v1/seller/register',
+        '/api/v1/seller/send-otp',
+        '/api/v1/seller/verify-otp',
+        '/api/v1/admin/login',
+        '/api/v1/admin/register',
+        '/api/v1/admin/send-otp',
+        '/api/v1/admin/verify-otp',
+        '/api/v1/admin/setup',
+        '/api/v1/admin/request-password-reset',
+        '/api/v1/admin/verify-password-reset'
+    ];
     
     if (mutatingMethods.includes(req.method)) {
         if (skipCsrfPaths.some(p => req.path.startsWith(p))) {
@@ -119,7 +139,10 @@ app.use((req, res, next) => {
         const headerToken = req.headers['x-xsrf-token'];
         
         if (!isSafeOrigin || !headerToken || headerToken !== csrfToken) {
-            console.warn(`[SECURITY ALERT] Blocked ${req.method} request to ${req.url} from origin: ${origin || 'Unknown'}. Invalid CSRF token.`);
+            console.warn(`[SECURITY ALERT] Blocked ${req.method} request to ${req.url} from origin: ${origin || 'Unknown'}.`);
+            console.warn(`Expected Token (from cookie/new): ${csrfToken}`);
+            console.warn(`Received Header Token: ${headerToken}`);
+            console.warn(`Cookies received: ${JSON.stringify(req.cookies)}`);
             return res.status(403).json({ 
                 success: false, 
                 message: 'Security validation failed. Invalid CSRF token.' 
@@ -129,28 +152,31 @@ app.use((req, res, next) => {
     next();
 });
 
+// HTTP Request Logging
+app.use(morgan('combined'));
+
 // Mount Razorpay webhook BEFORE express.json() so we can retrieve the raw buffer for HMAC validation
-app.use('/api/orders/razorpay/webhook', express.raw({ type: 'application/json' }), webhookRoutes);
+app.use('/api/v1/orders/razorpay/webhook', express.raw({ type: 'application/json' }), webhookRoutes);
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
-app.use('/api', authRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/wishlist', wishlistRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/coupons', couponRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/shipping', shiprocketRoutes);
-app.use('/api/pickup', pickupRoutes);
-app.use('/api/payouts', payoutRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/chatbot', chatbotRoutes);
-app.use('/api/offers', offerRoutes);
-app.use('/api/meetings', meetingRoutes);
-app.use('/api/membership', membershipRoutes);
-app.use('/api/seller-subscription', sellerSubscriptionRoutes);
+app.use('/api/v1', authRoutes);
+app.use('/api/v1/cart', cartRoutes);
+app.use('/api/v1/wishlist', wishlistRoutes);
+app.use('/api/v1/products', productRoutes);
+app.use('/api/v1/coupons', couponRoutes);
+app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/shipping', shiprocketRoutes);
+app.use('/api/v1/pickup', pickupRoutes);
+app.use('/api/v1/payouts', payoutRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/chatbot', chatbotRoutes);
+app.use('/api/v1/offers', offerRoutes);
+app.use('/api/v1/meetings', meetingRoutes);
+app.use('/api/v1/membership', membershipRoutes);
+app.use('/api/v1/seller-subscription', sellerSubscriptionRoutes);
 
 // Centralized error handling middleware
 app.use(errorHandler);
@@ -170,6 +196,23 @@ app.listen(port, () => {
         
         cron.schedule('0 2 * * *', () => {
             pruneExpiredRecords().catch(err => console.error("Periodic cleanup error:", err));
+        });
+
+        // Nightly Orphaned Payments Alert (3:00 AM)
+        cron.schedule('0 3 * * *', async () => {
+            try {
+                const res = await pool.query("SELECT COUNT(*) FROM orphaned_payments WHERE status = 'Captured' AND created_at < NOW() - INTERVAL '24 hours'");
+                if (parseInt(res.rows[0].count) > 0) {
+                    console.warn(`[SYSTEM ALERT] There are ${res.rows[0].count} unresolved orphaned payments older than 24 hours requiring admin review.`);
+                }
+            } catch(err) {
+                console.error("Orphaned payments cron error:", err);
+            }
+        });
+
+        // Daily Low-Stock Alerts (4:00 AM)
+        cron.schedule('0 4 * * *', () => {
+            runLowStockCheck().catch(err => console.error("Low stock cron error:", err));
         });
 
     }).catch(err => {

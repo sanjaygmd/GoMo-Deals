@@ -5,6 +5,7 @@ import Footer from './Footer/Footer';
 import { useAuth } from '../../context/AuthContext';
 import ChatbotWidget from './Chatbot/ChatbotWidget';
 import MembershipWelcomeModal from '../common/MembershipWelcomeModal';
+import CompareTray from '../common/CompareTray';
 
 const CustomerLayout = () => {
     const { user, loading } = useAuth();
@@ -34,6 +35,7 @@ const CustomerLayout = () => {
             {!isAuthPage && <Footer />}
             <ChatbotWidget />
             <MembershipWelcomeModal />
+            <CompareTray />
         </div>
     );
 };

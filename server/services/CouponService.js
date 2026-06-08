@@ -161,6 +161,10 @@ export class CouponService {
         const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, category_ids } = data;
         const db_admin_id = isAdmin ? adminId : null;
 
+        if (type === 'percentage' && parseFloat(discount_percent) > 90) {
+            throw new Error("Percentage discount cannot exceed 90%");
+        }
+
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
@@ -192,6 +196,10 @@ export class CouponService {
     static async updateCoupon(id, data, adminId, isAdmin) {
         const { code, type, discount_percent, discount_amount, max_discount, min_order_value, valid_until, max_usage, is_active, category, category_ids } = data;
         const db_admin_id = isAdmin ? adminId : null;
+
+        if (type === 'percentage' && parseFloat(discount_percent) > 90) {
+            throw new Error("Percentage discount cannot exceed 90%");
+        }
 
         const client = await pool.connect();
         try {

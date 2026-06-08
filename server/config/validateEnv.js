@@ -21,5 +21,14 @@ export const validateEnv = () => {
         process.exit(1);
     }
 
+    if (process.env.MASTER_SECURITY_KEY && process.env.MASTER_SECURITY_KEY.length < 32) {
+        console.error('❌ [CRITICAL ERROR] MASTER_SECURITY_KEY must be at least 32 characters long to ensure cryptographic security.');
+        process.exit(1);
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+        console.warn('⚠️ [WARNING] GEMINI_API_KEY is missing. Chatbot AI features are disabled.');
+    }
+
     console.log('✅ Environment variables validated.');
 };
