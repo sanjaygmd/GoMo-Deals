@@ -41,7 +41,7 @@ const SellerMessages = React.lazy(() => import('./components/SellerDashboard/Sel
 const SellerQA = React.lazy(() => import('./components/SellerDashboard/SellerQA'));
 const SellerReviews = React.lazy(() => import('./components/SellerDashboard/SellerReviews'));
 const SellerDisputes = React.lazy(() => import('./components/SellerDashboard/SellerDisputes'));
-const SellerBundles = React.lazy(() => import('./components/SellerDashboard/SellerBundles'));
+
 const SellerLoginPage = React.lazy(() => import('./components/SellerDashboard/SellerLoginPage'));
 const SellerRegistration = React.lazy(() => import('./components/SellerDashboard/SellerRegistration'));
 const SellerOnboarding = React.lazy(() => import('./components/SellerDashboard/SellerOnboarding/Onboarding'));
@@ -208,7 +208,7 @@ function App() {
               <Route path="/seller-dashboard" element={<SellerOverview />} />
               <Route path="/seller-dashboard/products" element={<SellerProducts />} />
               <Route path="/seller-dashboard/orders" element={<SellerOrders />} />
-              <Route path="/seller-dashboard/bundles" element={<SellerBundles />} />
+
               <Route path="/seller-dashboard/flea-market" element={<SellerFleaMarket />} />
               <Route path="/seller-dashboard/customers" element={<SellerCustomers />} />
               <Route path="/seller-dashboard/analytics" element={<SellerAnalytics />} />

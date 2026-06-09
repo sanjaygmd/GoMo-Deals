@@ -750,6 +750,22 @@ export const initSchema = async () => {
             )
         `);
 
+        // Disputes Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS disputes (
+                dispute_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                order_id UUID REFERENCES orders(order_id) ON DELETE CASCADE,
+                customer_id UUID REFERENCES customers(customer_id) ON DELETE CASCADE,
+                seller_id UUID REFERENCES sellers(seller_id) ON DELETE CASCADE,
+                reason TEXT NOT NULL,
+                resolution TEXT DEFAULT NULL,
+                status VARCHAR(50) DEFAULT 'open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(order_id)
+            )
+        `);
+
         await pool.query(`
             CREATE TABLE IF NOT EXISTS reverse_shipments (
                 reverse_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

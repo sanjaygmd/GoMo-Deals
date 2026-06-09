@@ -206,13 +206,20 @@ const ProductGrid = () => {
       return cleanField.includes(cleanSearch);
     };
 
-    const fleaMarketCategories = ['dal', 'paruppu', 'rice', 'wheat', 'maize', 'groundnut', 'sesame', 'black-pepper', 'turmeric', 'coriander', 'cumin', 'sugar'];
+    const fleaMarketCategories = ['flea', 'dal', 'paruppu', 'rice', 'wheat', 'maize', 'groundnut', 'sesame', 'black-pepper', 'turmeric', 'coriander', 'cumin', 'sugar', 'daily-essentials-groceries'];
 
     let result = sellerProducts.filter(p => {
       const pCat = (p.category_name || '').toLowerCase();
       const pName = (p.name || '').toLowerCase();
       const pTags = (p.tags || '').toLowerCase();
-      if (fleaMarketCategories.some(fCat => pCat.includes(fCat) || pCat === fCat || pName.includes(fCat) || pTags.includes(fCat))) return false;
+      
+      // Explicitly check for Flea Market indicators
+      if (
+        pCat.includes('flea') || pTags.includes('flea') || pName.includes('flea') ||
+        fleaMarketCategories.some(fCat => pCat.includes(fCat) || pCat === fCat || pName.includes(fCat) || pTags.includes(fCat))
+      ) {
+        return false;
+      }
 
       // 1. Match Main Department
       let matchCategory = true;

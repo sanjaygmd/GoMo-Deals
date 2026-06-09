@@ -42,6 +42,14 @@ const ProductQA = ({ productId }) => {
 
     if (res.success) {
       toast({ title: 'Success', description: 'Question submitted! You will be notified when the seller answers.' });
+      const newQ = {
+        question_id: res.data?.question_id || Date.now(),
+        question: newQuestion,
+        answer: null,
+        status: 'pending',
+        customer_name: user.name || 'You'
+      };
+      setQuestions(prev => [newQ, ...prev]);
       setNewQuestion('');
     } else {
       toast({ title: 'Error', description: res.error || 'Failed to submit question.', variant: 'destructive' });
@@ -119,13 +127,31 @@ const ProductQA = ({ productId }) => {
                         </div>
                       </div>
                       <div className="flex gap-3 pl-2 sm:pl-6 border-l-2 border-orange-200">
-                        <span className="font-bold text-emerald-600">A:</span>
-                        <div>
-                          <p className="text-sm text-orange-900">{q.answer}</p>
-                          <p className="text-[10px] text-orange-400 mt-1 uppercase tracking-wider">
-                            Seller Response
-                          </p>
-                        </div>
+                        {q.status === 'pending' ? (
+                          <>
+                            <span className="font-bold text-orange-400">A:</span>
+                            <div>
+                              <p className="text-sm text-orange-400 italic">Pending Seller Response...</p>
+                            </div>
+                          </>
+                        ) : q.status === 'rejected' ? (
+                          <>
+                            <span className="font-bold text-rose-500">A:</span>
+                            <div>
+                              <p className="text-sm text-rose-500 italic">Question rejected by seller.</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-bold text-emerald-600">A:</span>
+                            <div>
+                              <p className="text-sm text-orange-900">{q.answer}</p>
+                              <p className="text-[10px] text-orange-400 mt-1 uppercase tracking-wider">
+                                Seller Response
+                              </p>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import ProductCard from '../../components/common/ProductCard';
 import ReviewSection from '../../components/common/ReviewSection';
 import ProductQA from '../../components/common/ProductQA';
-import ProductBundles from '../../components/common/ProductBundles';
+
 import ScheduleModal from '../../components/common/ScheduleModal';
 import { useToast } from '../../context/ToastContext';
 
@@ -177,10 +177,21 @@ const ProductDetails = () => {
           // Fetch recommendations
           const allRes = await productService.getProducts();
           if (allRes.success) {
-            const others = allRes.data.filter(p =>
-              p.product_id !== res.data.product_id &&
-              (p.recipient === res.data.recipient || p.occasion === res.data.occasion)
-            ).slice(0, 4);
+            const fleaKeywords = ['dal', 'paruppu', 'rice', 'wheat', 'maize', 'groundnut', 'sesame', 'black-pepper', 'turmeric', 'coriander', 'cumin', 'sugar', 'flea', 'daily-essentials-groceries'];
+            const checkIsFleaMarket = (p) => {
+              const pCat = (p.category_name || '').toLowerCase();
+              const pTags = (p.tags || '').toLowerCase();
+              const pName = (p.name || '').toLowerCase();
+              return String(p.product_id).startsWith('fm') || fleaKeywords.some(keyword => pCat.includes(keyword) || pTags.includes(keyword) || pName.includes(keyword));
+            };
+            const currentIsFlea = checkIsFleaMarket(res.data);
+
+            const others = allRes.data.filter(p => {
+              if (p.product_id === res.data.product_id) return false;
+              // If current product is not flea market, exclude flea market products from recommendations
+              if (!currentIsFlea && checkIsFleaMarket(p)) return false;
+              return (p.recipient === res.data.recipient || p.occasion === res.data.occasion);
+            }).slice(0, 4);
             setRecommended(others);
           }
         } else {
@@ -951,7 +962,7 @@ const ProductDetails = () => {
           </div>
         </div>
  
-        <ProductBundles productId={id} />
+
         <ProductQA productId={id} />
         <ReviewSection productId={id} selectedVariant={selectedVariant} />
 

@@ -161,10 +161,7 @@ const SellerProducts = () => {
             <Plus size={14} /> Add New Product
           </button>
           
-          <label className="cursor-pointer px-4 py-3 bg-white text-orange-950 border border-orange-200 hover:bg-orange-50 transition-colors shadow-sm flex items-center gap-2">
-            <input type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Bulk Upload CSV</span>
-          </label>
+
 
           <button
             onClick={handleExport}

@@ -481,7 +481,7 @@ export const loginAdmin = async (req, res) => {
     await pool.query("DELETE FROM otp_verifications WHERE email = $1 AND purpose = $2", [email, scopedPurpose]);
 
     try {
-      if (type === 'super_admin') {
+      if (accountType === 'super_admin') {
         await pool.query(`UPDATE super_admins SET last_login_at = NOW() WHERE super_admin_id = $1`, [userId]);
       } else {
         await pool.query(`UPDATE admins SET last_login_at = NOW() WHERE admin_id = $1`, [userId]);
@@ -492,7 +492,7 @@ export const loginAdmin = async (req, res) => {
 
     const ip = req.ip || req.socket.remoteAddress;
     const device = { agent: req.get('User-Agent') };
-    const session = await createAuthSession(userId, type, ip, device, { name: user.name, email: user.email });
+    const session = await createAuthSession(userId, accountType, ip, device, { name: user.name, email: user.email });
 
     // Log the successful login
     await logAudit({
@@ -501,14 +501,14 @@ export const loginAdmin = async (req, res) => {
       table_name: table,
       record_id: userId,
       req,
-      is_super_admin: type === 'super_admin'
+      is_super_admin: accountType === 'super_admin'
     });
 
-    setSessionCookie(res, typeof type !== 'undefined' ? type : 'admin', session.token);
+    setSessionCookie(res, accountType, session.token);
 
     return res.status(200).json({
       success: true,
-      message: `${type} login successful`,
+      message: `${accountType} login successful`,
       data: {
         id: userId,
         name: user.name,

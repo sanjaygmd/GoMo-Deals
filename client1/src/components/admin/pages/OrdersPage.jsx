@@ -244,17 +244,19 @@ export default function OrdersPage() {
     try {
       const resp = await api.patch(`/orders/status/${selectedOrder.id}`, {
         status: editStatus,
-        courier: editCourier,
-        tracking_id: editTrackingId,
-        est_delivery: editEstDate
+        courier: editCourier || null,
+        tracking_id: editTrackingId || null,
+        est_delivery: editEstDate || null
       });
       if (resp.status === 200) {
         fetchOrders();
         setStatusSaved(true);
+        toast({ title: 'Status Updated', description: `Order status changed to ${editStatus}.` });
         setTimeout(() => setStatusSaved(false), 2000);
       }
     } catch (err) {
       console.error(err);
+      toast({ title: 'Update Failed', description: err.response?.data?.message || 'Could not update order status.', variant: 'destructive' });
     }
   };
 

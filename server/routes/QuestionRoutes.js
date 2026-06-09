@@ -1,11 +1,11 @@
 import express from 'express';
 import { getProductQuestions, askQuestion, getSellerQuestions, answerQuestion } from '../controllers/QuestionController.js';
-import { requireAuth } from '../middleware/authMiddleware.js';
+import { requireAuth, optionalAuth } from '../middleware/authMiddleware.js';
 
 const questionRoutes = express.Router();
 
 // Public route to fetch answered questions for a product
-questionRoutes.get('/product/:product_id', getProductQuestions);
+questionRoutes.get('/product/:product_id', optionalAuth, getProductQuestions);
 
 // Customer route to ask a question
 questionRoutes.post('/ask', requireAuth(['customer', 'admin', 'super_admin']), askQuestion);

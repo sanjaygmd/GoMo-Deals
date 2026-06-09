@@ -26,7 +26,7 @@ import wishlistRoutes from './routes/WishlistRoutes.js';
 import disputeRoutes from './routes/DisputeRoutes.js';
 import configRoutes from './routes/ConfigRoutes.js';
 import questionRoutes from './routes/QuestionRoutes.js';
-import bundleRoutes from './routes/BundleRoutes.js';
+
 import productRoutes from './routes/ProductRoutes.js';
 import couponRoutes from './routes/CouponRoutes.js';
 import orderRoutes from './routes/OrderRoutes.js';
@@ -176,7 +176,7 @@ app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/disputes', disputeRoutes);
 app.use('/api/v1/config', configRoutes);
 app.use('/api/v1/questions', questionRoutes);
-app.use('/api/v1/bundles', bundleRoutes);
+
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/coupons', couponRoutes);
 app.use('/api/v1/orders', orderRoutes);

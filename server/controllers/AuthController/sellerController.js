@@ -1003,7 +1003,7 @@ export const getSellerFinanceAnalytics = async (req, res) => {
 
     // 9. Revenue Per Product Breakdown
     const revenuePerProductQuery = await pool.query(`
-        SELECT p.name, COALESCE(SUM(oi.seller_earnings), 0) as value
+        SELECT p.name, COALESCE(SUM(oi.quantity * oi.unit_price), 0) as value
         FROM order_items oi
         JOIN products p ON oi.product_id = p.product_id
         JOIN orders o ON oi.order_id = o.order_id
@@ -1213,116 +1213,7 @@ async function ensureAllFinances(sellerId) {
       AND h.seller_id = $1
     `, [sellerId]);
 
-    // Link Daily to Weekly
-    await pool.query(`
-      WITH latest_w AS (
-        SELECT weekly_finance_id, seller_id, week_number, year FROM weekly_finances WHERE seller_id = $1
-      )
-      UPDATE daily_finances d
-      SET weekly_finance_id = w.weekly_finance_id
-      FROM latest_w w
-      WHERE d.seller_id = w.seller_id 
-      AND EXTRACT(WEEK FROM d.date)::int = w.week_number 
-      AND EXTRACT(YEAR FROM d.date)::int = w.year
-      AND d.seller_id = $1
-    `, [sellerId]);
 
-    // Link Daily to Monthly
-    await pool.query(`
-      WITH latest_m AS (
-        SELECT monthly_finance_id, seller_id, month_number, year FROM month_finances WHERE seller_id = $1
-      )
-      UPDATE daily_finances d
-      SET monthly_finance_id = m.monthly_finance_id
-      FROM latest_m m
-      WHERE d.seller_id = m.seller_id 
-      AND EXTRACT(MONTH FROM d.date)::int = m.month_number 
-      AND EXTRACT(YEAR FROM d.date)::int = m.year
-      AND d.seller_id = $1
-    `, [sellerId]);
-
-    // Link Weekly to latest Daily
-    await pool.query(`
-      WITH latest_d AS (
-        SELECT DISTINCT ON (seller_id, year, week_number)
-        daily_finance_id, seller_id, week_number, year
-        FROM (
-          SELECT daily_finance_id, seller_id, date, 
-                 EXTRACT(WEEK FROM date)::int as week_number, 
-                 EXTRACT(YEAR FROM date)::int as year
-          FROM daily_finances
-          WHERE seller_id = $1
-        ) sub
-        ORDER BY seller_id, year, week_number, date DESC
-      )
-      UPDATE weekly_finances w
-      SET daily_finance_id = ld.daily_finance_id
-      FROM latest_d ld
-      WHERE w.seller_id = ld.seller_id 
-      AND w.week_number = ld.week_number 
-      AND w.year = ld.year
-      AND w.seller_id = $1
-    `, [sellerId]);
-
-    // Link Quarterly to latest Monthly
-    await pool.query(`
-      WITH latest_m AS (
-        SELECT DISTINCT ON (seller_id, year, quarter_number)
-        monthly_finance_id, seller_id, quarter_number, year
-        FROM (
-          SELECT monthly_finance_id, seller_id, month_number, year,
-                 EXTRACT(QUARTER FROM TO_DATE(month_number::text, 'MM'))::int as quarter_number
-          FROM month_finances
-          WHERE seller_id = $1
-        ) sub
-        ORDER BY seller_id, year, quarter_number, month_number DESC
-      )
-      UPDATE quarterly_finances q
-      SET monthly_finance_id = lm.monthly_finance_id
-      FROM latest_m lm
-      WHERE q.seller_id = lm.seller_id 
-      AND q.year = lm.year
-      AND q.quarter_number = lm.quarter_number
-      AND q.seller_id = $1
-    `, [sellerId]);
-
-    // Link Half Yearly to latest Quarterly
-    await pool.query(`
-      WITH latest_q AS (
-        SELECT DISTINCT ON (seller_id, year, half_number)
-        quarterly_finance_id, seller_id, half_number, year
-        FROM (
-          SELECT quarterly_finance_id, seller_id, quarter_number, year,
-                 (CASE WHEN quarter_number <= 2 THEN 1 ELSE 2 END)::int as half_number
-          FROM quarterly_finances
-          WHERE seller_id = $1
-        ) sub
-        ORDER BY seller_id, year, half_number, quarter_number DESC
-      )
-      UPDATE half_yearly_finances h
-      SET quarterly_finance_id = lq.quarterly_finance_id
-      FROM latest_q lq
-      WHERE h.seller_id = lq.seller_id 
-      AND h.year = lq.year
-      AND h.half_number = lq.half_number
-      AND h.seller_id = $1
-    `, [sellerId]);
-
-    // Link Annual to latest Half Yearly
-    await pool.query(`
-      WITH latest_h AS (
-        SELECT DISTINCT ON (seller_id, year)
-        half_yearly_finance_id, seller_id, year, half_number
-        FROM half_yearly_finances
-        WHERE seller_id = $1
-        ORDER BY seller_id, year, half_number DESC
-      )
-      UPDATE annual_finances a
-      SET half_yearly_finance_id = lh.half_yearly_finance_id
-      FROM latest_h lh
-      WHERE a.seller_id = lh.seller_id AND a.year = lh.year
-      AND a.seller_id = $1
-    `, [sellerId]);
 
   } catch (error) {
     console.error("Aggregation Error:", error.message);

@@ -2081,6 +2081,8 @@ export const ShopProvider = ({ children }) => {
     }
   };
 
+
+
   // Toggle wishlist item with authentication check
   const toggleWishlist = async (product) => {
     if (!user?.id) {

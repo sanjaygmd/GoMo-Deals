@@ -18,6 +18,8 @@ export const addToCart = async ({ customer_id, product_id, variant_id, quantity,
     }
 };
 
+
+
 export const updateQuantity = async (cart_item_id, quantity) => {
     try {
         const res = await api.patch('/cart/update', { cart_item_id, quantity });

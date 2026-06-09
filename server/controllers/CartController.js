@@ -251,6 +251,8 @@ export const addToCart = async (req, res) => {
     }
 };
 
+
+
 // PATCH /cart/update
 export const updateCartItem = async (req, res) => {
     const { cart_item_id, quantity } = req.body;

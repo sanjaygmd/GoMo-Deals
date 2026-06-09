@@ -671,6 +671,8 @@ export const updateOrderStatus = async (req, res, next) => {
 
     await client.query('BEGIN');
 
+    const safeEstDelivery = est_delivery && est_delivery.trim() !== '' ? est_delivery : null;
+
     // 1. Update order status and logistics
     await client.query(
       `UPDATE orders 
@@ -681,7 +683,7 @@ export const updateOrderStatus = async (req, res, next) => {
                  estimated_delivery = $5,
                  updated_at = NOW() 
              WHERE order_id = $6`,
-      [status, status === 'Cancelled' ? notes : null, courier, tracking_id, est_delivery, order_id]
+      [status, status === 'Cancelled' ? notes : null, courier || null, tracking_id || null, safeEstDelivery, order_id]
     );
 
     // 1b. Sync with deliveries table

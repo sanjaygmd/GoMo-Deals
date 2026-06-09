@@ -5,6 +5,7 @@ import Hero from '../../components/sections/Home/Hero/Hero';
 import ShopByCategory from '../../components/sections/Home/ShopByOccasion/ShopByOccasion';
 
 import ProductGrid from '../../components/sections/Home/ProductGrid/ProductGrid';
+
 import ProductFinder from '../../components/sections/Home/ProductFinder/ProductFinder';
 
 const Home = () => {
@@ -25,6 +26,7 @@ const Home = () => {
       <div className="space-y-8 md:space-y-10">
         <ProductGrid />
         
+
         {!isSearching && <ShopByCategory />}
         {!isSearching && <ProductFinder />}
       </div>

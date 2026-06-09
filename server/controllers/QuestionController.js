@@ -4,14 +4,32 @@ import { pool } from '../config/db.js';
 export const getProductQuestions = async (req, res) => {
     try {
         const { product_id } = req.params;
+        const customer_id = req.user?.id || null;
         
-        const result = await pool.query(`
-            SELECT pq.question_id, pq.question, pq.answer, pq.created_at, pq.updated_at, c.full_name as customer_name
-            FROM product_questions pq
-            JOIN customers c ON pq.customer_id = c.customer_id
-            WHERE pq.product_id = $1 AND pq.status = 'answered'
-            ORDER BY pq.updated_at DESC
-        `, [product_id]);
+        let queryStr;
+        let queryParams;
+
+        if (customer_id) {
+            queryStr = `
+                SELECT pq.question_id, pq.question, pq.answer, pq.created_at, pq.updated_at, pq.status, c.full_name as customer_name
+                FROM product_questions pq
+                JOIN customers c ON pq.customer_id = c.customer_id
+                WHERE pq.product_id = $1 AND (pq.status = 'answered' OR pq.customer_id = $2)
+                ORDER BY pq.updated_at DESC
+            `;
+            queryParams = [product_id, customer_id];
+        } else {
+            queryStr = `
+                SELECT pq.question_id, pq.question, pq.answer, pq.created_at, pq.updated_at, pq.status, c.full_name as customer_name
+                FROM product_questions pq
+                JOIN customers c ON pq.customer_id = c.customer_id
+                WHERE pq.product_id = $1 AND pq.status = 'answered'
+                ORDER BY pq.updated_at DESC
+            `;
+            queryParams = [product_id];
+        }
+
+        const result = await pool.query(queryStr, queryParams);
 
         return res.status(200).json({ success: true, data: result.rows });
     } catch (error) {

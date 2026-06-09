@@ -25,7 +25,7 @@ const menu = [
   { name: "Overview", path: "/seller-dashboard", icon: LayoutDashboard },
   { name: "Products", path: "/seller-dashboard/products", icon: Package },
   { name: "Orders", path: "/seller-dashboard/orders", icon: ShoppingBag },
-  { name: "Combos", path: "/seller-dashboard/bundles", icon: Package },
+
   { name: "Flea Market", path: "/seller-dashboard/flea-market", icon: Handshake },
   { name: "Q&A", path: "/seller-dashboard/qa", icon: MessageSquare },
   { name: "Reviews", path: "/seller-dashboard/reviews", icon: MessageSquare },
@@ -50,7 +50,7 @@ const SellerSidebar = () => {
 
   return (
     <div className="w-72 min-h-screen bg-orange-950 text-white flex flex-col justify-between overflow-hidden border-r border-white/5 sticky top-0 h-screen">
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 min-h-0">
         {/* Brand Identity */}
         <div className="p-12 mb-6">
           <Link to="/seller-dashboard" className="flex flex-col group">
@@ -74,7 +74,7 @@ const SellerSidebar = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 space-y-1">
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto no-scrollbar pb-4">
           {menu.map((item) => {
             const isActive =
               item.path === "/seller-dashboard"

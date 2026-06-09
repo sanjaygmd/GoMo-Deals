@@ -102,6 +102,7 @@ const Cart = () => {
                           <span className="text-[8px] uppercase tracking-[0.2em] px-3 py-1.5 bg-[#faf8f5] text-orange-950/70 font-black border border-orange-200/20 rounded-none">
                              {t("qty")}: {item.quantity}
                           </span>
+
                         </div>
                         
                         <p className="text-lg font-serif italic text-orange-955">{formatPrice(item.price)}</p>

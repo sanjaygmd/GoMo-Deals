@@ -47,6 +47,11 @@ export const isValidImageUrl = (urlStr) => {
             return false;
         }
 
+        // Support base64 image uploads
+        if (urlStr.startsWith('data:image/')) {
+            return true;
+        }
+
         const parsed = new URL(urlStr);
 
         // Enforce allowed protocols (HTTP, HTTPS only)

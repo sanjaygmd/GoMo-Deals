@@ -357,19 +357,19 @@ const NavMain = ({ scrolled, isHome }) => {
         <>
             <div className="w-full flex flex-col bg-white">
                 {/* Row 1: Main Header */}
-                <div className={`w-full flex items-center justify-between gap-3 md:gap-5 px-4 md:px-8 border-b border-orange-100/40 bg-white/95 backdrop-blur-xl transition-all duration-300 shadow-[0_2px_15px_rgba(249,115,22,0.015)] relative z-50 ${scrolled ? 'py-1 shadow-sm shadow-orange-500/5' : 'py-1.5 md:py-2'}`}>
+                <div className={`w-full flex items-center justify-between gap-2 md:gap-5 px-2 sm:px-4 md:px-8 border-b border-orange-100/40 bg-white/95 backdrop-blur-xl transition-all duration-300 shadow-[0_2px_15px_rgba(249,115,22,0.015)] relative z-50 ${scrolled ? 'py-1 shadow-sm shadow-orange-500/5' : 'py-1.5 md:py-2'}`}>
                     {/* Logo, Hamburger & Delivery Locator Group */}
-                    <div className="flex items-center gap-4 md:gap-6 lg:gap-8 flex-shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-4 md:gap-6 lg:gap-8 flex-shrink-0">
                         {/* Logo & Mobile Menu Hamburger */}
                         <div className="flex items-center gap-3 flex-shrink-0">
                             <button className="md:hidden text-orange-900/80 hover:text-orange-600 hover:bg-orange-50 border border-transparent hover:border-orange-100/50 hover:shadow-[0_2px_8px_rgba(249,115,22,0.06)] p-1.5 rounded-full transition-all duration-300 active:scale-90" onClick={() => setMobileMenuOpen(true)}>
                                 <Menu size={22} strokeWidth={1.5} />
                             </button>
-                            <Link to="/" className="flex items-center overflow-visible transition-transform duration-300 active:scale-98 -my-2.5 md:-my-3.5">
+                            <Link to="/" className="flex items-center overflow-visible transition-transform duration-300 active:scale-98">
                                 <img
                                     src={gmdLogo}
                                     alt="GoMo Deals Logo"
-                                    className="h-32 md:h-36 w-auto object-contain transition-all duration-300 hover:scale-[1.05] hover:brightness-105 active:scale-95 filter drop-shadow(0 4px 15px rgba(234, 88, 12, 0.22))"
+                                    className="h-auto w-auto max-w-[100px] sm:max-w-[140px] md:max-w-[200px] max-h-16 md:max-h-20 object-contain transition-all duration-300 hover:scale-[1.05] hover:brightness-105 active:scale-95 filter drop-shadow(0 4px 15px rgba(234, 88, 12, 0.22))"
                                     style={{ contentVisibility: 'auto' }}
                                 />
                             </Link>
@@ -679,7 +679,7 @@ const NavMain = ({ scrolled, isHome }) => {
                     </div>
 
                     {/* Right Header Navigation: Accounts, Returns, Wishlist & Cart */}
-                    <div className="flex items-center justify-end gap-3 md:gap-4 flex-shrink-0">
+                    <div className="flex items-center justify-end gap-1.5 sm:gap-3 md:gap-4 flex-shrink-0">
                         {/* Account Menu */}
                         <div
                             className="relative hidden md:block cursor-pointer py-1.5 px-3 rounded-full hover:bg-gradient-to-r hover:from-white hover:to-orange-50/20 border border-transparent hover:border-orange-200/60 hover:shadow-[0_4px_12px_rgba(249,115,22,0.03)] transition-all duration-300 group"
@@ -938,7 +938,7 @@ const NavMain = ({ scrolled, isHome }) => {
                         )}
 
                         {/* Shopping History */}
-                        <div className="relative flex items-center">
+                        <div className="relative hidden sm:flex items-center">
                             <button
                                 onClick={() => setShoppingHistoryOpen(!shoppingHistoryOpen)}
                                 className="w-9 h-9 rounded-full flex items-center justify-center border border-transparent hover:border-orange-100/80 hover:bg-white text-orange-955 hover:text-orange-600 hover:scale-105 hover:shadow-[0_4px_12px_rgba(249,115,22,0.06)] active:scale-95 transition-all duration-300 relative p-0 cursor-pointer"

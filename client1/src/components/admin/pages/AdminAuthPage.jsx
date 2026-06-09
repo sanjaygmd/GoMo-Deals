@@ -495,7 +495,7 @@ p {
     e.preventDefault();
     setLoading(true);
     try {
-      const resData = await verifySuperAdminLogin({ email: loginEmail, otp: loginOtp });
+      const resData = await verifySuperAdminLogin(loginEmail, formData.password, formData.type, loginOtp);
       
       if (resData.success) {
         login(resData.data);
