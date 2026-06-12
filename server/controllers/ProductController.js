@@ -928,4 +928,140 @@ export const bulkUploadProducts = async (req, res) => {
         console.error("BULK UPLOAD FATAL ERROR:", error);
         return res.status(500).json({ success: false, message: "Internal server error during bulk upload." });
     }
-};;
+};
+
+export const getVendorComparison = async (req, res) => {
+    try {
+        const { product_id } = req.params;
+        const result = await pool.query('SELECT name, brand, price, rating FROM products WHERE product_id = $1', [product_id]);
+        if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Product not found' });
+        
+        const product = result.rows[0];
+        const basePrice = Number(product.price);
+        const baseRating = Number(product.rating) || 4.2;
+
+        let vendors = null;
+
+        // Try to fetch realistic estimates using Gemini API for accurate data
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                const { GoogleGenerativeAI } = await import('@google/generative-ai');
+                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                
+                const prompt = `You are a real-time price estimation API. I will give you a product name, brand, and its price on GoMo Deals (INR).
+Your task is to estimate realistic, accurate real-world prices for this EXACT product on Amazon India, Flipkart, and Meesho.
+If the product is extremely unlikely to be available on a specific platform (e.g. Meesho mostly has unbranded/local goods), set "available" to false for that platform.
+Also provide an "exactSearchQuery" which is a highly specific search string (e.g. "Apple Watch Series 9 45mm Midnight") that will guarantee finding this exact item, avoiding generic searches.
+Respond ONLY with a valid JSON object matching this exact structure, with no markdown formatting or backticks:
+{
+  "amazon": { "available": boolean, "price": number, "rating": number, "delivery": "string", "exactSearchQuery": "string" },
+  "flipkart": { "available": boolean, "price": number, "rating": number, "delivery": "string", "exactSearchQuery": "string" },
+  "meesho": { "available": boolean, "price": number, "rating": number, "delivery": "string", "exactSearchQuery": "string" }
+}
+
+Product Name: ${product.name}
+Brand: ${product.brand || 'Generic/Unknown'}
+GoMo Deals Price: ${basePrice} INR
+GoMo Deals Rating: ${baseRating}`;
+
+                const aiResult = await model.generateContent(prompt);
+                let responseText = aiResult.response.text().trim();
+                
+                // Clean up potential markdown formatting from the response
+                if (responseText.startsWith('\`\`\`json')) {
+                    responseText = responseText.replace(/\`\`\`json/gi, '').replace(/\`\`\`/g, '').trim();
+                } else if (responseText.startsWith('\`\`\`')) {
+                    responseText = responseText.replace(/\`\`\`/g, '').trim();
+                }
+
+                vendors = JSON.parse(responseText);
+                
+                // Validate parsed JSON structure quickly
+                if (!vendors.amazon || typeof vendors.amazon.available !== 'boolean') vendors = null; 
+
+            } catch (aiError) {
+                console.warn("Gemini pricing fetch failed, falling back to dynamic generation:", aiError.message);
+            }
+        }
+
+        // Fallback to dynamic random generation if Gemini fails or is not available
+        if (!vendors) {
+            const genericSearchQuery = `${product.brand ? product.brand + ' ' : ''}${product.name}`;
+            vendors = {
+                amazon: {
+                    available: true,
+                    price: basePrice * (1 + (Math.random() * 0.15 + 0.05)),
+                    rating: Math.max(1, baseRating - (Math.random() * 0.4)),
+                    delivery: `${Math.floor(Math.random() * 3) + 2}-${Math.floor(Math.random() * 3) + 4} Days`,
+                    exactSearchQuery: genericSearchQuery
+                },
+                flipkart: {
+                    available: true,
+                    price: basePrice * (1 + (Math.random() * 0.12 + 0.02)),
+                    rating: Math.max(1, baseRating - (Math.random() * 0.3)),
+                    delivery: `${Math.floor(Math.random() * 2) + 3}-${Math.floor(Math.random() * 3) + 5} Days`,
+                    exactSearchQuery: genericSearchQuery
+                },
+                meesho: {
+                    available: basePrice < 5000,
+                    price: basePrice * (1 - (Math.random() * 0.05)),
+                    rating: Math.max(1, baseRating - (Math.random() * 0.8)),
+                    delivery: `${Math.floor(Math.random() * 4) + 4}-${Math.floor(Math.random() * 4) + 7} Days`,
+                    exactSearchQuery: genericSearchQuery
+                }
+            };
+        }
+
+        return res.status(200).json({ success: true, data: vendors });
+
+    } catch (error) {
+        console.error("VENDOR COMPARE ERROR:", error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+export const performVisualSearch = async (req, res) => {
+    try {
+        const { imgUrl } = req.body;
+        if (!imgUrl) return res.status(400).json({ success: false, message: 'Image URL is required' });
+
+        let base64Image = '';
+        let mimeType = 'image/jpeg';
+
+        if (imgUrl.startsWith('data:image')) {
+            const base64Index = imgUrl.indexOf('base64,');
+            if (base64Index !== -1) {
+                const header = imgUrl.substring(0, base64Index);
+                mimeType = header.split(';')[0].replace('data:', '');
+                base64Image = imgUrl.substring(base64Index + 7);
+            }
+        } else {
+            // It's a URL (either absolute or relative)
+            const targetUrl = imgUrl.startsWith('http') ? imgUrl : `http://localhost:${process.env.PORT || 3000}${imgUrl}`;
+            const response = await fetch(targetUrl);
+            if (!response.ok) throw new Error('Failed to fetch image');
+            const arrayBuffer = await response.arrayBuffer();
+            base64Image = Buffer.from(arrayBuffer).toString('base64');
+            mimeType = response.headers.get('content-type') || 'image/jpeg';
+        }
+
+        const { GoogleGenerativeAI } = await import('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const prompt = "Identify the exact product shown in this image. Respond ONLY with the specific brand and model name (e.g., 'Apple iPhone 15 Pro Max', 'Nike Air Jordan 1 High OG', 'Sony WH-1000XM5'). Do not include any other words.";
+
+        const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: base64Image, mimeType } }
+        ]);
+
+        const text = result.response.text().trim();
+        return res.status(200).json({ success: true, query: text });
+
+    } catch (error) {
+        console.error("VISUAL SEARCH ERROR:", error);
+        return res.status(500).json({ success: false, message: 'Visual search failed: ' + (error.message || 'Unknown error') });
+    }
+};

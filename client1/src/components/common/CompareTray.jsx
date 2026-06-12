@@ -26,8 +26,8 @@ const CompareTray = () => {
                                 <Scale size={20} />
                             </div>
                             <div>
-                                <p className="text-xs font-black uppercase tracking-widest text-orange-955">Compare</p>
-                                <p className="text-[10px] text-orange-600/70">{compareItems.length}/3 items</p>
+                                <p className="text-xs font-black uppercase tracking-widest text-orange-955">Compare Vendors</p>
+                                <p className="text-[10px] text-orange-600/70">{compareItems.length} item(s)</p>
                             </div>
                         </div>
 
@@ -63,7 +63,7 @@ const CompareTray = () => {
                         </button>
                         <button 
                             onClick={() => setIsModalOpen(true)}
-                            disabled={compareItems.length < 2}
+                            disabled={compareItems.length < 1}
                             className="bg-orange-600 disabled:bg-stone-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-orange-500/20 hover:bg-orange-700 transition-all"
                         >
                             Compare Now

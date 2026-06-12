@@ -4,7 +4,7 @@
  */
 export const errorHandler = (err, req, res, next) => {
     const isDevelopment = process.env.NODE_ENV === 'development';
-    
+
     // Structured Logging for production (could be expanded to use Winston/Pino)
     const logData = {
         timestamp: new Date().toISOString(),
