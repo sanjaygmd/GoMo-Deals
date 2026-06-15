@@ -415,25 +415,21 @@ export const updateCustomer = async (req, res) => {
     if (req.user.id === id) {
         targetType = req.user.type;
     } else {
-        // Check tables sequentially to find actual user type from live tables
-        const custCheck = await pool.query("SELECT customer_id FROM customers WHERE customer_id = $1", [id]);
-        if (custCheck.rows.length > 0) {
-            targetType = 'customer';
+        // Check tables simultaneously to find actual user type from live tables
+        const typeCheck = await pool.query(`
+            SELECT 'customer' as type FROM customers WHERE customer_id = $1
+            UNION ALL
+            SELECT 'seller' FROM sellers WHERE seller_id = $1
+            UNION ALL
+            SELECT 'admin' FROM admins WHERE admin_id = $1
+            UNION ALL
+            SELECT 'super_admin' FROM super_admins WHERE super_admin_id = $1
+        `, [id]);
+        
+        if (typeCheck.rows.length > 0) {
+            targetType = typeCheck.rows[0].type;
         } else {
-            const sellerCheck = await pool.query("SELECT seller_id FROM sellers WHERE seller_id = $1", [id]);
-            if (sellerCheck.rows.length > 0) {
-                targetType = 'seller';
-            } else {
-                const adminCheck = await pool.query("SELECT admin_id FROM admins WHERE admin_id = $1", [id]);
-                if (adminCheck.rows.length > 0) {
-                    targetType = 'admin';
-                } else {
-                    const superAdminCheck = await pool.query("SELECT super_admin_id FROM super_admins WHERE super_admin_id = $1", [id]);
-                    if (superAdminCheck.rows.length > 0) {
-                        targetType = 'super_admin';
-                    }
-                }
-            }
+            return res.status(404).json({ success: false, message: "User not found" });
         }
     }
 

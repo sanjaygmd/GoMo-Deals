@@ -178,7 +178,7 @@ export const getProducts = async (req, res) => {
             (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
             FROM products p 
             LEFT JOIN categories c ON p.category_id = c.category_id
-            WHERE p.deleted_at IS NULL
+            WHERE p.deleted_at IS NULL AND p.is_active = true
         `;
         const queryParams = [];
 
@@ -191,7 +191,7 @@ export const getProducts = async (req, res) => {
         const limit = parseInt(req.query.limit) || 12;
         const offset = (page - 1) * limit;
 
-        let countQuery = `SELECT COUNT(*) FROM products p WHERE p.deleted_at IS NULL`;
+        let countQuery = `SELECT COUNT(*) FROM products p WHERE p.deleted_at IS NULL AND p.is_active = true`;
         const countParams = [];
         if (seller_id && seller_id !== 'null' && seller_id !== 'undefined' && seller_id !== '') {
             countQuery += ` AND p.seller_id = $1::uuid`;
@@ -255,7 +255,7 @@ export const getProductsById = async (req, res) => {
             (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
             FROM products p 
             LEFT JOIN categories c ON p.category_id = c.category_id
-            WHERE p.product_id = $1
+            WHERE p.product_id = $1 AND p.is_active = true AND p.deleted_at IS NULL
         `, [product_id]);
 
         if (result.rows.length === 0) {

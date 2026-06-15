@@ -13,7 +13,7 @@ export const openDispute = async (req, res, next) => {
     try {
         // Verify order belongs to customer
         const orderCheck = await pool.query(`
-            SELECT order_id, seller_id 
+            SELECT order_id 
             FROM orders 
             WHERE order_id = $1 AND customer_id = $2
         `, [order_id, customer_id]);
@@ -22,7 +22,15 @@ export const openDispute = async (req, res, next) => {
             return res.status(404).json({ success: false, message: "Order not found or unauthorized" });
         }
 
-        const seller_id = orderCheck.rows[0].seller_id;
+        // Get sellers involved in the order
+        const sellersCheck = await pool.query(`
+            SELECT DISTINCT seller_id FROM order_items WHERE order_id = $1
+        `, [order_id]);
+
+        if (sellersCheck.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "No sellers found for this order" });
+        }
+
         const cleanReason = sanitizeText(reason);
 
         // Check if dispute already exists for this order
@@ -31,13 +39,17 @@ export const openDispute = async (req, res, next) => {
             return res.status(400).json({ success: false, message: "A dispute is already open for this order" });
         }
 
-        const result = await pool.query(`
-            INSERT INTO disputes (order_id, customer_id, seller_id, reason, status)
-            VALUES ($1, $2, $3, $4, 'open')
-            RETURNING *
-        `, [order_id, customer_id, seller_id, cleanReason]);
+        const insertedDisputes = [];
+        for (const sellerRow of sellersCheck.rows) {
+            const result = await pool.query(`
+                INSERT INTO disputes (order_id, customer_id, seller_id, reason, status)
+                VALUES ($1, $2, $3, $4, 'open')
+                RETURNING *
+            `, [order_id, customer_id, sellerRow.seller_id, cleanReason]);
+            insertedDisputes.push(result.rows[0]);
+        }
 
-        res.status(201).json({ success: true, data: result.rows[0] });
+        res.status(201).json({ success: true, data: insertedDisputes[0] });
     } catch (error) {
         next(error);
     }
@@ -84,7 +96,7 @@ export const getSellerDisputes = async (req, res, next) => {
 export const updateDispute = async (req, res, next) => {
     const { dispute_id } = req.params;
     const { resolution, status } = req.body;
-    const { id, role } = req.user;
+    const { id, type: role } = req.user;
 
     try {
         // Validate dispute existence and ownership

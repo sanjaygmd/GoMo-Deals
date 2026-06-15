@@ -68,6 +68,19 @@ export const createMeeting = async (req, res, next) => {
         const sellerId = prodRes.rows[0].seller_id;
         const productName = prodRes.rows[0].name;
 
+        // Verify seller subscription is active and valid
+        const sellerSubCheck = await pool.query("SELECT seller_subscription, seller_subscription_expiry FROM sellers WHERE seller_id = $1", [sellerId]);
+        if (sellerSubCheck.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Seller not found." });
+        }
+        const { seller_subscription, seller_subscription_expiry } = sellerSubCheck.rows[0];
+        if (seller_subscription !== 'pro' && seller_subscription !== 'enterprise') {
+            return res.status(403).json({ success: false, message: "This seller does not have an active B2B subscription to accept conferences." });
+        }
+        if (seller_subscription_expiry && new Date(seller_subscription_expiry) < new Date()) {
+            return res.status(403).json({ success: false, message: "This seller's B2B subscription has expired." });
+        }
+
         // 3. Slot Conflict Validation (Overlapping meetings checking - 30 minutes buffer block)
         // Checks if another meeting is scheduled with the same seller within 30 minutes (1800 seconds)
         const conflictRes = await pool.query(`
@@ -167,9 +180,20 @@ export const getSellerMeetings = async (req, res, next) => {
             ORDER BY m.scheduled_at DESC
         `, [sellerId]);
 
+        const now = new Date();
+        const gatedMeetings = result.rows.map(m => {
+            const meetingTime = new Date(m.scheduled_at);
+            const diffMinutes = (now - meetingTime) / (1000 * 60);
+            const canJoin = diffMinutes >= 0 && diffMinutes <= 40;
+            if (!canJoin && m.status === 'Scheduled') {
+                return { ...m, meeting_link: null };
+            }
+            return m;
+        });
+
         return res.status(200).json({
             success: true,
-            meetings: result.rows
+            meetings: gatedMeetings
         });
     } catch (error) {
         console.error("Error fetching seller meetings:", error);
@@ -211,9 +235,20 @@ export const getCustomerMeetings = async (req, res, next) => {
             ORDER BY m.scheduled_at ASC
         `, [customerId]);
 
+        const now = new Date();
+        const gatedMeetings = result.rows.map(m => {
+            const meetingTime = new Date(m.scheduled_at);
+            const diffMinutes = (now - meetingTime) / (1000 * 60);
+            const canJoin = diffMinutes >= 0 && diffMinutes <= 40;
+            if (!canJoin && m.status === 'Scheduled') {
+                return { ...m, meeting_link: null };
+            }
+            return m;
+        });
+
         return res.status(200).json({
             success: true,
-            meetings: result.rows
+            meetings: gatedMeetings
         });
     } catch (error) {
         console.error("Error fetching customer meetings:", error);

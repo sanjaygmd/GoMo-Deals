@@ -164,9 +164,10 @@ export const createOrder = async (req, res, next) => {
 
         // Secure dynamic bargaining check
         let isBargained = false;
+        let isStockReserved = false;
         if (offer_token) {
           const offerCheck = await client.query(
-            "SELECT offered_price, agreed_quantity, expires_at, status FROM product_offers WHERE offer_token = $1 AND product_id = $2 AND customer_id = $3 AND status = 'Accepted'",
+            "SELECT offered_price, agreed_quantity, expires_at, status, is_stock_reserved FROM product_offers WHERE offer_token = $1 AND product_id = $2 AND customer_id = $3 AND status = 'Accepted'",
             [offer_token, item.product_id, customer_id]
           );
           if (offerCheck.rows.length > 0) {
@@ -177,6 +178,7 @@ export const createOrder = async (req, res, next) => {
                   qty = parseInt(offer.agreed_quantity); // Overrides frontend quantity with mediated agreed quantity
               }
               isBargained = true;
+              isStockReserved = offer.is_stock_reserved === true;
             } else {
               throw new Error("Bargain offer token has expired.");
             }
@@ -189,8 +191,10 @@ export const createOrder = async (req, res, next) => {
           dbPrice = parseFloat(row.price);
         }
 
-        const updateRes = await client.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE product_id = $2 AND stock_quantity >= $1", [qty, item.product_id]);
-        if (updateRes.rowCount === 0) throw new Error(`Insufficient stock for ${row.product_name}.`);
+        if (!(isBargained && isStockReserved)) {
+          const updateRes = await client.query("UPDATE products SET stock_quantity = stock_quantity - $1 WHERE product_id = $2 AND stock_quantity >= $1", [qty, item.product_id]);
+          if (updateRes.rowCount === 0) throw new Error(`Insufficient stock for ${row.product_name}.`);
+        }
       }
 
       const itemTotal = dbPrice * qty;
@@ -849,7 +853,23 @@ export const createReturnRequest = async (req, res, next) => {
         }
 
         const { unit_price, quantity, seller_id } = itemCheck.rows[0];
-        const refund_amount = (unit_price * quantity) * 1.05; // Base price + 5% tax
+
+        const orderInfo = await client.query(
+            "SELECT subtotal, tax_amount, discount_amount FROM orders WHERE order_id = $1",
+            [order_id]
+        );
+        
+        let refund_amount = unit_price * quantity;
+        if (orderInfo.rows.length > 0) {
+            const { subtotal, tax_amount, discount_amount } = orderInfo.rows[0];
+            const item_total = unit_price * quantity;
+            const proportion = subtotal > 0 ? (item_total / subtotal) : 0;
+            
+            const proportional_tax = tax_amount * proportion;
+            const proportional_discount = discount_amount * proportion;
+            
+            refund_amount = item_total + proportional_tax - proportional_discount;
+        }
 
         // 3. Insert into return_requests
         const returnRes = await client.query(
@@ -899,13 +919,25 @@ export const createReturnRequest = async (req, res, next) => {
  * Send order confirmation email via nodemailer.
  * Called by the frontend after a successful order placement.
  */
+const emailRateLimit = new Map();
+
 export const sendOrderEmail = async (req, res, next) => {
   try {
     const { orderId } = req.body;
+    const userId = req.user.id;
 
     if (!orderId) {
       return res.status(400).json({ success: false, message: 'Missing orderId.' });
     }
+
+    const now = Date.now();
+    if (emailRateLimit.has(userId)) {
+      const lastSent = emailRateLimit.get(userId);
+      if (now - lastSent < 60000) { // 1 minute
+        return res.status(429).json({ success: false, message: "Please wait a minute before requesting another confirmation email." });
+      }
+    }
+    emailRateLimit.set(userId, now);
 
     // 1. Fetch order ownership check to make sure the requesting client actually placed this order
     const orderOwnerQuery = await pool.query(
