@@ -108,7 +108,7 @@ const WishlistDrawer = () => {
                 <div className="space-y-6 flex-grow">
                   {wishlist.map((item) => {
                     const productId = item.product_id || item.id;
-                    const image = item.thumbnail || item.image || 'https://via.placeholder.com/150';
+                    const image = item.thumbnail || item.image || '/fallback-product.png';
                     return (
                       <motion.div
                         layout

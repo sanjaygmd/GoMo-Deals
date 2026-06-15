@@ -90,7 +90,7 @@ const SharedWishlist = () => {
                   onClick={() => navigate(`/product/${product.product_id}`)}
                 >
                   <img
-                    src={product.thumbnail || 'https://via.placeholder.com/400'}
+                    src={product.thumbnail || '/fallback-product.png'}
                     alt={product.name}
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-[0.19,1,0.22,1]"
                   />

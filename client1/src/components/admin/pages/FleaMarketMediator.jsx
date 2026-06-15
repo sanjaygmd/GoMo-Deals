@@ -130,6 +130,18 @@ export default function FleaMarketMediator() {
             <XCircle size={10} /> Cancelled
           </span>
         );
+      case "completed":
+        return (
+          <span className="flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 text-[10px] font-black uppercase tracking-wider border border-emerald-250/50">
+            <CheckCircle size={10} /> Completed
+          </span>
+        );
+      case "expired":
+        return (
+          <span className="flex items-center gap-1 px-2.5 py-1 rounded bg-stone-50 text-stone-800 text-[10px] font-black uppercase tracking-wider border border-stone-250/50">
+            <AlertCircle size={10} /> Expired
+          </span>
+        );
       default:
         return (
           <span className="px-2.5 py-1 rounded bg-orange-100 text-orange-600 text-[10px] font-black uppercase tracking-wider border border-orange-250/50">
@@ -232,7 +244,7 @@ export default function FleaMarketMediator() {
       {/* Search and Filters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         <div className="flex items-center border-b border-orange-200 overflow-x-auto no-scrollbar w-full md:w-auto">
-          {["All", "Scheduled", "Cancelled"].map(filter => (
+          {["All", "Scheduled", "Completed", "Expired", "Cancelled"].map(filter => (
             <button
               key={filter}
               onClick={() => setStatusFilter(filter)}
@@ -290,10 +302,10 @@ export default function FleaMarketMediator() {
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-orange-50 border border-orange-100/70 overflow-hidden shrink-0 rounded-xl">
                           <img 
-                            src={m.product_thumbnail || "https://via.placeholder.com/150"} 
+                            src={m.product_thumbnail || "/fallback-product.png"} 
                             alt={m.product_name} 
                             className="w-full h-full object-cover" 
-                            onError={(e) => { e.target.src = "https://via.placeholder.com/150"; }}
+                            onError={(e) => { e.target.src = "/fallback-product.png"; }}
                           />
                         </div>
                         <div className="text-left">

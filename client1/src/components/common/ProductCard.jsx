@@ -25,7 +25,7 @@ const ProductCard = ({ product }) => {
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
   const productId = product.product_id || product.id;
-  const image = product.thumbnail || product.image || 'https://via.placeholder.com/400x500?text=GoMo+Gift';
+  const image = product.thumbnail || product.image || '/fallback-product.png';
 
   const handleAddToCart = (e) => {
     e.preventDefault();

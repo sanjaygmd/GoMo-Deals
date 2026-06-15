@@ -70,7 +70,7 @@ const CustomerConferences = () => {
                     <div key={m.meeting_id} className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 bg-white border shadow-sm transition-all ${isScheduled ? 'border-orange-200 hover:border-orange-400' : 'border-stone-200 opacity-75'}`}>
                         <div className="flex items-start gap-4">
                             <div className="w-16 h-16 bg-stone-50 border border-stone-100 p-1 shrink-0">
-                                <img src={m.product_thumbnail || 'https://via.placeholder.com/150'} alt={m.product_name} className="w-full h-full object-cover" />
+                                <img src={m.product_thumbnail || '/fallback-product.png'} alt={m.product_name} className="w-full h-full object-cover" />
                             </div>
                             <div>
                                 <h4 className="text-sm font-black uppercase tracking-widest text-orange-955 line-clamp-1">{m.product_name}</h4>

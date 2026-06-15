@@ -84,7 +84,7 @@ const ListingCard = ({ listing, isMember, onSchedule, onGate, onCheckout }) => {
       {/* Image Header */}
       <div className="relative h-56 overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50">
         <img src={listing.image} alt={listing.title}
-          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000'; }}
+          onError={(e) => { e.target.src = '/fallback-product.png'; }}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out bg-amber-50" />
         
         {/* Overlay Gradients */}
@@ -169,8 +169,11 @@ const ListingCard = ({ listing, isMember, onSchedule, onGate, onCheckout }) => {
                Checkout Deal
             </button>
           ) : (
-            <button className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-all duration-300 shadow-sm hover:shadow-orange-600/30">
-               <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+            <button 
+              onClick={(e) => { e.stopPropagation(); isMember ? onSchedule(listing) : onGate(); }}
+              className="px-4 h-10 rounded-xl bg-orange-600 text-white font-black text-[10px] uppercase tracking-widest shadow-md hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 z-20"
+            >
+               <Video size={14} /> Schedule
             </button>
           )}
         </div>
@@ -290,7 +293,8 @@ export default function FleaMarketPage() {
     if (typeof fetchProducts === 'function') {
       fetchProducts();
     }
-  }, [fetchProducts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isMember = user?.membership && user.membership !== 'free';
 
@@ -330,7 +334,7 @@ export default function FleaMarketPage() {
       origin: 'India',
       category: fleaCategories.find(fc => (p.category_name || '').toLowerCase().includes(fc) || (p.tags || '').toLowerCase().includes(fc) || (p.name || '').toLowerCase().includes(fc)) || 'all',
       grade: p.brand || 'Standard Grade',
-      image: p.thumbnail || p.image || (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : p.images) || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000',
+      image: p.thumbnail || p.image || (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : p.images) || '/fallback-product.png',
       available: p.stock_quantity ? `${p.stock_quantity > 1000 ? p.stock_quantity / 1000 + ' Tonnes' : p.stock_quantity + ' kg'}` : 'In Stock',
       seller: {
         name: p.brand || 'GoMo Verified Seller',
@@ -508,10 +512,10 @@ export default function FleaMarketPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-gray-50">
                         <img 
-                          src={m.product_thumbnail || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000"} 
+                          src={m.product_thumbnail || "/fallback-product.png"} 
                           alt="" 
                           className="w-full h-full object-cover" 
-                          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000"; }}
+                          onError={(e) => { e.target.src = "/fallback-product.png"; }}
                         />
                       </div>
                       <div className="min-w-0">
@@ -606,7 +610,7 @@ export default function FleaMarketPage() {
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-gray-50">
                       <img 
-                        src={offer.product_thumbnail || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000"} 
+                        src={offer.product_thumbnail || "/fallback-product.png"} 
                         alt="" 
                         className="w-full h-full object-cover" 
                       />

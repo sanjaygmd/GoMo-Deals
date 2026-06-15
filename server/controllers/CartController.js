@@ -220,7 +220,7 @@ export const addToCart = async (req, res) => {
                      WHERE product_id = p.product_id 
                      AND (variant_id = ci.variant_id OR variant_id IS NULL) 
                      ORDER BY sort_order LIMIT 1),
-                    'https://via.placeholder.com/400'
+                    '/fallback-product.png'
                 ) AS thumbnail,
                 pv.variant_name,
                 pv.variant_value

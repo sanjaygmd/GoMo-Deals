@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCustomerMeetings, endMeeting } from '../../services/meetingService';
+import { getMeetingById, endMeeting } from '../../services/meetingService';
 import { motion } from 'framer-motion';
 import { 
   Video, Calendar, Clock, AlertTriangle, Shield, Check, Crown, 
@@ -20,16 +20,11 @@ export default function CustomerConferenceRoom() {
   useEffect(() => {
     const fetchMeeting = async () => {
       try {
-        const res = await getCustomerMeetings();
-        if (res.success) {
-          const found = res.meetings.find(m => m.meeting_id === id);
-          if (found) {
-            setMeeting(found);
-          } else {
-            setError("Conference not found.");
-          }
+        const res = await getMeetingById(id);
+        if (res.success && res.meeting) {
+          setMeeting(res.meeting);
         } else {
-          setError(res.error || "Failed to fetch conference details.");
+          setError(res.error || "Conference not found.");
         }
       } catch (err) {
         console.error(err);
@@ -179,7 +174,7 @@ export default function CustomerConferenceRoom() {
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-700 shrink-0 bg-gray-900">
                 <img 
-                  src={meeting.product_thumbnail || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000"} 
+                  src={meeting.product_thumbnail || "/fallback-product.png"} 
                   alt={meeting.product_name} 
                   className="w-full h-full object-cover"
                 />

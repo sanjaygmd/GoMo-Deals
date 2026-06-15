@@ -41,6 +41,19 @@ export const getCustomerMeetings = async () => {
 };
 
 /**
+ * Fetch a single meeting by ID.
+ * @param {string} meetingId - Meeting UUID
+ */
+export const getMeetingById = async (meetingId) => {
+    try {
+        const res = await api.get(`/meetings/${meetingId}`);
+        return res.data;
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+};
+
+/**
  * Cancel a scheduled video conference.
  * @param {string} meetingId - Meeting UUID
  */

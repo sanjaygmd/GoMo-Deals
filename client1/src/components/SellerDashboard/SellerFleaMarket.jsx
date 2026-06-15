@@ -161,7 +161,7 @@ const SellerFleaMarket = () => {
   const pendingOffers = offers.filter(o => o.status?.toLowerCase() === 'pending').length;
   const activeBargainRevenue = offers
     .filter(o => o.status?.toLowerCase() === 'accepted')
-    .reduce((sum, o) => sum + Number(o.offered_price || 0), 0);
+    .reduce((sum, o) => sum + Number(o.offered_price || 0) * Number(o.agreed_quantity || 0), 0);
 
   if (loading) {
     return (
@@ -477,10 +477,10 @@ const SellerFleaMarket = () => {
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-orange-50 border border-orange-100/70 overflow-hidden shrink-0">
                           <img 
-                            src={m.product_thumbnail || "https://via.placeholder.com/150"} 
+                            src={m.product_thumbnail || "/fallback-product.png"} 
                             alt={m.product_name} 
                             className="w-full h-full object-cover" 
-                            onError={(e) => { e.target.src = "https://via.placeholder.com/150"; }}
+                            onError={(e) => { e.target.src = "/fallback-product.png"; }}
                           />
                         </div>
                         <div>

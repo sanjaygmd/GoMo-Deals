@@ -9,7 +9,8 @@ import {
     completeMeeting,
     endMeeting,
     recordMeetingOutcome,
-    rescheduleMeeting
+    rescheduleMeeting,
+    getMeetingById
 } from '../controllers/MeetingController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
@@ -33,6 +34,9 @@ meetingRoutes.get('/customer', requireAuth(['customer', 'admin', 'super_admin'])
 
 // Fetch all scheduled video conferences for mediation (Admin required)
 meetingRoutes.get('/admin', requireAuth(['admin', 'super_admin']), getAdminMeetings);
+
+// Fetch a single meeting by ID
+meetingRoutes.get('/:id', requireAuth(['customer', 'seller', 'admin', 'super_admin']), getMeetingById);
 
 // Cancel a scheduled conference (Authenticated participant required)
 meetingRoutes.put('/:id/cancel', requireAuth(['customer', 'seller', 'admin', 'super_admin']), cancelMeeting);

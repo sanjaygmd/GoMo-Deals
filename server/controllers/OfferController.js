@@ -162,6 +162,7 @@ export const getCustomerOffers = async (req, res, next) => {
                         [row.agreed_quantity, row.product_id]
                     );
                     await pool.query("UPDATE product_offers SET is_stock_reserved = false WHERE offer_id = $1", [row.offer_id]);
+                    row.is_stock_reserved = false; // Fix #7: Update locally for response
                 }
                 row.status = 'Expired'; // Update locally for response
             }
@@ -169,7 +170,7 @@ export const getCustomerOffers = async (req, res, next) => {
 
         // Map and extract thumbnail
         const formattedOffers = result.rows.map(row => {
-            let thumbnail = 'https://via.placeholder.com/150';
+            let thumbnail = '/fallback-product.png';
             if (row.product_images && row.product_images.length > 0) {
                 thumbnail = row.product_images[0];
             }
@@ -204,7 +205,7 @@ export const getSellerOffers = async (req, res, next) => {
         `, [sellerId]);
 
         const formattedOffers = result.rows.map(row => {
-            let thumbnail = 'https://via.placeholder.com/150';
+            let thumbnail = '/fallback-product.png';
             if (row.product_images && row.product_images.length > 0) {
                 thumbnail = row.product_images[0];
             }
@@ -345,7 +346,7 @@ export const validateOfferToken = async (req, res, next) => {
             return res.status(410).json({ success: false, message: "This checkout token has expired. Accepted bargains are valid for 24 hours." });
         }
 
-        let thumbnail = 'https://via.placeholder.com/150';
+        let thumbnail = '/fallback-product.png';
         if (offer.product_images && offer.product_images.length > 0) {
             thumbnail = offer.product_images[0];
         }

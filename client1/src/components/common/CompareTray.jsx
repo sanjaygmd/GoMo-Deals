@@ -41,7 +41,7 @@ const CompareTray = () => {
                                         exit={{ scale: 0.8, opacity: 0 }}
                                         className="relative w-14 h-14 rounded-lg overflow-hidden border border-orange-100 shrink-0 group"
                                     >
-                                        <img src={item.thumbnail || item.image || 'https://via.placeholder.com/150'} alt={item.name} className="w-full h-full object-cover" />
+                                        <img src={item.thumbnail || item.image || '/fallback-product.png'} alt={item.name} className="w-full h-full object-cover" />
                                         <button 
                                             onClick={() => removeFromCompare(item.product_id)}
                                             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

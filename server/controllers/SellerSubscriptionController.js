@@ -12,6 +12,10 @@ export const subscribe = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
 
+    if (!['pro', 'enterprise'].includes(plan_id)) {
+      return res.status(400).json({ success: false, message: 'Invalid subscription plan ID.' });
+    }
+
     const isMock = process.env.NODE_ENV !== 'production' && razorpay_order_id.startsWith('order_mock_');
     if (!isMock) {
       const secret = process.env.RAZORPAY_KEY_SECRET;

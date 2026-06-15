@@ -37,7 +37,7 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
     }
     
     // 3. Fallback to thumbnail or image
-    return [product.thumbnail || product.image || 'https://via.placeholder.com/400x500?text=GoMo+Gift'];
+    return [product.thumbnail || product.image || '/fallback-product.png'];
   }, [product]);
 
   React.useEffect(() => {

@@ -552,7 +552,7 @@ export default function OrdersPage() {
                         <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-orange-50/20 border border-orange-100 hover:border-orange-955 transition-all duration-300 group/item">
                           <div className="flex items-center gap-4">
                             <div className="h-14 w-14 rounded-xl border border-orange-100 overflow-hidden shrink-0 shadow-sm">
-                              <img src={item.image} alt={item.name} className="h-full w-full object-cover" onError={e => e.target.src = 'https://via.placeholder.com/100'} />
+                              <img src={item.image} alt={item.name} className="h-full w-full object-cover" onError={e => e.target.src = '/fallback-product.png'} />
                             </div>
                             <div>
                               <p className="text-sm font-bold text-orange-955">{item.name}</p>

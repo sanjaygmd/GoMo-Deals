@@ -108,7 +108,7 @@ const SellerMessages = () => {
           sellerName: "Your Boutique",
           productId: "prod_dummy_1",
           productName: "Signature Wooden Chair",
-          productThumbnail: "https://via.placeholder.com/150?text=Chair",
+          productThumbnail: "/fallback-product.png",
           messages: [
             { sender: "customer", text: "Hi, I'm interested in the signature wooden chair from your summer collection. Is it currently in stock for immediate dispatch?", timestamp: Date.now() - 3600000 },
             { sender: "seller", text: "Absolutely. We have exactly 5 units left in our premium inventory. Would you like me to reserve one for you?", timestamp: Date.now() - 3400000 },
@@ -127,7 +127,7 @@ const SellerMessages = () => {
           sellerName: "Your Boutique",
           productId: "prod_dummy_2",
           productName: "Tuscan Ceramic Vase",
-          productThumbnail: "https://via.placeholder.com/150?text=Vase",
+          productThumbnail: "/fallback-product.png",
           messages: [
             { sender: "customer", text: "I've received the package, thank you! The craftsmanship is absolutely gorgeous.", timestamp: Date.now() - 7200000 }
           ],

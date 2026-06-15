@@ -148,7 +148,7 @@ const CompareModal = ({ isOpen, onClose }) => {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 p-4 bg-stone-50 rounded-xl border border-stone-100">
                         <div className="flex items-center gap-6">
                             <div className="w-24 h-24 bg-white rounded-lg overflow-hidden shrink-0 border border-stone-200">
-                                <img src={item.thumbnail || item.image || 'https://via.placeholder.com/150'} alt={item.name} className="w-full h-full object-cover mix-blend-multiply" />
+                                <img src={item.thumbnail || item.image || '/fallback-product.png'} alt={item.name} className="w-full h-full object-cover mix-blend-multiply" />
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold text-stone-800 mb-2">{item.name}</h2>

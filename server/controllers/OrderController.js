@@ -506,7 +506,7 @@ export const getMyOrders = async (req, res) => {
                    'slug', p.slug,
                    'thumbnail', COALESCE(
                        (SELECT image_url FROM product_images WHERE product_id = p.product_id ORDER BY sort_order LIMIT 1),
-                       'https://via.placeholder.com/150'
+                       '/fallback-product.png'
                    ),
                    'variant_name', pv.variant_name,
                    'variant_value', pv.variant_value
