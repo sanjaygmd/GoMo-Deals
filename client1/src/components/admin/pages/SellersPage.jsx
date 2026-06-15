@@ -38,6 +38,7 @@ export default function SellersPage() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockReason, setBlockReason] = useState("");
+  const [blockDuration, setBlockDuration] = useState("");
   const [sellerToBlock, setSellerToBlock] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sellerToDelete, setSellerToDelete] = useState(null);
@@ -127,10 +128,14 @@ export default function SellersPage() {
     }
   };
 
-  const updateSellerStatus = async (id, is_active, reason) => {
+  const updateSellerStatus = async (id, is_active, reason, duration) => {
     setUpdating(true);
     try {
-      const resp = await api.patch(`/admin/seller/${id}/status`, { is_active, block_reason: reason });
+      const resp = await api.patch(`/admin/seller/${id}/status`, { 
+        is_active, 
+        block_reason: reason,
+        block_duration_days: duration 
+      });
       if (resp.data.success) {
         toast({ 
           title: is_active ? "Seller Unblocked" : "Seller Blocked", 
@@ -140,14 +145,16 @@ export default function SellersPage() {
           ...s, 
           is_active: resp.data.is_active, 
           status: resp.data.is_active ? (s.is_verified ? 'Active' : 'Pending KYC') : 'Suspended',
-          block_reason: resp.data.block_reason
+          block_reason: resp.data.block_reason,
+          blocked_until: resp.data.blocked_until
         } : s));
         if (selectedSeller?.id === id) {
           setSelectedSeller(prev => ({ 
             ...prev, 
             is_active: resp.data.is_active,
             status: resp.data.is_active ? (prev.is_verified ? 'Active' : 'Pending KYC') : 'Suspended',
-            block_reason: resp.data.block_reason
+            block_reason: resp.data.block_reason,
+            blocked_until: resp.data.blocked_until
           }));
         }
         setShowBlockModal(false);
@@ -164,9 +171,10 @@ export default function SellersPage() {
     if (isBlocking) {
       setSellerToBlock(seller);
       setBlockReason("");
+      setBlockDuration("");
       setShowBlockModal(true);
     } else {
-      await updateSellerStatus(seller.id, true, null);
+      await updateSellerStatus(seller.id, true, null, null);
     }
   };
 
@@ -311,9 +319,16 @@ export default function SellersPage() {
                     {s.status}
                   </span>
                   {!s.is_active && s.block_reason && (
-                    <span className="text-[8px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded max-w-[150px] truncate" title={s.block_reason}>
-                      Reason: {s.block_reason}
-                    </span>
+                    <div className="flex flex-col gap-1 items-end">
+                      <span className="text-[8px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded max-w-[150px] truncate" title={s.block_reason}>
+                        Reason: {s.block_reason}
+                      </span>
+                      {s.blocked_until && (
+                         <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded max-w-[150px] truncate">
+                           Until: {new Date(s.blocked_until).toLocaleDateString()}
+                         </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -438,6 +453,11 @@ export default function SellersPage() {
                     <div>
                       <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-0.5">Restriction Reason</p>
                       <p className="text-xs font-bold text-rose-750 leading-relaxed">{selectedSeller.block_reason}</p>
+                      {selectedSeller.blocked_until && (
+                         <p className="text-[9px] mt-1 font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded w-fit uppercase tracking-widest">
+                           Expires: {new Date(selectedSeller.blocked_until).toLocaleDateString()}
+                         </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -594,12 +614,28 @@ export default function SellersPage() {
             <h2 className="text-xl font-extrabold text-orange-955 tracking-tight mb-2 uppercase">Suspend Partner</h2>
             <p className="text-stone-500 text-xs mb-6 font-bold leading-relaxed">Please provide a reason for restricting <span className="text-orange-900 font-black">"{sellerToBlock?.name}"</span>. This will be shown to the seller.</p>
             
-            <textarea
-              className="w-full h-28 p-4 rounded-xl bg-orange-55/30 border border-orange-200 text-sm font-bold text-orange-955 focus:outline-none focus:border-rose-500 focus:bg-white transition-all placeholder:text-stone-400 mb-6 resize-none"
-              placeholder="e.g. Violation of terms, repeated order cancellations, invalid documentation..."
-              value={blockReason}
-              onChange={(e) => setBlockReason(e.target.value)}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+               <div className="col-span-full">
+                  <label className="text-[9px] font-black text-stone-600 uppercase tracking-widest mb-1.5 block ml-1">Suspension Reason</label>
+                  <textarea
+                    className="w-full h-24 p-4 rounded-xl bg-orange-55/30 border border-orange-200 text-sm font-bold text-orange-955 focus:outline-none focus:border-rose-500 focus:bg-white transition-all placeholder:text-stone-400 resize-none"
+                    placeholder="e.g. Violation of terms, repeated order cancellations..."
+                    value={blockReason}
+                    onChange={(e) => setBlockReason(e.target.value)}
+                  />
+               </div>
+               <div>
+                  <label className="text-[9px] font-black text-stone-600 uppercase tracking-widest mb-1.5 block ml-1">Duration (Days)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full h-11 px-4 rounded-xl bg-orange-55/30 border border-orange-200 text-sm font-bold text-orange-955 focus:outline-none focus:border-rose-500 focus:bg-white transition-all placeholder:text-stone-400"
+                    placeholder="Leave blank for permanent"
+                    value={blockDuration}
+                    onChange={(e) => setBlockDuration(e.target.value)}
+                  />
+               </div>
+            </div>
 
             <div className="flex gap-3">
               <button
@@ -609,7 +645,7 @@ export default function SellersPage() {
                 Cancel
               </button>
               <button
-                onClick={() => updateSellerStatus(sellerToBlock.id, false, blockReason)}
+                onClick={() => updateSellerStatus(sellerToBlock.id, false, blockReason, blockDuration)}
                 disabled={!blockReason.trim() || updating}
                 className="flex-1 h-11 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black uppercase text-[10px] tracking-widest hover:bg-rose-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
               >

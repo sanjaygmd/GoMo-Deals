@@ -31,9 +31,11 @@ const AdminReviews = () => {
       if (res.data.success) {
         toast.success(`Review ${status}`);
         setReviews(prev => prev.map(r => r.review_id === id ? { ...r, status } : r));
+      } else {
+        toast.error(res.data.message || 'Failed to moderate review');
       }
     } catch (error) {
-      toast.error('Failed to moderate review');
+      toast.error(error?.response?.data?.message || 'Failed to moderate review');
     }
     setSubmitting(null);
   };

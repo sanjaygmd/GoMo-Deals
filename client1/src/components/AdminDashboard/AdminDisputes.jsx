@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { api } from "../../services/api";
-import { Shield, Loader2, Check, Gavel } from 'lucide-react';
+import { Shield, Loader2, Check, Gavel, Video } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDisputes = () => {
+  const navigate = useNavigate();
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resolutionText, setResolutionText] = useState({});
@@ -27,7 +29,7 @@ const AdminDisputes = () => {
   };
 
   const handleResolve = async (id, status = 'resolved') => {
-    if (!resolutionText[id] && status !== 'closed') {
+    if ((!resolutionText[id] || !resolutionText[id].trim()) && status !== 'closed') {
       toast.error('Please enter a resolution message');
       return;
     }
@@ -37,9 +39,11 @@ const AdminDisputes = () => {
       if (res.data.success) {
         toast.success(`Dispute marked as ${status}`);
         setDisputes(prev => prev.map(d => d.dispute_id === id ? { ...d, status, resolution: resolutionText[id] || d.resolution } : d));
+      } else {
+        toast.error(res.data.message || 'Failed to resolve dispute');
       }
     } catch (error) {
-      toast.error('Failed to resolve dispute');
+      toast.error(error?.response?.data?.message || 'Failed to resolve dispute');
     }
     setSubmitting(null);
   };
@@ -51,11 +55,21 @@ const AdminDisputes = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-serif italic text-orange-955 mb-2">Dispute Mediator</h1>
-        <p className="text-orange-955/60 text-sm uppercase tracking-wider font-bold">
-          Oversee and resolve disputes between buyers and sellers
-        </p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-orange-100 pb-8">
+        <div>
+          <h1 className="text-4xl font-extrabold text-orange-955 tracking-tight mb-2">Dispute Mediator</h1>
+          <p className="text-[11px] text-orange-500 uppercase tracking-[0.2em] max-w-xl">
+            Oversee and resolve post-sale disputes between buyers and sellers
+          </p>
+        </div>
+        <div className="flex bg-orange-50 border border-orange-200 rounded-xl p-1 shrink-0">
+          <button className="px-6 py-2.5 bg-white text-orange-955 shadow-sm rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+            <Gavel size={14} /> Disputes
+          </button>
+          <button onClick={() => navigate('/admin/mediator/flea-market')} className="px-6 py-2.5 text-orange-600 hover:text-orange-955 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 cursor-pointer">
+            <Video size={14} /> B2B Conferences
+          </button>
+        </div>
       </div>
 
       <div className="space-y-8">
@@ -84,7 +98,7 @@ const AdminDisputes = () => {
                     <div className="mb-4">
                       <span className="text-[10px] text-orange-400 font-bold uppercase tracking-widest block mb-1">Order Details</span>
                       <p className="text-xs text-orange-900 font-bold">ID: {d.order_id}</p>
-                      <p className="text-xs text-orange-900">Amount: ₹{Number(d.amount).toLocaleString()}</p>
+                      <p className="text-xs text-orange-900">Amount: ₹{Number(d.amount || 0).toLocaleString()}</p>
                     </div>
                     <h3 className="text-xs font-bold text-orange-955 mb-2 uppercase tracking-widest">Issue Reported:</h3>
                     <p className="text-sm text-orange-900 bg-orange-50 p-4 border-l-2 border-orange-300">"{d.reason}"</p>

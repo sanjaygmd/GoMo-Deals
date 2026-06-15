@@ -48,7 +48,7 @@ export const getCustomerDisputes = async (req, res, next) => {
     try {
         const customer_id = req.user.id;
         const result = await pool.query(`
-            SELECT d.*, o.amount, o.status as order_status
+            SELECT d.*, o.total_amount as amount, o.order_status
             FROM disputes d
             JOIN orders o ON d.order_id = o.order_id
             WHERE d.customer_id = $1
@@ -66,7 +66,7 @@ export const getSellerDisputes = async (req, res, next) => {
     try {
         const seller_id = req.user.id;
         const result = await pool.query(`
-            SELECT d.*, o.amount, c.full_name as customer_name
+            SELECT d.*, o.total_amount as amount, c.full_name as customer_name
             FROM disputes d
             JOIN orders o ON d.order_id = o.order_id
             JOIN customers c ON d.customer_id = c.customer_id
@@ -120,7 +120,7 @@ export const getAllDisputes = async (req, res, next) => {
     try {
         const result = await pool.query(`
             SELECT d.*, 
-                   o.amount, 
+                   o.total_amount as amount, 
                    c.full_name as customer_name,
                    s.store_name
             FROM disputes d

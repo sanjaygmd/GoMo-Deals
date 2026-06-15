@@ -369,7 +369,7 @@ const NavMain = ({ scrolled, isHome }) => {
                                 <img
                                     src={gmdLogo}
                                     alt="GoMo Deals Logo"
-                                    className="h-auto w-auto max-w-[100px] sm:max-w-[140px] md:max-w-[200px] max-h-16 md:max-h-20 object-contain transition-all duration-300 hover:scale-[1.05] hover:brightness-105 active:scale-95 filter drop-shadow(0 4px 15px rgba(234, 88, 12, 0.22))"
+                                    className="h-auto w-auto max-w-[150px] sm:max-w-[200px] md:max-w-[280px] max-h-20 sm:max-h-24 md:max-h-28 object-contain transition-all duration-300 hover:scale-[1.05] hover:brightness-105 active:scale-95 filter drop-shadow(0 4px 15px rgba(234, 88, 12, 0.22))"
                                     style={{ contentVisibility: 'auto' }}
                                 />
                             </Link>

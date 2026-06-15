@@ -92,7 +92,8 @@ export default function ProductsPage() {
       res = res.filter(p => 
         p.name?.toLowerCase().includes(q) || 
         (p.room && p.room.toLowerCase().includes(q)) ||
-        (p.sku && p.sku.toLowerCase().includes(q))
+        (p.sku && p.sku.toLowerCase().includes(q)) ||
+        (p.seller_name && p.seller_name.toLowerCase().includes(q))
       );
     }
     return res.map(p => ({ ...p, status: getStatus(p) }));
@@ -287,6 +288,11 @@ export default function ProductsPage() {
                           <p className="text-[9px] font-bold text-stone-500 uppercase mt-1 tracking-wider">
                              SKU: <span className="text-stone-700">{p.sku || `ITEM-${p.product_id.split('-')[0].toUpperCase()}`}</span>
                           </p>
+                          {p.seller_name && (
+                             <p className="text-[9px] font-bold text-orange-500 uppercase mt-0.5 tracking-wider">
+                               Store: <span className="text-orange-700">{p.seller_name}</span>
+                             </p>
+                          )}
                         </div>
                       </div>
                     </td>

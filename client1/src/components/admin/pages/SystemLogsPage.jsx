@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { api } from "../../../services/api";
-import { Shield, Search, Clock, User, Globe, Laptop, ChevronDown, ChevronUp, History, Info } from "lucide-react";
+import { Shield, Search, Clock, User, Globe, Laptop, ChevronDown, ChevronUp, History, Info, Download } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { exportToExcel } from "../../../utils/exportUtils";
+import { useToast } from "../../../hooks/use-toast";
 
 export default function SystemLogsPage() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [expandedLog, setExpandedLog] = useState(null);
+    const { toast } = useToast();
 
     useEffect(() => {
         fetchLogs();
@@ -50,6 +53,43 @@ export default function SystemLogsPage() {
         }
     };
 
+    const handleExport = () => {
+        if (filteredLogs.length === 0) return;
+
+        try {
+            toast({ title: "Export Started", description: "Preparing audit logs for export..." });
+            
+            const tableRows = filteredLogs.map(log => {
+                const dateObj = new Date(log.created_at);
+                
+                // Construct clear log details
+                let details = `${log.action} performed on ${log.table_name}`;
+                if (log.action === 'LOGIN') details = `User login detected`;
+                else if (log.action === 'INSERT' || log.action === 'CREATE') details = `New record created in ${log.table_name}`;
+                else if (log.action === 'UPDATE') details = `Record updated in ${log.table_name}`;
+                else if (log.action === 'DELETE') details = `Record deleted from ${log.table_name}`;
+                
+                return {
+                    'Date': dateObj.toLocaleDateString(),
+                    'Day': dateObj.toLocaleDateString(undefined, { weekday: 'long' }),
+                    'Time': dateObj.toLocaleTimeString(),
+                    'Action': log.action,
+                    'Component': log.table_name,
+                    'User / Actor': log.actor_name || "System",
+                    'Role': log.admin_id ? 'Administrator' : 'Merchant partner',
+                    'Log Details': details,
+                    'IP Address': log.ip_address || 'N/A'
+                };
+            });
+
+            exportToExcel(tableRows, `System_Audit_Logs_${new Date().toISOString().split('T')[0]}`);
+            toast({ title: "Export Complete", description: "Audit logs have been downloaded as Excel." });
+        } catch (error) {
+            console.error("Export failed:", error);
+            toast({ title: "Export Failed", description: "Could not generate excel file.", variant: "destructive" });
+        }
+    };
+
     return (
         <div className="space-y-12 pb-20">
             {/* Elegant Welcome Banner */}
@@ -64,15 +104,24 @@ export default function SystemLogsPage() {
                         Comprehensive immutable history of all administrative actions, data edits, and security events.
                     </p>
                 </div>
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500" size={16} />
-                    <input 
-                        type="text"
-                        placeholder="Search by name, action, or table..."
-                        className="w-full md:w-80 pl-11 pr-4 h-11 border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-[10px] font-bold uppercase tracking-wider focus:outline-none placeholder:text-stone-400 transition-all rounded-xl focus:shadow-[0_0_15px_rgba(249,115,22,0.1)] focus:bg-white"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <button 
+                        onClick={handleExport}
+                        disabled={filteredLogs.length === 0}
+                        className="w-full sm:w-auto px-6 py-3 bg-white text-orange-955 border border-orange-200 hover:bg-orange-50 text-[10px] uppercase tracking-widest font-black transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded-xl"
+                    >
+                        <Download size={14} /> Export Logs
+                    </button>
+                    <div className="relative w-full sm:w-80">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500" size={16} />
+                        <input 
+                            type="text"
+                            placeholder="Search by name, action, or table..."
+                            className="w-full pl-11 pr-4 h-11 border border-orange-200 focus:border-orange-500 bg-orange-55/30 text-orange-955 text-[10px] font-bold uppercase tracking-wider focus:outline-none placeholder:text-stone-400 transition-all rounded-xl focus:shadow-[0_0_15px_rgba(249,115,22,0.1)] focus:bg-white"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 

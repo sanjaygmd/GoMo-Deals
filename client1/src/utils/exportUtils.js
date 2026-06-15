@@ -13,15 +13,23 @@ export const exportToExcel = (data, filename) => {
 
     const workbook = utils.book_new();
 
+    const applyAutoFilter = (worksheet) => {
+        if (worksheet['!ref']) {
+            worksheet['!autofilter'] = { ref: worksheet['!ref'] };
+        }
+    };
+
     if (Array.isArray(data)) {
         // Single sheet
         const worksheet = utils.json_to_sheet(data);
+        applyAutoFilter(worksheet);
         utils.book_append_sheet(workbook, worksheet, "Data");
     } else {
         // Multiple sheets: data is an object { "Sheet1": [...], "Sheet2": [...] }
         for (const sheetName in data) {
             if (Array.isArray(data[sheetName]) && data[sheetName].length > 0) {
                 const worksheet = utils.json_to_sheet(data[sheetName]);
+                applyAutoFilter(worksheet);
                 utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31)); // Max sheet name length is 31
             }
         }

@@ -1,5 +1,6 @@
 // import { pool } from "../../configs/db.js";
 import { pool } from '../../config/db.js';
+import Razorpay from 'razorpay';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -1505,13 +1506,74 @@ export const resolveReturnRequest = async (req, res) => {
 
     const rr = rrRes.rows[0];
 
-    // 2. Update status in return_requests
-    await client.query(
-      `UPDATE return_requests 
-       SET refund_status = $1, resolution_note = $2, resolved_by_admin_id = $3, resolved_at = NOW()
-       WHERE return_request_id = $4`,
-      [status, resolution_note, admin_id, id]
-    );
+    if (status === 'Received') {
+      if (rr.refund_status !== 'Approved') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: "Cannot mark as received unless the return is currently 'Approved'." });
+      }
+
+      // Check original order payment method
+      const paymentQuery = `
+        SELECT p.payment_id, p.payment_method, p.payment_status 
+        FROM payments p 
+        WHERE p.order_id = $1
+      `;
+      const paymentRes = await client.query(paymentQuery, [rr.order_id]);
+      
+      let refundNotes = resolution_note || `Returned item received by Admin`;
+      let actualRefundStatus = 'Refunded';
+
+      if (paymentRes.rows.length > 0) {
+        const payment = paymentRes.rows[0];
+        if ((payment.payment_method === 'Prepaid' || payment.payment_method === 'razorpay' || payment.payment_method === 'online') && payment.payment_status === 'Paid') {
+          // Process Razorpay Refund
+          if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+            try {
+              const razorpay = new Razorpay({ 
+                key_id: process.env.RAZORPAY_KEY_ID, 
+                key_secret: process.env.RAZORPAY_KEY_SECRET 
+              });
+              await razorpay.payments.refund(payment.payment_id, { 
+                amount: Math.round(parseFloat(rr.refund_amount) * 100) 
+              });
+              refundNotes += " | Refund automatically processed to original payment method.";
+            } catch (refundErr) {
+              console.error("Razorpay Refund Error:", refundErr);
+              refundNotes += ` | Failed to auto-refund via Razorpay: ${refundErr.message || 'Unknown error'}`;
+              actualRefundStatus = 'Received'; // Item received, but refund failed (manual intervention needed)
+            }
+          } else {
+             refundNotes += " | Razorpay keys missing, manual refund required.";
+             actualRefundStatus = 'Received';
+          }
+        } else if (payment.payment_method === 'cod') {
+          refundNotes += " | COD order: Refund must be manually transferred to customer's bank/wallet.";
+          actualRefundStatus = 'Received';
+        }
+      } else {
+        refundNotes += " | Original payment record not found.";
+        actualRefundStatus = 'Received';
+      }
+
+      // 2. Update status in return_requests
+      await client.query(
+        `UPDATE return_requests 
+         SET refund_status = $1, resolution_note = $2, resolved_by_admin_id = $3, resolved_at = NOW()
+         WHERE return_request_id = $4`,
+        [actualRefundStatus, refundNotes, admin_id, id]
+      );
+      
+      status = actualRefundStatus; // Set for notifications
+
+    } else {
+      // 2. Update status in return_requests
+      await client.query(
+        `UPDATE return_requests 
+         SET refund_status = $1, resolution_note = $2, resolved_by_admin_id = $3, resolved_at = NOW()
+         WHERE return_request_id = $4`,
+        [status, resolution_note, admin_id, id]
+      );
+    }
 
     if (status === 'Approved') {
       // 3. Initiate Shiprocket Reverse Pickup
@@ -1593,10 +1655,15 @@ export const resolveReturnRequest = async (req, res) => {
     }
 
     // 4. Notify Customer
+    let notificationMsg = `Your return request for Order #${rr.order_id.slice(0, 8).toUpperCase()} has been ${status}.`;
+    if (status === 'Received' || status === 'Refunded') {
+       notificationMsg = `We have received your returned item for Order #${rr.order_id.slice(0, 8).toUpperCase()}. Your return request is marked as ${status}.`;
+    }
+
     await client.query(
       `INSERT INTO notifications (notification_id, customer_id, type, message, created_at)
        VALUES (gen_random_uuid(), $1, 'return_update', $2, NOW())`,
-      [rr.customer_id, `Your return request for Order #${rr.order_id.slice(0, 8).toUpperCase()} has been ${status}.`]
+      [rr.customer_id, notificationMsg]
     );
 
     await client.query('COMMIT');
@@ -1856,24 +1923,22 @@ export const deleteCustomer = async (req, res) => {
  */
 export const toggleSellerStatus = async (req, res) => {
   const { id } = req.params;
-  const { is_active, block_reason } = req.body;
+  const { is_active, block_reason, block_duration_days } = req.body;
   try {
+    let blockedUntil = null;
+    if (!is_active && block_duration_days && !isNaN(parseInt(block_duration_days, 10))) {
+       blockedUntil = new Date();
+       blockedUntil.setDate(blockedUntil.getDate() + parseInt(block_duration_days, 10));
+    }
+
     const updateQuery = `
       UPDATE sellers 
-      SET is_active = $1, block_reason = $2, updated_at = NOW() 
-      WHERE seller_id = $3 AND is_active != $1
-      RETURNING is_active, block_reason`;
-    const result = await pool.query(updateQuery, [is_active, is_active ? null : block_reason, id]);
+      SET is_active = $1, block_reason = $2, blocked_until = $3, updated_at = NOW() 
+      WHERE seller_id = $4
+      RETURNING is_active, block_reason, blocked_until`;
+    const result = await pool.query(updateQuery, [is_active, is_active ? null : block_reason, is_active ? null : blockedUntil, id]);
 
     if (result.rowCount === 0) {
-      const check = await pool.query("SELECT is_active FROM sellers WHERE seller_id = $1", [id]);
-      if (check.rowCount > 0) {
-        return res.status(200).json({
-          success: true,
-          message: `Seller is already ${is_active ? 'active' : 'blocked'}`,
-          is_active: check.rows[0].is_active
-        });
-      }
       return res.status(404).json({ success: false, message: "Seller not found" });
     }
 
@@ -1881,7 +1946,8 @@ export const toggleSellerStatus = async (req, res) => {
       success: true,
       message: `Seller ${is_active ? 'unblocked' : 'blocked'} successfully`,
       is_active: result.rows[0].is_active,
-      block_reason: result.rows[0].block_reason
+      block_reason: result.rows[0].block_reason,
+      blocked_until: result.rows[0].blocked_until
     });
   } catch (error) {
     console.error("TOGGLE SELLER STATUS ERROR:", error);

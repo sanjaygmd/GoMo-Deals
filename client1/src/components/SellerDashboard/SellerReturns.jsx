@@ -28,7 +28,7 @@ const SellerReturns = () => {
   
   // Filtering & Search States
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("All"); // All, Pending, Approved, Rejected
+  const [activeTab, setActiveTab] = useState("All"); // All, Pending, Approved, Rejected, Received, Refunded
   
   // Selected Return Detail State
   const [selectedReturn, setSelectedReturn] = useState(null);
@@ -118,9 +118,17 @@ const SellerReturns = () => {
           </span>
         );
       case "rejected":
+      case "cancelled":
         return (
           <span className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-800 text-[9px] font-black uppercase tracking-widest border border-rose-200/50">
-            <XCircle size={10} /> Rejected
+            <XCircle size={10} /> {status}
+          </span>
+        );
+      case "received":
+      case "refunded":
+        return (
+          <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-800 text-[9px] font-black uppercase tracking-widest border border-blue-200/50">
+            <CheckCircle2 size={10} /> {status}
           </span>
         );
       default:
@@ -184,7 +192,7 @@ const SellerReturns = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         {/* Status Tabs */}
         <div className="flex items-center border-b border-orange-200">
-          {["All", "Pending", "Approved", "Rejected"].map(tab => (
+          {["All", "Pending", "Approved", "Rejected", "Refunded"].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -404,6 +412,35 @@ const SellerReturns = () => {
                         {resolving ? "Processing..." : "Approve Return"}
                       </button>
                     </div>
+                  </div>
+                ) : selectedReturn.status?.toLowerCase() === "approved" ? (
+                  <div className="space-y-4 pt-4 border-t border-orange-100">
+                    <span className="text-[9px] uppercase tracking-[0.4em] text-orange-400 font-black block">Process Refund</span>
+                    
+                    {resolveError && (
+                      <div className="p-4 bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-black uppercase tracking-widest flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle size={12} className="text-rose-700 animate-pulse" />
+                          <span>{resolveError}</span>
+                        </div>
+                        <button onClick={() => setResolveError(null)} className="text-rose-600 hover:text-rose-950 font-black text-[11px] ml-2">✕</button>
+                      </div>
+                    )}
+
+                    <textarea
+                      placeholder="Add any internal remarks before marking as received (Optional)..."
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      className="w-full p-4 border border-orange-200 outline-none text-xs focus:border-orange-900 transition-all rounded-none min-h-[100px] placeholder-orange-400 text-orange-800 bg-white"
+                    />
+                    
+                    <button
+                      onClick={() => handleResolve("Received")}
+                      disabled={resolving}
+                      className="w-full py-4 bg-blue-900 hover:bg-blue-800 text-white text-[10px] uppercase tracking-widest font-black transition-colors"
+                    >
+                      {resolving ? "Processing..." : "Mark as Received & Process Refund"}
+                    </button>
                   </div>
                 ) : (
                   <div className="pt-6 border-t border-orange-100 space-y-4">

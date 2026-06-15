@@ -942,15 +942,18 @@ export const getVendorComparison = async (req, res) => {
 
         let vendors = null;
 
-        // Try to fetch realistic estimates using Gemini API for accurate data
+        // Try to fetch accurate real-world data using Gemini API with Google Search Grounding
         if (process.env.GEMINI_API_KEY) {
             try {
                 const { GoogleGenerativeAI } = await import('@google/generative-ai');
                 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                const model = genAI.getGenerativeModel({ 
+                    model: "gemini-2.5-flash",
+                    tools: [{ googleSearch: {} }] 
+                });
                 
-                const prompt = `You are a real-time price estimation API. I will give you a product name, brand, and its price on GoMo Deals (INR).
-Your task is to estimate realistic, accurate real-world prices for this EXACT product on Amazon India, Flipkart, and Meesho.
+                const prompt = `You are a real-time price API. I will give you a product name, brand, and its price on GoMo Deals (INR).
+Your task is to use Google Search to find the EXACT REAL-WORLD current prices for this product on Amazon India, Flipkart, and Meesho.
 If the product is extremely unlikely to be available on a specific platform (e.g. Meesho mostly has unbranded/local goods), set "available" to false for that platform.
 Also provide an "exactSearchQuery" which is a highly specific search string (e.g. "Apple Watch Series 9 45mm Midnight") that will guarantee finding this exact item, avoiding generic searches.
 Respond ONLY with a valid JSON object matching this exact structure, with no markdown formatting or backticks:
@@ -969,10 +972,10 @@ GoMo Deals Rating: ${baseRating}`;
                 let responseText = aiResult.response.text().trim();
                 
                 // Clean up potential markdown formatting from the response
-                if (responseText.startsWith('\`\`\`json')) {
-                    responseText = responseText.replace(/\`\`\`json/gi, '').replace(/\`\`\`/g, '').trim();
-                } else if (responseText.startsWith('\`\`\`')) {
-                    responseText = responseText.replace(/\`\`\`/g, '').trim();
+                if (responseText.startsWith('```json')) {
+                    responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                } else if (responseText.startsWith('```')) {
+                    responseText = responseText.replace(/```/g, '').trim();
                 }
 
                 vendors = JSON.parse(responseText);

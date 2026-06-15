@@ -46,7 +46,7 @@ export const getProducts = async (sellerId = null) => {
     try {
         const url = sellerId ? `/products/allproducts?seller_id=${sellerId}` : '/products/allproducts';
         const res = await api.get(url);
-        if (res.data.success) {
+        if (res.data.success && Array.isArray(res.data.data)) {
             // Map the first image from pi_images to a 'thumbnail' property for easy access in UI
             let allProducts = res.data.data.map(product => {
                 const baseImages = product.pi_images?.filter(img => !img.variant_id) || [];
@@ -137,7 +137,7 @@ export const deleteProduct = async (id) => {
 export const getSubcategories = async (categoryId) => {
     try {
         const res = await api.get('/products/categories');
-        if (res.data.success) {
+        if (res.data.success && Array.isArray(res.data.data)) {
             const subcategories = res.data.data.filter(cat => cat.parent_category_id && String(cat.parent_category_id) === String(categoryId));
             return { success: true, data: subcategories };
         }

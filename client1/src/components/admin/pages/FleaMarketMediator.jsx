@@ -5,8 +5,10 @@ import {
 import { StatCard } from "../components/StatCard";
 import { getAdminMeetings, cancelMeeting, endMeeting } from "../../../services/meetingService";
 import ConfirmModal from '../../common/ConfirmModal';
+import { useNavigate } from 'react-router-dom';
 
 export default function FleaMarketMediator() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [meetings, setMeetings] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -152,10 +154,18 @@ export default function FleaMarketMediator() {
             Monitor B2B buyer-seller conferences, prevent offline transaction attempts, and mediate escrow deals.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex bg-orange-50 border border-orange-200 rounded-xl p-1 shrink-0">
+            <button onClick={() => navigate('/admin/mediator')} className="px-6 py-2.5 text-orange-600 hover:text-orange-955 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 cursor-pointer">
+              <ShieldAlert size={14} /> Disputes
+            </button>
+            <button className="px-6 py-2.5 bg-white text-orange-955 shadow-sm rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+              <Video size={14} /> B2B Conferences
+            </button>
+          </div>
           <button 
             onClick={fetchMeetings}
-            className="px-6 py-3 bg-white border border-orange-200 text-orange-955 hover:bg-orange-50 text-[10px] uppercase tracking-widest font-black transition-all flex items-center gap-2 cursor-pointer active:scale-98 shadow-sm"
+            className="px-6 py-3 bg-white border border-orange-200 text-orange-955 hover:bg-orange-50 text-[10px] uppercase tracking-widest font-black transition-all flex items-center gap-2 cursor-pointer active:scale-98 shadow-sm rounded-xl"
           >
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Refresh List
           </button>

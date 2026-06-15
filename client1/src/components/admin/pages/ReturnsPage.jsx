@@ -178,10 +178,12 @@ export default function ReturnsPage() {
                       <div className={cn(
                         "inline-flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm mx-auto",
                         r.status === 'Approved' ? "border-emerald-200 bg-emerald-50 text-emerald-800" :
+                        r.status === 'Received' || r.status === 'Refunded' ? "border-blue-200 bg-blue-50 text-blue-800" :
                         r.status === 'Rejected' || r.status === 'Cancelled' ? "border-rose-250 bg-rose-50 text-rose-800" :
                         "border-amber-200 bg-amber-50 text-amber-800"
                       )}>
                         {r.status === 'Approved' ? <CheckCircle size={10} className="text-emerald-600" /> : 
+                         r.status === 'Received' || r.status === 'Refunded' ? <CheckCircle size={10} className="text-blue-600" /> : 
                          r.status === 'Rejected' || r.status === 'Cancelled' ? <XCircle size={10} className="text-rose-600" /> : 
                          <Clock size={10} className="text-amber-600" />}
                         <span className="text-[8px] font-black uppercase tracking-wider">{r.status}</span>
@@ -233,9 +235,10 @@ export default function ReturnsPage() {
                   <h2 className="text-2xl font-extrabold text-orange-955 tracking-tight">{selectedReturn.amount}</h2>
                   <p className="text-[9px] font-black text-stone-500 uppercase tracking-widest mt-0.5">Return ID: <span className="text-orange-900 font-mono">#{selectedReturn.id.toUpperCase()}</span></p>
                 </div>
-                <div className={cn(
+                  <div className={cn(
                   "px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-wider border shadow-sm",
                   selectedReturn.status === 'Approved' ? "border-emerald-250 bg-emerald-50 text-emerald-800" :
+                  selectedReturn.status === 'Received' || selectedReturn.status === 'Refunded' ? "border-blue-250 bg-blue-50 text-blue-800" :
                   selectedReturn.status === 'Rejected' || selectedReturn.status === 'Cancelled' ? "border-rose-250 bg-rose-50 text-rose-800" :
                   "border-amber-250 bg-amber-50 text-amber-800"
                 )}>
@@ -280,10 +283,10 @@ export default function ReturnsPage() {
 
               <div className="flex gap-3">
                 <button 
-                  disabled={selectedReturn.status === 'Approved'}
+                  disabled={selectedReturn.status === 'Approved' || selectedReturn.status === 'Received' || selectedReturn.status === 'Refunded'}
                   className={cn(
                     "flex-1 h-12 rounded-xl font-black uppercase text-[9px] tracking-widest border transition-all shadow-sm cursor-pointer",
-                    selectedReturn.status === 'Approved' 
+                    selectedReturn.status === 'Approved' || selectedReturn.status === 'Received' || selectedReturn.status === 'Refunded'
                       ? "bg-orange-50/50 text-stone-400 cursor-not-allowed border-orange-100" 
                       : "bg-orange-955 text-white hover:bg-orange-850"
                   )}
@@ -304,6 +307,17 @@ export default function ReturnsPage() {
                   {selectedReturn.status === 'Pending' ? "Reject Request" : "Override: Reject"}
                 </button>
               </div>
+              
+              {selectedReturn.status === 'Approved' && (
+                 <div className="mt-3">
+                    <button 
+                      className="w-full h-12 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all cursor-pointer border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      onClick={() => handleResolveReturn(selectedReturn.id, 'Received')}
+                    >
+                      Override: Mark Received & Refund
+                    </button>
+                 </div>
+              )}
             </div>
           </div>
         </div>

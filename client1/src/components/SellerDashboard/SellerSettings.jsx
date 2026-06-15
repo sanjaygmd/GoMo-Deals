@@ -152,7 +152,7 @@ const SellerSettings = () => {
             <span className="text-[10px] uppercase tracking-[0.4em] text-orange-500 font-black">Account Management</span>
           </div>
           <h1 className="text-4xl font-semibold text-orange-950 tracking-tight">
-            System <span className="font-bold text-orange-600">Settings</span>
+            Profile <span className="font-bold text-orange-600">Settings</span>
           </h1>
           <p className="text-[11px] text-orange-500 uppercase tracking-[0.2em]">
             Configure your boutique presence and operational preferences.

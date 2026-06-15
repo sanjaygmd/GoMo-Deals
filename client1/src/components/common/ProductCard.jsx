@@ -59,9 +59,9 @@ const ProductCard = ({ product }) => {
 
   const isMarketProduct = React.useMemo(() => {
     if (!product) return false;
-    const cat = (product.category_name || '').toLowerCase();
-    const name = (product.name || '').toLowerCase();
-    const tags = (product.tags || '').toLowerCase();
+    const cat = String(product.category_name || '').toLowerCase();
+    const name = String(product.name || '').toLowerCase();
+    const tags = String(product.tags || '').toLowerCase();
     
     return cat.includes('grocery') || 
            cat.includes('groceries') || 
@@ -101,9 +101,9 @@ const ProductCard = ({ product }) => {
           </Link>
 
           {/* Floating Save discount badge */}
-          {product.mrp > product.price && (
+          {Number(product.mrp) > Number(product.price) && (
             <div className="absolute top-2.5 left-2.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white font-black text-[7.5px] uppercase tracking-widest px-2 py-0.5 rounded shadow-sm z-10">
-              {t("save_percent", { percent: Math.round(((product.mrp - product.price) / product.mrp) * 100) })}
+              {t("save_percent", { percent: Math.round(((Number(product.mrp) - Number(product.price)) / Number(product.mrp)) * 100) })}
             </div>
           )}
 
@@ -197,7 +197,7 @@ const ProductCard = ({ product }) => {
                 {formatPrice(product.price)}
                 {isMarketProduct && <span className="text-[9px] sm:text-[10px] font-normal text-stone-500 ml-0.5">/ KG</span>}
               </span>
-              {product.mrp > product.price && (
+              {Number(product.mrp) > Number(product.price) && (
                 <span className="text-[10px] sm:text-[11px] text-stone-400 line-through font-bold leading-none mt-1">
                   {formatPrice(product.mrp)}
                   {isMarketProduct && <span className="text-[8px] font-normal text-stone-300">/ KG</span>}

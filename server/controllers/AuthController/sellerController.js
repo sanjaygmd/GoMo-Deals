@@ -1,6 +1,7 @@
 import { pool } from "../../config/db.js";
 import { createAuthSession, invalidateSession, cookieConfig, getCookieName, setSessionCookie } from "../../utils/authSession.js";
 import bcrypt from 'bcryptjs';
+import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { sanitizeText, sanitizeDescription } from "../../utils/sanitizer.js";
 import fs from 'fs';
@@ -86,12 +87,31 @@ export const loginSeller = async (req, res) => {
     const user = existingUser.rows[0];
 
     if (!user.is_active) {
-      await ensureConstantTime();
-      return res.status(403).json({
-        success: false,
-        message: user.block_reason || 'Your seller account has been restricted. Please contact administration.',
-        block_reason: user.block_reason
-      });
+      if (user.blocked_until) {
+         const blockedUntilDate = new Date(user.blocked_until);
+         if (blockedUntilDate < new Date()) {
+            // Block has expired, unblock the seller
+            await pool.query("UPDATE sellers SET is_active = true, block_reason = null, blocked_until = null WHERE seller_id = $1", [user.seller_id]);
+            user.is_active = true;
+            user.block_reason = null;
+            user.blocked_until = null;
+         } else {
+            await ensureConstantTime();
+            return res.status(403).json({
+              success: false,
+              message: `Your account is temporarily blocked until ${blockedUntilDate.toLocaleString()}. Reason: ${user.block_reason || 'Administrative Action'}`,
+              block_reason: user.block_reason,
+              blocked_until: user.blocked_until
+            });
+         }
+      } else {
+        await ensureConstantTime();
+        return res.status(403).json({
+          success: false,
+          message: user.block_reason ? `Your account is blocked permanently. Reason: ${user.block_reason}` : 'Your seller account has been restricted. Please contact administration.',
+          block_reason: user.block_reason
+        });
+      }
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
@@ -1327,8 +1347,8 @@ export const resolveSellerReturnRequest = async (req, res) => {
     const { id: sellerId } = req.params;
     const { returnRequestId, status, remarks } = req.body;
 
-    if (!['Approved', 'Rejected'].includes(status)) {
-      return res.status(400).json({ success: false, message: "Invalid status option. Must be 'Approved' or 'Rejected'." });
+    if (!['Approved', 'Rejected', 'Received'].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status option. Must be 'Approved', 'Rejected', or 'Received'." });
     }
 
     // Ownership Check
@@ -1357,12 +1377,72 @@ export const resolveSellerReturnRequest = async (req, res) => {
 
     await client.query('BEGIN');
 
-    // 1. Update return request status
-    await client.query(`
-      UPDATE return_requests 
-      SET refund_status = $1, resolution_note = $2, resolved_at = NOW()
-      WHERE return_request_id = $3
-    `, [status, remarks || `Resolved by Seller`, returnRequestId]);
+    // Handle "Received" status separately because it involves refund processing
+    if (status === 'Received') {
+      if (returnRequest.refund_status !== 'Approved') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: "Cannot mark as received unless the return is currently 'Approved'." });
+      }
+
+      // Check original order payment method
+      const paymentQuery = `
+        SELECT p.payment_id, p.payment_method, p.payment_status 
+        FROM payments p 
+        WHERE p.order_id = $1
+      `;
+      const paymentRes = await client.query(paymentQuery, [returnRequest.order_id]);
+      
+      let refundNotes = remarks || `Returned item received by Seller`;
+      let actualRefundStatus = 'Refunded';
+
+      if (paymentRes.rows.length > 0) {
+        const payment = paymentRes.rows[0];
+        if ((payment.payment_method === 'Prepaid' || payment.payment_method === 'razorpay' || payment.payment_method === 'online') && payment.payment_status === 'Paid') {
+          // Process Razorpay Refund
+          if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+            try {
+              const razorpay = new Razorpay({ 
+                key_id: process.env.RAZORPAY_KEY_ID, 
+                key_secret: process.env.RAZORPAY_KEY_SECRET 
+              });
+              await razorpay.payments.refund(payment.payment_id, { 
+                amount: Math.round(parseFloat(returnRequest.refund_amount) * 100) 
+              });
+              refundNotes += " | Refund automatically processed to original payment method.";
+            } catch (refundErr) {
+              console.error("Razorpay Refund Error:", refundErr);
+              refundNotes += ` | Failed to auto-refund via Razorpay: ${refundErr.message || 'Unknown error'}`;
+              actualRefundStatus = 'Received'; // Item received, but refund failed (manual intervention needed)
+            }
+          } else {
+             refundNotes += " | Razorpay keys missing, manual refund required.";
+             actualRefundStatus = 'Received';
+          }
+        } else if (payment.payment_method === 'cod') {
+          refundNotes += " | COD order: Refund must be manually transferred to customer's bank/wallet.";
+          actualRefundStatus = 'Received';
+        }
+      } else {
+        refundNotes += " | Original payment record not found.";
+        actualRefundStatus = 'Received';
+      }
+
+      // Update return request status to 'Refunded' or 'Received'
+      await client.query(`
+        UPDATE return_requests 
+        SET refund_status = $1, resolution_note = $2, resolved_at = NOW()
+        WHERE return_request_id = $3
+      `, [actualRefundStatus, refundNotes, returnRequestId]);
+
+      status = actualRefundStatus; // for notifications below
+    } else {
+      // 1. Update return request status for Approved or Rejected
+      await client.query(`
+        UPDATE return_requests 
+        SET refund_status = $1, resolution_note = $2, resolved_at = NOW()
+        WHERE return_request_id = $3
+      `, [status, remarks || `Resolved by Seller`, returnRequestId]);
+    }
 
     // 2. Dispatch a System Notification to Administrators (admin_id = NULL) to track seller action
     const adminNotificationMsg = `Seller "${returnRequest.store_name}" has ${status.toLowerCase()} return request RET-${returnRequestId.split('-')[0].toUpperCase()} for product "${returnRequest.product_name}".`;
@@ -1372,7 +1452,11 @@ export const resolveSellerReturnRequest = async (req, res) => {
     `, [adminNotificationMsg]);
 
     // 3. Dispatch a Customer Notification to notify the buyer of the decision
-    const customerNotificationMsg = `Your return request for "${returnRequest.product_name}" has been ${status.toLowerCase()} by the boutique seller. Remarks: ${remarks || 'None'}`;
+    let customerNotificationMsg = `Your return request for "${returnRequest.product_name}" has been ${status.toLowerCase()} by the boutique seller. Remarks: ${remarks || 'None'}`;
+    if (status === 'Refunded' || status === 'Received') {
+      customerNotificationMsg = `The boutique seller has received your returned item: "${returnRequest.product_name}". Your return request is marked as ${status.toLowerCase()}.`;
+    }
+
     await client.query(`
       INSERT INTO notifications (notification_id, customer_id, message, type, is_read, created_at)
       VALUES (gen_random_uuid(), $1, $2, 'order_return', false, NOW())
@@ -1384,7 +1468,7 @@ export const resolveSellerReturnRequest = async (req, res) => {
       VALUES (gen_random_uuid(), NULL, 'return_requests', $1, $2, $3, NOW())
     `, [
       returnRequestId,
-      `SELLER_RESOLVE_RETURN`,
+      status === 'Received' || status === 'Refunded' ? `SELLER_MARK_RECEIVED` : `SELLER_RESOLVE_RETURN`,
       JSON.stringify({ seller_id: sellerId, store_name: returnRequest.store_name, status: status, remarks: remarks })
     ]);
 

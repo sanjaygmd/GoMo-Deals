@@ -180,7 +180,7 @@ export default function SettingsPage() {
             <Shield size={14} className="text-orange-600" />
             <span className="text-[10px] uppercase tracking-[0.4em] text-orange-500 font-black">System Configuration</span>
           </div>
-          <h1 className="text-4xl font-extrabold text-orange-955 tracking-tight">System Settings</h1>
+          <h1 className="text-4xl font-extrabold text-orange-955 tracking-tight">Profile Settings</h1>
           <p className="text-[11px] text-orange-500 uppercase tracking-[0.2em] max-w-xl">
             Configure system parameters, alert channels, marketplace preferences, and secure credentials.
           </p>

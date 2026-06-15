@@ -236,6 +236,7 @@ function App() {
               <Route path="/admin/finance" element={<AdminFinance />} />
               <Route path="/admin/payouts" element={<PayoutsPage />} />
               <Route path="/admin/mediator" element={<AdminDisputes />} />
+              <Route path="/admin/mediator/flea-market" element={<FleaMarketMediator />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
 
               <Route path="/admin/reviews" element={<AdminReviews />} />
