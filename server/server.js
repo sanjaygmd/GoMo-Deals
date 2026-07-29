@@ -15,6 +15,8 @@ import { pruneExpiredRecords } from './utils/cleanupTask.js';
 import { runLowStockCheck } from './utils/stockAlertCron.js';
 import { runAutoPayouts } from './utils/payoutCron.js';
 import { runAbandonedCartCheck } from './utils/abandonedCartCron.js';
+import { initMembershipCron } from './utils/membershipCron.js';
+import { autoExpireMeetings } from './controllers/MeetingController.js';
 import cron from 'node-cron';
 
 // Validate environment variables on startup
@@ -41,6 +43,9 @@ import offerRoutes from './routes/OfferRoutes.js';
 import meetingRoutes from './routes/MeetingRoutes.js';
 import membershipRoutes from './routes/MembershipRoutes.js';
 import sellerSubscriptionRoutes from './routes/SellerSubscriptionRoutes.js';
+import aiRoutes from './routes/AiRoutes.js';
+import adBannerRoutes from './routes/AdBannerRoutes.js';
+import rankingRoutes from './routes/RankingRoutes.js';
 
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -190,6 +195,9 @@ app.use('/api/v1/offers', offerRoutes);
 app.use('/api/v1/meetings', meetingRoutes);
 app.use('/api/v1/membership', membershipRoutes);
 app.use('/api/v1/seller-subscription', sellerSubscriptionRoutes);
+app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/ad-banners', adBannerRoutes);
+app.use('/api/v1/rankings', rankingRoutes);
 
 // Centralized error handling middleware
 app.use(errorHandler);
@@ -232,6 +240,14 @@ app.listen(port, () => {
         // Daily Abandoned Cart Emails (5:00 AM)
         cron.schedule('0 5 * * *', () => {
             runAbandonedCartCheck().catch(err => console.error("Abandoned cart cron error:", err));
+        });
+
+        // Initialize Membership expiry check
+        initMembershipCron();
+
+        // Auto-expire meetings every 5 minutes (moved from per-request calls)
+        cron.schedule('*/5 * * * *', () => {
+            autoExpireMeetings().catch(err => console.error("Meeting expiry cron error:", err));
         });
 
     }).catch(err => {

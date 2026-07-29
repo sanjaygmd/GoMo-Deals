@@ -40,3 +40,7 @@ export const markNotificationRead = (notificationId) => handleApiCall('patch', `
 export const getSellerReturns = (sellerId) => handleApiCall('get', `/seller/returns/${sellerId}`);
 
 export const resolveSellerReturnRequest = (sellerId, data) => handleApiCall('post', `/seller/returns/${sellerId}/resolve`, data);
+
+export const getSellerPickups = (sellerId) => handleApiCall('get', `/pickup/seller/${sellerId}`);
+
+export const addPickupLocation = (data) => handleApiCall('post', `/pickup/add`, data);

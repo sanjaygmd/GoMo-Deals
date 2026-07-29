@@ -47,6 +47,7 @@ const SellerRegistration = React.lazy(() => import('./components/SellerDashboard
 const SellerOnboarding = React.lazy(() => import('./components/SellerDashboard/SellerOnboarding/Onboarding'));
 const SellerSubscription = React.lazy(() => import('./components/SellerDashboard/SellerSubscription'));
 const SellerFleaMarket = React.lazy(() => import('./components/SellerDashboard/SellerFleaMarket'));
+const SellerRankings = React.lazy(() => import('./components/SellerDashboard/SellerRankingsPage'));
 
 const AdminLayout = React.lazy(() => import('./components/admin/components/DashboardLayout').then(module => ({ default: module.DashboardLayout })));
 const AdminDashboardHome = React.lazy(() => import('./components/admin/pages/DashboardHome'));
@@ -66,6 +67,8 @@ const Administrators = React.lazy(() => import('./components/admin/pages/Adminis
 const ReturnsPage = React.lazy(() => import('./components/admin/pages/ReturnsPage'));
 const PayoutsPage = React.lazy(() => import('./components/admin/pages/PayoutsPage'));
 const FleaMarketMediator = React.lazy(() => import('./components/admin/pages/FleaMarketMediator'));
+const AdBannersPage = React.lazy(() => import('./components/admin/pages/AdBannersPage'));
+const BrandRankingsPage = React.lazy(() => import('./components/admin/pages/BrandRankingsPage'));
 const LegalPage = React.lazy(() => import('./pages/Legal/LegalPage'));
 const CheckoutPage = React.lazy(() => import('./components/CheckoutPage/CheckoutPage'));
 const OrderPlaced = React.lazy(() => import('./components/CheckoutPage/OrderPlaced'));
@@ -220,6 +223,7 @@ function App() {
               <Route path="/seller-dashboard/disputes" element={<SellerDisputes />} />
               <Route path="/seller-dashboard/messages" element={<SellerMessages />} />
               <Route path="/seller-dashboard/subscription" element={<SellerSubscription />} />
+              <Route path="/seller-dashboard/rankings" element={<SellerRankings />} />
             </Route>
 
             {/* Admin Routes */}
@@ -243,6 +247,8 @@ function App() {
               <Route path="/admin/logs" element={<AdminLogs />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/administrators" element={<Administrators />} />
+              <Route path="/admin/ad-banners" element={<AdBannersPage />} />
+              <Route path="/admin/rankings" element={<BrandRankingsPage />} />
             </Route>
           </Routes>
         </React.Suspense>

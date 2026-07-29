@@ -16,11 +16,17 @@ export const categorySubcategories = {
         { label: 'Textbooks', slug: 'textbooks' },
     ],
     'clothing': [
+        { label: 'Dresses', slug: 'dresses' },
         { label: 'Jackets', slug: 'jackets' },
         { label: 'Jeans', slug: 'jeans' },
+        { label: 'Kurtis', slug: 'kurtis' },
+        { label: 'Leggings', slug: 'leggings' },
+        { label: 'Sarees', slug: 'sarees' },
         { label: 'Shirts', slug: 'shirts' },
         { label: 'Shorts', slug: 'shorts' },
+        { label: 'Skirts', slug: 'skirts' },
         { label: 'T-Shirts', slug: 't-shirts' },
+        { label: 'Tops', slug: 'tops' },
         { label: 'Trousers', slug: 'trousers' },
     ],
     'electronics': [

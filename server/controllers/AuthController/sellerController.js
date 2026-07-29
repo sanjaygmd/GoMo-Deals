@@ -638,17 +638,7 @@ export const getSellerDashboardData = async (req, res) => {
     }
 
     try {
-      // Safe DB Correction: Credit today's order of 'Chocolates - Pongal Gift' to this seller
-      await pool.query("UPDATE products SET seller_id = $1 WHERE product_id = 'bff4f30c-8c17-4d9c-8a6e-642d6d768116'", [sellerId]);
-      await pool.query("UPDATE order_items SET seller_id = $1 WHERE order_id = 'daede755-a7a1-4cdb-9e4a-6a24c0297e10' AND product_id = 'bff4f30c-8c17-4d9c-8a6e-642d6d768116'", [sellerId]);
-      
-      const checkOS = await pool.query("SELECT 1 FROM order_sellers WHERE order_id = 'daede755-a7a1-4cdb-9e4a-6a24c0297e10' AND seller_id = $1", [sellerId]);
-      if (checkOS.rows.length === 0) {
-        await pool.query(
-          "INSERT INTO order_sellers (order_seller_id, order_id, seller_id, seller_subtotal) VALUES (gen_random_uuid(), 'daede755-a7a1-4cdb-9e4a-6a24c0297e10', $1, 355.00)",
-          [sellerId]
-        );
-      }
+      // Removed hardcoded debug/correction DB updates that caused FK violations.
 
       const orders = await pool.query("SELECT order_id, placed_at, order_status, is_deleted FROM orders ORDER BY placed_at DESC LIMIT 5");
       const orderSellers = await pool.query("SELECT os.*, o.placed_at FROM order_sellers os JOIN orders o ON os.order_id = o.order_id ORDER BY o.placed_at DESC LIMIT 5");
@@ -1308,12 +1298,12 @@ export const getSellerReturns = async (req, res) => {
         rr.reason,
         rr.order_id,
         rr.return_type,
-        p.name as product_name
+        COALESCE(p.name, 'Multiple Items / General Return') as product_name
       FROM return_requests rr
-      JOIN customers c ON rr.customer_id = c.customer_id
-      JOIN order_items oi ON rr.order_item_id = oi.order_item_id
-      JOIN products p ON oi.product_id = p.product_id
-      WHERE oi.seller_id = $1
+      LEFT JOIN customers c ON rr.customer_id = c.customer_id
+      LEFT JOIN order_items oi ON rr.order_item_id = oi.order_item_id
+      LEFT JOIN products p ON oi.product_id = p.product_id
+      WHERE rr.order_id IN (SELECT order_id FROM order_sellers WHERE seller_id = $1)
       ORDER BY rr.requested_at DESC
     `;
     const result = await pool.query(returnsQuery, [sellerId]);

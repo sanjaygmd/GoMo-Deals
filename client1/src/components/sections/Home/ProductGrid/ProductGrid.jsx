@@ -34,6 +34,7 @@ const ProductGrid = () => {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const urlSearchQuery = searchParams.get('search') || '';
   const urlCategory = searchParams.get('category') || 'all';
+  const urlSubcategory = searchParams.get('subcategory') || 'all';
   const urlDeal = searchParams.get('deal') || 'all';
 
 
@@ -99,7 +100,10 @@ const ProductGrid = () => {
     if (urlCategory) {
       setFilterCategory(urlCategory);
     }
-  }, [urlCategory]);
+    if (urlSubcategory) {
+      setFilterSubcategory(urlSubcategory);
+    }
+  }, [urlCategory, urlSubcategory]);
 
   // Synchronize deal selection from the URL query parameters
   useEffect(() => {
@@ -128,6 +132,35 @@ const ProductGrid = () => {
 
   const toggleCategoryAccordion = (cat) => {
     setExpandedCategories(prev => ({ [cat]: !prev[cat] }));
+  };
+
+  const handleCategorySelect = (c) => {
+    setFilterCategory(c);
+    setFilterSubcategory('all');
+    
+    const params = new URLSearchParams(location.search);
+    if (c === 'all') {
+      params.delete('category');
+    } else {
+      params.set('category', c);
+    }
+    params.delete('subcategory');
+    // We use push to history so 'Back' button works
+    navigate(`${location.pathname}?${params.toString()}`);
+  };
+
+  const handleSubcategorySelect = (c, sub) => {
+    setFilterCategory(c);
+    setFilterSubcategory(sub);
+    
+    const params = new URLSearchParams(location.search);
+    params.set('category', c);
+    if (sub === 'all') {
+      params.delete('subcategory');
+    } else {
+      params.set('subcategory', sub);
+    }
+    navigate(`${location.pathname}?${params.toString()}`);
   };
 
   const handleClearFilters = () => {
@@ -252,6 +285,16 @@ const ProductGrid = () => {
                         fieldContains(p.room, catClean) ||
                         matchSubcategoryTree ||
                         (catClean === 'homeliving' && (fieldContains(p.category_name, 'home') || fieldContains(p.category_name, 'living') || fieldContains(p.parent_category_name, 'home') || fieldContains(p.parent_category_name, 'living'))) ||
+                        (catClean === 'clothing' && (
+                          fieldContains(p.category_name, 'wear') || 
+                          fieldContains(p.parent_category_name, 'wear') || 
+                          fieldContains(p.category_name, 'dress') || 
+                          fieldContains(p.category_name, 'saree') || 
+                          fieldContains(p.category_name, 'kurtis') || 
+                          fieldContains(p.category_name, 'chudithar') ||
+                          fieldContains(p.category_name, 'clothing') ||
+                          fieldContains(p.parent_category_name, 'clothing')
+                        )) ||
                         (catClean === 'sportsfitness' && (fieldContains(p.category_name, 'sports') || fieldContains(p.category_name, 'fitness') || fieldContains(p.parent_category_name, 'sports') || fieldContains(p.parent_category_name, 'fitness'))) ||
                         (catClean === 'fashion' && ['apparel', 'clothing', 'shirt', 'dress', 'him', 'her', 'girlfriend', 'boyfriend'].some(t => fieldContains(p.recipient, t) || fieldContains(p.name, t) || fieldContains(p.tags, t))) ||
                         (catClean === 'homeliving' && ['home', 'kitchen', 'decor', 'housewarming', 'living'].some(t => fieldContains(p.occasion, t) || fieldContains(p.name, t) || fieldContains(p.tags, t)));
@@ -436,6 +479,7 @@ const ProductGrid = () => {
         
         const nameMatch = fieldContains(p.name, q);
         const brandMatch = fieldContains(p.brand, q);
+        const storeMatch = fieldContains(p.store_name, q) || fieldContains(p.seller_name, q);
         const descMatch = fieldContains(p.description, q);
         const catMatch = fieldContains(p.category_name, q);
         const recipientMatch = fieldContains(p.recipient, q);
@@ -444,7 +488,7 @@ const ProductGrid = () => {
         const sizeMatch = fieldContains(p.size, q);
         const tagsMatch = fieldContains(p.tags, q);
         
-        matchSearch = nameMatch || brandMatch || descMatch || catMatch || recipientMatch || occasionMatch || colorMatch || sizeMatch || tagsMatch;
+        matchSearch = nameMatch || brandMatch || storeMatch || descMatch || catMatch || recipientMatch || occasionMatch || colorMatch || sizeMatch || tagsMatch;
       }
 
       return matchCategory && matchSubcategory && matchPrice && matchDeal && matchRecipient && matchOccasion && matchRating && matchBrand && matchAvailability && matchGender && matchColor && matchSize && matchDiscount && matchSearch;
@@ -516,10 +560,7 @@ const ProductGrid = () => {
                     <div key={c} className="border-b border-orange-50/50 pb-2 last:border-b-0">
                       <div className="flex items-center justify-between">
                         <button
-                          onClick={() => {
-                            setFilterCategory(c);
-                            setFilterSubcategory('all');
-                          }}
+                          onClick={() => handleCategorySelect(c)}
                           className={`flex-grow text-left py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-between ${
                             isSelected
                               ? 'bg-orange-950 text-white shadow-md font-extrabold'
@@ -549,7 +590,7 @@ const ProductGrid = () => {
                             className="overflow-hidden pl-4 pr-1 mt-2 space-y-2 border-l-2 border-orange-100 ml-4"
                           >
                             <button
-                              onClick={() => setFilterSubcategory('all')}
+                              onClick={() => handleSubcategorySelect(c, 'all')}
                               className={`w-full text-left py-1 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-colors ${
                                 filterSubcategory === 'all' && isSelected
                                   ? 'text-orange-900 font-extrabold'
@@ -561,10 +602,7 @@ const ProductGrid = () => {
                             {categoryTree[c].map(sub => (
                               <button
                                 key={sub.slug}
-                                onClick={() => {
-                                  setFilterCategory(c);
-                                  setFilterSubcategory(sub.slug);
-                                }}
+                                onClick={() => handleSubcategorySelect(c, sub.slug)}
                                 className={`w-full text-left py-1.5 text-xs flex items-center justify-between transition-colors ${
                                   filterSubcategory === sub.slug && isSelected
                                     ? 'text-orange-950 font-black'

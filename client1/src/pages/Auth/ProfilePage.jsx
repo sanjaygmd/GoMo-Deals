@@ -201,7 +201,10 @@ const ProfilePage = () => {
                                     silver:   { label: 'Silver Member',   emoji: '⭐',  cls: 'bg-gradient-to-r from-slate-100 to-gray-200 text-slate-600 border-slate-300' },
                                     gold:     { label: 'Gold Member',     emoji: '👑',  cls: 'bg-gradient-to-r from-amber-100 to-yellow-200 text-amber-700 border-amber-300 shadow-[0_2px_12px_rgba(245,158,11,0.25)]' },
                                     platinum: { label: 'Platinum Member', emoji: '💎',  cls: 'bg-gradient-to-r from-slate-200 to-gray-300 text-slate-700 border-slate-400 shadow-[0_2px_12px_rgba(100,116,139,0.3)]' },
-                                }[tier];
+                                    diamond:  { label: 'Diamond Elite',   emoji: '💠',  cls: 'bg-gradient-to-r from-cyan-100 to-blue-200 text-cyan-800 border-cyan-300 shadow-[0_2px_12px_rgba(6,182,212,0.3)]' },
+                                    titanium: { label: 'Titanium VIP',    emoji: '⚙️',  cls: 'bg-gradient-to-r from-gray-700 to-gray-900 text-gray-100 border-gray-600 shadow-[0_2px_12px_rgba(55,65,81,0.4)]' },
+                                    black_elite: { label: 'Black Elite',  emoji: '♠️',  cls: 'bg-gradient-to-r from-black to-gray-900 text-amber-400 border-amber-500/50 shadow-[0_4px_15px_rgba(0,0,0,0.5)]' },
+                                }[tier] || { label: 'Member', emoji: '🛍️', cls: 'bg-orange-50 text-orange-400 border-orange-100' };
                                 return (
                                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest mt-1 ${tierConfig.cls}`}>
                                         <span>{tierConfig.emoji}</span>

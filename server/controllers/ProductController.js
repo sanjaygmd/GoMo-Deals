@@ -77,17 +77,17 @@ export const addProduct = async (req, res) => {
                 sku,
                 price,
                 mrp,
-                stock_quantity || 0,
+                (stock_quantity !== undefined && stock_quantity !== null) ? stock_quantity : 0,
                 weight || 0,
                 length || 0,
                 breadth || 0,
                 height || 0,
                 cleanBrand,
                 (images && images.length > 0) ? images.map(img => typeof img === 'string' ? img : img.url) : [],
-                slug || cleanName.toLowerCase().replace(/\s+/g, '-') + '-' + crypto.randomBytes(4).toString('hex'),
+                slug || cleanName.toLowerCase().replace(/\s+/g, '-') + '-' + crypto.randomBytes(4).toString('hex').substring(0, 8),
                 color,
                 size,
-                room || cleanOccasion, // Support both for now
+                room !== undefined ? room : (cleanOccasion || null), // room takes precedence; fall back to occasion only if room was not provided
                 discount_percent || 0,
                 cleanRecipient,
                 cleanOccasion
@@ -100,7 +100,7 @@ export const addProduct = async (req, res) => {
             const variantMap = {};
             if (variants && variants.length > 0) {
                 for (const variant of variants) {
-                    const variantSku = variant.sku || `${product.sku}-var-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+                    const variantSku = variant.sku || `${product.sku}-var-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
                     const vRes = await client.query(
                         `INSERT INTO product_variants (variant_id, product_id, sku, variant_name, variant_value, price, stock_quantity, weight, name) 
                         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8) 
@@ -171,6 +171,8 @@ export const getProducts = async (req, res) => {
             SELECT p.*, 
             c.name as category_name,
             c.parent_category_id,
+            s.store_name,
+            s.full_name as seller_name,
             (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name,
             COALESCE((SELECT AVG(rating)::numeric(10,1) FROM reviews WHERE product_id = p.product_id), 0) as rating,
             (SELECT COUNT(*) FROM reviews WHERE product_id = p.product_id) as reviews_count,
@@ -178,6 +180,7 @@ export const getProducts = async (req, res) => {
             (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
             FROM products p 
             LEFT JOIN categories c ON p.category_id = c.category_id
+            LEFT JOIN sellers s ON p.seller_id = s.seller_id
             WHERE p.deleted_at IS NULL AND p.is_active = true
         `;
         const queryParams = [];
@@ -248,6 +251,8 @@ export const getProductsById = async (req, res) => {
             SELECT p.*, 
             c.name as category_name,
             c.parent_category_id,
+            s.store_name,
+            s.full_name as seller_name,
             (SELECT name FROM categories WHERE category_id = c.parent_category_id) as parent_category_name,
             COALESCE((SELECT AVG(rating)::numeric(10,1) FROM reviews WHERE product_id = p.product_id), 0) as rating,
             (SELECT COUNT(*) FROM reviews WHERE product_id = p.product_id) as reviews_count,
@@ -255,6 +260,7 @@ export const getProductsById = async (req, res) => {
             (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
             FROM products p 
             LEFT JOIN categories c ON p.category_id = c.category_id
+            LEFT JOIN sellers s ON p.seller_id = s.seller_id
             WHERE p.product_id = $1 AND p.is_active = true AND p.deleted_at IS NULL
         `, [product_id]);
 
@@ -305,13 +311,13 @@ export const addVariants = async (req, res) => {
 
             const results = [];
             for (const variant of variants) {
-                const res = await client.query(
+                const qRes = await client.query(
                     `INSERT INTO product_variants (variant_id, product_id, sku, variant_name, variant_value, price, stock_quantity, weight, name) 
                     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, (SELECT name FROM products WHERE product_id = $1)) 
                     RETURNING *`,
                     [product_id, variant.sku, variant.name, variant.value, variant.price, variant.stock || 0, variant.weight]
                 );
-                results.push(res.rows[0]);
+                results.push(qRes.rows[0]);
             }
 
             await client.query('COMMIT');
@@ -351,7 +357,7 @@ export const getProductBySlug = async (req, res) => {
             (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
             FROM products p 
             LEFT JOIN categories c ON p.category_id = c.category_id
-            WHERE p.slug = $1 AND p.deleted_at IS NULL
+            WHERE p.slug = $1 AND p.deleted_at IS NULL AND p.is_active = true
         `, [slug]);
 
         if (result.rows.length === 0) {
@@ -452,7 +458,7 @@ export const updateProduct = async (req, res) => {
              WHERE product_id = $21 RETURNING *`,
             [
                 cleanName, cleanDescription, price, mrp, stock_quantity,
-                cleanBrand, category_id, room || cleanOccasion, discount_percent, sku,
+                cleanBrand, category_id, room !== undefined ? room : (cleanOccasion || null), discount_percent, sku,
                 weight, length, breadth, height,
                 cleanRecipient, cleanOccasion, is_active,
                 dbImagesArray,
@@ -464,20 +470,20 @@ export const updateProduct = async (req, res) => {
         const product = result.rows[0];
 
         // Restock Notification Logic
+        // FIX: Use pool (not client) for this fire-and-forget query to avoid using a released connection
         if (Number(ownershipCheck.rows[0].stock_quantity) === 0 && Number(stock_quantity) > 0) {
             const pName = ownershipCheck.rows[0].name;
-            const pSlug = ownershipCheck.rows[0].slug;
             const pUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/product/${product_id}`;
             
-            client.query(`
+            pool.query(`
                 SELECT c.email, c.full_name 
                 FROM wishlist_items wi 
                 JOIN wishlist w ON wi.wishlist_id = w.wishlist_id 
                 JOIN customers c ON w.customer_id = c.customer_id 
                 WHERE wi.product_id = $1
                 GROUP BY c.email, c.full_name
-            `, [product_id]).then(res => {
-                res.rows.forEach(customer => {
+            `, [product_id]).then(result => {
+                result.rows.forEach(customer => {
                     sendRestockNotificationEmail(customer.email, customer.full_name || 'Customer', pName, pUrl);
                 });
             }).catch(err => console.error("Error triggering restock emails:", err));
@@ -508,7 +514,7 @@ export const updateProduct = async (req, res) => {
             for (const v of variants) {
                 const vid = (v.variant_id || v.id || v.tempId);
                 const isNew = !vid || String(vid).startsWith('v_');
-                const variantSku = v.sku || `${sku || result.rows[0].sku}-var-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+                const variantSku = v.sku || `${sku || result.rows[0].sku}-var-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
                 if (isNew) {
                     await client.query(
@@ -537,7 +543,7 @@ export const updateProduct = async (req, res) => {
 
             // B. Clean up removed variants (Only if NOT used in orders)
             if (incomingIds.length > 0) {
-                // Find variants that were NOT in the incoming payload
+                // Find variants that were NOT in the incoming payload (by real DB uuid)
                 const toRemoveRes = await client.query(
                     `SELECT variant_id FROM product_variants 
                      WHERE product_id = $1 AND variant_id NOT IN (${incomingIds.map((_, i) => `$${i + 2}`).join(',')})`,
@@ -551,8 +557,9 @@ export const updateProduct = async (req, res) => {
                         console.warn(`Could not delete variant ${row.variant_id} due to dependencies (likely orders). Keeping as legacy data.`);
                     }
                 }
-            } else if (variants.length === 0) {
-                // If the user removed ALL variants, try to delete all
+            } else {
+                // FIX: covers both variants.length === 0 (all removed) AND all-temp-ID case
+                // In both cases, all existing DB variants that are no longer referenced should be cleaned up
                 const allVariants = await client.query(`SELECT variant_id FROM product_variants WHERE product_id = $1`, [product_id]);
                 for (const row of allVariants.rows) {
                     try {
@@ -564,7 +571,6 @@ export const updateProduct = async (req, res) => {
             }
         }
 
-        // 3. Log the action
         // 3. Log the action (Atomic within transaction)
         await logAction(req, 'UPDATE_PRODUCT', { product_id, updates: req.body }, client);
 
@@ -676,26 +682,26 @@ export const updateVariant = async (req, res) => {
         const variant = vResult.rows[0];
 
         // Restock Notification Logic
+        // FIX: Use pool (not client) for this fire-and-forget query to avoid using a released connection
         if (Number(vCheck.rows[0].stock_quantity) === 0 && Number(stock_quantity) > 0) {
             const pName = `${name || 'Product'} - ${vCheck.rows[0].variant_value}`;
             const pUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/product/${variant.product_id}`;
             
-            client.query(`
+            pool.query(`
                 SELECT c.email, c.full_name 
                 FROM wishlist_items wi 
                 JOIN wishlist w ON wi.wishlist_id = w.wishlist_id 
                 JOIN customers c ON w.customer_id = c.customer_id 
                 WHERE wi.product_id = $1 AND (wi.variant_id = $2 OR wi.variant_id IS NULL)
                 GROUP BY c.email, c.full_name
-            `, [variant.product_id, variant_id]).then(res => {
-                res.rows.forEach(customer => {
+            `, [variant.product_id, variant_id]).then(result => {
+                result.rows.forEach(customer => {
                     sendRestockNotificationEmail(customer.email, customer.full_name || 'Customer', pName, pUrl);
                 });
             }).catch(err => console.error("Error triggering restock emails:", err));
         }
 
-        // 2. Log the action
-        // 2. Log the action (Atomic within transaction)
+        // Log the action (Atomic within transaction)
         await logAction(req, 'UPDATE_VARIANT', { variant_id, product_id: variant.product_id, updates: req.body }, client);
 
         // 3. Fetch full refreshed product family
@@ -732,13 +738,17 @@ export const searchProducts = async (req, res) => {
 
         const queryText = `
             SELECT p.*, 
+            s.store_name,
+            s.full_name as seller_name,
             COALESCE((SELECT AVG(rating)::numeric(10,1) FROM reviews WHERE product_id = p.product_id), 0) as rating,
             (SELECT COUNT(*) FROM reviews WHERE product_id = p.product_id) as reviews_count,
             (SELECT json_agg(pi.* ORDER BY pi.sort_order) FROM product_images pi WHERE pi.product_id = p.product_id) as pi_images,
             (SELECT json_agg(pv.*) FROM product_variants pv WHERE pv.product_id = p.product_id) as variants
             FROM products p 
+            LEFT JOIN sellers s ON p.seller_id = s.seller_id
             WHERE p.is_active = true 
-            AND (p.name ILIKE $1 OR p.description ILIKE $1 OR p.brand ILIKE $1)
+            AND p.deleted_at IS NULL
+            AND (p.name ILIKE $1 OR p.description ILIKE $1 OR p.brand ILIKE $1 OR s.store_name ILIKE $1 OR s.full_name ILIKE $1)
             ORDER BY p.created_at DESC
         `;
         const result = await pool.query(queryText, [`%${q}%`]);
@@ -907,9 +917,7 @@ export const bulkUploadProducts = async (req, res) => {
 
             await client.query('COMMIT');
 
-            if (seller_id) {
-                await logAction(seller_id, "BULK_UPLOAD_PRODUCTS", { count: records.length }, null, req.ip);
-            }
+            await logAction(req, 'BULK_UPLOAD_PRODUCTS', { count: records.length });
 
             return res.status(201).json({
                 success: true,
@@ -933,7 +941,12 @@ export const bulkUploadProducts = async (req, res) => {
 export const getVendorComparison = async (req, res) => {
     try {
         const { product_id } = req.params;
-        const result = await pool.query('SELECT name, brand, price, rating FROM products WHERE product_id = $1', [product_id]);
+        // FIX: `rating` is not a column on products — compute it from reviews
+        const result = await pool.query(`
+            SELECT p.name, p.brand, p.price,
+                COALESCE((SELECT AVG(r.rating)::numeric(10,1) FROM reviews r WHERE r.product_id = p.product_id), 4.2) as rating
+            FROM products p WHERE p.product_id = $1
+        `, [product_id]);
         if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Product not found' });
         
         const product = result.rows[0];
@@ -1040,7 +1053,11 @@ export const performVisualSearch = async (req, res) => {
                 base64Image = imgUrl.substring(base64Index + 7);
             }
         } else {
-            // It's a URL (either absolute or relative)
+            // FIX: Validate URL before fetching to prevent SSRF attacks
+            if (!isValidImageUrl(imgUrl)) {
+                return res.status(400).json({ success: false, message: 'Invalid or unsafe image URL.' });
+            }
+            // It's a validated URL (either absolute or relative)
             const targetUrl = imgUrl.startsWith('http') ? imgUrl : `http://localhost:${process.env.PORT || 3000}${imgUrl}`;
             const response = await fetch(targetUrl);
             if (!response.ok) throw new Error('Failed to fetch image');

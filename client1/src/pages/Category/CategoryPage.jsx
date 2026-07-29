@@ -113,6 +113,16 @@ const CategoryPage = () => {
         fieldContains(p.name, typeLower) ||
         fieldContains(p.room, typeLower) ||
         matchSubcategory ||
+        (cleanType === 'clothing' && (
+          fieldContains(p.category_name, 'wear') || 
+          fieldContains(p.parent_category_name, 'wear') || 
+          fieldContains(p.category_name, 'dress') || 
+          fieldContains(p.category_name, 'saree') || 
+          fieldContains(p.category_name, 'kurtis') || 
+          fieldContains(p.category_name, 'chudithar') ||
+          fieldContains(p.category_name, 'clothing') ||
+          fieldContains(p.parent_category_name, 'clothing')
+        )) ||
         (cleanType === 'homeliving' && (fieldContains(p.category_name, 'home') || fieldContains(p.category_name, 'living') || fieldContains(p.category_name, 'kitchen') || fieldContains(p.parent_category_name, 'home') || fieldContains(p.parent_category_name, 'living') || fieldContains(p.parent_category_name, 'kitchen'))) ||
         (cleanType === 'sportsfitness' && (fieldContains(p.category_name, 'sports') || fieldContains(p.category_name, 'fitness') || fieldContains(p.category_name, 'gym') || fieldContains(p.category_name, 'yoga') || fieldContains(p.parent_category_name, 'sports') || fieldContains(p.parent_category_name, 'fitness') || fieldContains(p.parent_category_name, 'gym') || fieldContains(p.parent_category_name, 'yoga')));
 

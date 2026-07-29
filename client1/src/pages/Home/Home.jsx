@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import Hero from '../../components/sections/Home/Hero/Hero';
 import ShopByCategory from '../../components/sections/Home/ShopByOccasion/ShopByOccasion';
+import AdBannerCarousel from '../../components/sections/Home/AdBannerCarousel/AdBannerCarousel';
+import FeaturedBrandShowcase from '../../components/sections/Home/FeaturedBrandShowcase/FeaturedBrandShowcase';
 
 import ProductGrid from '../../components/sections/Home/ProductGrid/ProductGrid';
 
@@ -23,6 +25,8 @@ const Home = () => {
       className="overflow-x-hidden"
     >
       {!isSearching && <Hero />}
+      {!isSearching && <AdBannerCarousel />}
+      {!isSearching && <FeaturedBrandShowcase />}
       <div className="space-y-8 md:space-y-10">
         <ProductGrid />
         

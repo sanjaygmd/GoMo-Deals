@@ -16,6 +16,7 @@
     "@mui/material": "^9.0.0",
     "@tailwindcss/vite": "^4.2.4",
     "axios": "^1.15.2",
+    "dayjs": "^1.11.21",
     "framer-motion": "^12.38.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",

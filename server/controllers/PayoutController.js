@@ -201,6 +201,11 @@ export const updatePayoutStatus = async (req, res) => {
 
     const client = await pool.connect();
     try {
+        const allowedStatuses = ['Paid', 'Rejected'];
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: `Invalid status. Allowed values: ${allowedStatuses.join(', ')}` });
+        }
+
         await client.query('BEGIN');
 
         // 1. Get payout details

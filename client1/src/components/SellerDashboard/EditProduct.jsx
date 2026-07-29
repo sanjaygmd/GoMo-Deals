@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 import { ProductContext } from "../../context/ProductContext/ProductContext";
 import { useAuth } from "../../context/AuthContext";
 import * as productService from "../../services/productService";
-import { X, Save, AlertCircle, Gift, Target, Sparkles, Palette } from "lucide-react";
-import { motion } from "framer-motion";
+import { X, Save, AlertCircle, Gift, Target, Sparkles, Palette, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const EditProduct = ({ product, onClose }) => {
   const { updateProduct, updateVariant, fetchProducts: fetchSellerProducts } = useContext(ProductContext);
@@ -47,12 +47,29 @@ const EditProduct = ({ product, onClose }) => {
   });
 
   const boutiqueBrands = ["AcousticLab", "Aurelia", "Vanguard", "Maison", "Zen Garden"];
+  
+  const defaultClothingSizes = [
+    { size: 'S', stock: '', isSelected: false },
+    { size: 'M', stock: '', isSelected: false },
+    { size: 'L', stock: '', isSelected: false },
+    { size: 'XL', stock: '', isSelected: false },
+    { size: 'XXL', stock: '', isSelected: false },
+    { size: 'XXXL', stock: '', isSelected: false },
+  ];
+  const [variantSizes, setVariantSizes] = useState(defaultClothingSizes);
+
   const selectedCategory = categories.find(c => c.category_id === form.category_id);
-  const isClothing = selectedCategory?.name?.toLowerCase() === "fashion";
+  const catName = (selectedCategory?.name || product?.category_name || "").toLowerCase();
+  const subName = (product?.parent_category_name || "").toLowerCase(); // Note: in getProducts, parent_category_name is the parent, so product category is the subcategory.
+  
+  const isClothing = ["fashion", "clothing", "women", "mens", "kids"].includes(catName) || 
+                     catName.includes("clothing") || catName.includes("apparel") || catName.includes("wear") || catName.includes("dress") ||
+                     subName.includes("dress") || subName.includes("clothing") || subName.includes("saree") || subName.includes("chudithar") || subName.includes("kurtis");
+
   const isMarketProduct = isFleaMarketOverride ||
-                          selectedCategory?.name?.toLowerCase().includes("groceries") || 
-                          selectedCategory?.name?.toLowerCase().includes("daily essentials") ||
-                          selectedCategory?.name?.toLowerCase().includes("flea market") ||
+                          catName.includes("groceries") || 
+                          catName.includes("daily essentials") ||
+                          catName.includes("flea market") ||
                           form.category_id === "3430fc10-b636-42f1-8be6-0e47179e6425";
   
   const recipientsList = [
@@ -133,8 +150,55 @@ const EditProduct = ({ product, onClose }) => {
       } else {
         setApparelType("");
       }
+
+      // Populate variantSizes if product has variants of name "Size"
+      if (product.variants && product.variants.length > 0) {
+        setVariantSizes(prev => {
+          const newSizes = [...prev];
+          product.variants.forEach(v => {
+            if (v.variant_name === "Size" || v.name === "Size") {
+              const szIndex = newSizes.findIndex(ns => ns.size.toLowerCase() === (v.variant_value || v.value || "").toLowerCase());
+              if (szIndex !== -1) {
+                newSizes[szIndex].isSelected = true;
+                newSizes[szIndex].stock = (v.stock_quantity || v.stock || 0).toString();
+              }
+            }
+          });
+          return newSizes;
+        });
+      }
     }
   }, [product]);
+
+  const handleVariantSizeToggle = (index) => {
+    setVariantSizes(prev => prev.map((item, i) => {
+      if (i === index) {
+        return {
+          ...item,
+          isSelected: !item.isSelected,
+          stock: item.isSelected ? '' : item.stock
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleVariantStockChange = (index, value) => {
+    setVariantSizes(prev => prev.map((item, i) => {
+      if (i === index) {
+        return { ...item, stock: value };
+      }
+      return item;
+    }));
+  };
+
+  // calculate total stock whenever variantSizes change, if isClothing
+  useEffect(() => {
+    if (isClothing) {
+      const totalStock = variantSizes.reduce((acc, curr) => acc + (curr.isSelected && curr.stock ? parseInt(curr.stock, 10) : 0), 0);
+      setForm(prev => ({ ...prev, stock_quantity: totalStock.toString() || "0" }));
+    }
+  }, [variantSizes, isClothing]);
 
   // Dynamic Discount calculation
   useEffect(() => {
@@ -188,6 +252,38 @@ const EditProduct = ({ product, onClose }) => {
         sanitizedForm.description = `${form.description || ""}\n\n${tagsToAppend}`;
       } else if (!isMarketProduct) {
         sanitizedForm.size = "";
+      }
+
+      if (isFleaMarketOverride) {
+        sanitizedForm.description = `${sanitizedForm.description || ""}\n\n[Tags: flea market, commodity, bulk]`;
+      }
+
+      let finalVariants = product.variants ? product.variants.filter(v => v.variant_name !== "Size" && v.name !== "Size") : [];
+
+      if (isClothing) {
+        const selectedSizes = variantSizes.filter(vs => vs.isSelected);
+        if (selectedSizes.length > 0) {
+           finalVariants = [
+             ...finalVariants,
+             ...selectedSizes.map(vs => {
+               const existingVar = product.variants?.find(v => (v.variant_name === "Size" || v.name === "Size") && (v.variant_value === vs.size || v.value === vs.size));
+               return {
+                 variant_id: existingVar ? existingVar.variant_id : undefined,
+                 tempId: existingVar ? undefined : `v_${Math.random()}`,
+                 name: "Size",
+                 value: vs.size,
+                 stock: parseInt(vs.stock, 10) || 0,
+                 price: form.price,
+                 weight: form.weight
+               };
+             })
+           ];
+           sanitizedForm.size = "";
+        }
+      }
+
+      if (finalVariants.length > 0 || (product.variants && product.variants.length > 0)) {
+        sanitizedForm.variants = finalVariants;
       }
 
       if (isFleaMarketOverride) {
@@ -491,86 +587,52 @@ const EditProduct = ({ product, onClose }) => {
                   )}
                 </div>
 
-                {/* Size Bracket Selector */}
+                {/* Size Variants Selector */}
                 {isClothing && (
                   <div className="md:col-span-2 space-y-4 pt-6 border-t border-orange-100/50">
                     <div>
-                      <label className={labelClass}>Size Bracket (For Filtering)</label>
-                      <p className="text-[7px] text-orange-500 uppercase tracking-widest mt-1 mb-3">Select standard size options or enter a custom size value</p>
+                      <label className={labelClass}>Clothing Sizes & Stock *</label>
+                      <p className="text-[7px] text-orange-500 uppercase tracking-widest mt-1 mb-3">Select available sizes and enter their respective stock quantities</p>
                     </div>
-                    <div className="flex flex-wrap gap-4">
-                      {sizeBrackets.map(sz => {
-                        let isBracketActive = false;
-                        if (sz.id === "custom") {
-                          isBracketActive = isCustomSize;
-                        } else {
-                          isBracketActive = !isCustomSize && (form.size?.toLowerCase() === sz.name.toLowerCase() || form.size?.toLowerCase() === sz.id);
-                        }
-                        return (
+                    <div className="flex flex-col gap-4">
+                      {variantSizes.map((vs, index) => (
+                        <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-4">
                           <button
                             type="button"
-                            key={sz.id}
-                            onClick={() => {
-                              setValidationError("");
-                              if (sz.id === "custom") {
-                                setIsCustomSize(true);
-                                setForm(prev => ({ ...prev, size: customSizeValue || "" }));
-                              } else {
-                                setIsCustomSize(false);
-                                setForm(prev => ({ ...prev, size: sz.name }));
-                              }
-                            }}
-                            className={`px-5 py-3 border text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 ${
-                              isBracketActive 
+                            onClick={() => handleVariantSizeToggle(index)}
+                            className={`px-5 py-3 border w-full sm:w-32 text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-between ${
+                              vs.isSelected 
                                 ? "border-orange-950 bg-orange-950 text-white shadow-sm" 
-                                : "border-orange-200 bg-white text-orange-950 hover:border-orange-400"
+                                : "border-orange-200 bg-white text-orange-955 hover:border-orange-400"
                             }`}
                           >
-                            <span className="text-[9px] font-black uppercase tracking-[0.2em]">{sz.name}</span>
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em]">{vs.size}</span>
+                            {vs.isSelected && <CheckCircle2 size={12} />}
                           </button>
-                        );
-                      })}
+                          
+                          <AnimatePresence>
+                            {vs.isSelected && (
+                              <motion.div
+                                initial={{ opacity: 0, width: 0 }}
+                                animate={{ opacity: 1, width: "auto" }}
+                                exit={{ opacity: 0, width: 0 }}
+                                className="flex-grow w-full sm:w-auto"
+                              >
+                                <input 
+                                  type="number" 
+                                  min="0"
+                                  value={vs.stock} 
+                                  onChange={(e) => handleVariantStockChange(index, e.target.value)} 
+                                  className={inputClass} 
+                                  placeholder={`Stock for ${vs.size}...`}
+                                  required={vs.isSelected}
+                                />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ))}
                     </div>
-
-                    {isCustomSize ? (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        className="space-y-1.5 mt-4 overflow-hidden"
-                      >
-                        <label className="text-[8px] uppercase tracking-widest text-orange-400 font-black ml-1 block">Custom Size / Dimensions *</label>
-                        <input 
-                          type="text" 
-                          name="size"
-                          value={customSizeValue} 
-                          onChange={(e) => {
-                            setValidationError("");
-                            const val = e.target.value;
-                            setCustomSizeValue(val);
-                            setForm(prev => ({ ...prev, size: val }));
-                          }} 
-                          className={inputClass} 
-                          placeholder="E.G. 28X30, XL, 32, 38..."
-                          required={isCustomSize}
-                        />
-                      </motion.div>
-                    ) : (
-                      <div className="space-y-1.5 mt-4">
-                        <label className="text-[8px] uppercase tracking-widest text-orange-400 font-black ml-1 block">Exact Size / Dimensions</label>
-                        <input 
-                          type="text" 
-                          name="size"
-                          value={form.size} 
-                          onChange={(e) => {
-                            setValidationError("");
-                            handleChange(e);
-                          }} 
-                          className={inputClass} 
-                          placeholder="E.G. STANDARD / ONE-SIZE, SMALL (S), MEDIUM (M), LARGE (L)..."
-                          disabled
-                        />
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -598,8 +660,8 @@ const EditProduct = ({ product, onClose }) => {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label className={labelClass}>Current Stock</label>
-                  <input name="stock_quantity" type="number" value={form.stock_quantity} onChange={handleChange} className={inputClass} required />
+                  <label className={labelClass}>{isMarketProduct ? "Base Stock Qty (in KG) *" : "Base Stock Qty *"}</label>
+                  <input name="stock_quantity" type="number" value={form.stock_quantity} onChange={handleChange} className={inputClass} required disabled={isClothing} placeholder={isClothing ? "Auto-calculated from sizes" : ""} />
                 </div>
               </div>
             </section>

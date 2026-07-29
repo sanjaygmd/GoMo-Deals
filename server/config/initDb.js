@@ -1034,6 +1034,62 @@ export const initSchema = async () => {
             )
         `);
 
+        // Ad Banners Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ad_banners (
+                banner_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                brand_name VARCHAR(255) NOT NULL,
+                image_url TEXT NOT NULL,
+                target_url TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                start_date TIMESTAMP,
+                end_date TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Brand Ranking Competitions Table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ranking_competitions (
+                competition_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                entry_fee DECIMAL(15,2) DEFAULT 0,
+                start_date TIMESTAMPTZ,
+                end_date TIMESTAMPTZ,
+                status VARCHAR(50) DEFAULT 'open', -- 'open', 'active_showcase', 'closed'
+                winner_seller_id UUID REFERENCES sellers(seller_id) ON DELETE SET NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Brand Ranking Applications Table (Sellers applying & paying)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ranking_applications (
+                application_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                competition_id UUID REFERENCES ranking_competitions(competition_id) ON DELETE CASCADE,
+                seller_id UUID REFERENCES sellers(seller_id) ON DELETE CASCADE,
+                payment_status VARCHAR(50) DEFAULT 'paid',
+                payment_amount DECIMAL(15,2) DEFAULT 0,
+                payment_reference VARCHAR(255),
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status VARCHAR(50) DEFAULT 'applied',
+                CONSTRAINT unique_seller_competition UNIQUE (competition_id, seller_id)
+            )
+        `);
+
+        // Brand Ranking Votes Table (Customers voting for brands in open competitions)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ranking_votes (
+                vote_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                competition_id UUID REFERENCES ranking_competitions(competition_id) ON DELETE CASCADE,
+                seller_id UUID REFERENCES sellers(seller_id) ON DELETE CASCADE,
+                customer_id UUID REFERENCES customers(customer_id) ON DELETE CASCADE,
+                voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT unique_customer_competition_vote UNIQUE (competition_id, customer_id)
+            )
+        `);
+
         console.log('Database schema synchronized and security constraints applied');
 
     } catch (error) {

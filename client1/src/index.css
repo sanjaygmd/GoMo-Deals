@@ -183,7 +183,7 @@
   .admin-dashboard .glass-card:hover {
     transform: translateY(-3px) !important;
     background: #ffffff !important;
-    border-color: #0c0a09 !important; /* matches seller card hover border */
+    border-color: #fb923c !important; /* warm orange hover border */
     box-shadow: 0 20px 40px rgba(12, 10, 9, 0.05), 0 0 30px rgba(234, 88, 12, 0.03) !important;
   }
 
@@ -599,7 +599,7 @@
 .admin-dashboard div[class*="bg-orange-950/40"]:hover {
   transform: translateY(-3px) !important;
   background: #ffffff !important;
-  border-color: #0c0a09 !important; /* matches seller card hover border */
+  border-color: #fb923c !important; /* warm orange hover border */
   box-shadow: 0 20px 40px rgba(12, 10, 9, 0.05), 0 0 30px rgba(234, 88, 12, 0.03) !important;
 }
 

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Users,
   Ticket, Shield, CreditCard, BarChart3, Store,
   MessageSquare, Landmark, ShieldCheck, RotateCcw,
-  Video
+  Video, Image, Trophy
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useAuth } from "../../../context/AuthContext";
@@ -20,6 +20,8 @@ const navItems = [
   { title: "Mediator", path: "/admin/mediator", icon: Video },
   { title: "B2B Conferences", path: "/admin/mediator/flea-market", icon: Video },
   { title: "Reviews", path: "/admin/reviews", icon: MessageSquare },
+  { title: "Ad Banners", path: "/admin/ad-banners", icon: Image },
+  { title: "Brand Rankings", path: "/admin/rankings", icon: Trophy },
   { title: "Analytics", path: "/admin/analytics", icon: BarChart3 },
   { title: "Logs", path: "/admin/logs", icon: Shield },
 ];

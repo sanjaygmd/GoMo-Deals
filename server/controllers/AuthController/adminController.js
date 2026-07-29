@@ -1523,36 +1523,85 @@ export const resolveReturnRequest = async (req, res) => {
       let refundNotes = resolution_note || `Returned item received by Admin`;
       let actualRefundStatus = 'Refunded';
 
-      if (paymentRes.rows.length > 0) {
-        const payment = paymentRes.rows[0];
-        if ((payment.payment_method === 'Prepaid' || payment.payment_method === 'razorpay' || payment.payment_method === 'online') && payment.payment_status === 'Paid') {
-          // Process Razorpay Refund
-          if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-            try {
-              const razorpay = new Razorpay({ 
-                key_id: process.env.RAZORPAY_KEY_ID, 
-                key_secret: process.env.RAZORPAY_KEY_SECRET 
-              });
-              await razorpay.payments.refund(payment.payment_id, { 
-                amount: Math.round(parseFloat(rr.refund_amount) * 100) 
-              });
-              refundNotes += " | Refund automatically processed to original payment method.";
-            } catch (refundErr) {
-              console.error("Razorpay Refund Error:", refundErr);
-              refundNotes += ` | Failed to auto-refund via Razorpay: ${refundErr.message || 'Unknown error'}`;
-              actualRefundStatus = 'Received'; // Item received, but refund failed (manual intervention needed)
-            }
-          } else {
-             refundNotes += " | Razorpay keys missing, manual refund required.";
-             actualRefundStatus = 'Received';
-          }
-        } else if (payment.payment_method === 'cod') {
-          refundNotes += " | COD order: Refund must be manually transferred to customer's bank/wallet.";
-          actualRefundStatus = 'Received';
+      if (rr.return_type === 'Replacement') {
+        // --- TRUE REPLACEMENT FLOW ---
+        // 1. Skip Razorpay refund.
+        actualRefundStatus = 'Replaced';
+        refundNotes = resolution_note || `Replacement Order Generated and Dispatched`;
+
+        // 2. Create a new 0-rupee forward order for the replacement
+        const newOrderId = `REP-${rr.order_id.slice(0, 8)}-${Date.now().toString().slice(-4)}`;
+        
+        await client.query(`
+          INSERT INTO orders (
+            order_id, customer_id, address_id, subtotal, shipping_charges, 
+            tax_amount, total_amount, discount_amount, platform_fee, cod_fee, 
+            order_status, payment_status, payment_method
+          ) VALUES ($1, $2, $3, 0, 0, 0, 0, 0, 0, 0, 'Processing', 'Paid', 'Replacement')
+        `, [newOrderId, rr.customer_id, rr.address_id]);
+
+        await client.query(`
+          INSERT INTO order_items (
+            order_item_id, order_id, product_id, variant_id, seller_id, 
+            quantity, unit_price, total_price, item_status
+          ) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 0, 0, 'Processing')
+        `, [newOrderId, rr.product_id, rr.variant_id, rr.seller_id, rr.quantity]);
+
+        await client.query(`
+          INSERT INTO order_sellers (
+            order_seller_id, order_id, seller_id, seller_subtotal, 
+            seller_platform_fee, seller_earnings, payout_status
+          ) VALUES (gen_random_uuid(), $1, $2, 0, 0, 0, 'Completed')
+        `, [newOrderId, rr.seller_id]);
+
+        // 3. Deduct inventory for the new item being shipped
+        await client.query(
+          "UPDATE products SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE product_id = $2",
+          [rr.quantity, rr.product_id]
+        );
+
+        // 4. Push the new forward order to Shiprocket
+        try {
+          // We must release/commit if pushOrderToShiprocket uses its own transaction, but 
+          // pushOrderToShiprocket accepts a client. Let's pass the client.
+          await pushOrderToShiprocket(newOrderId, client);
+        } catch (srErr) {
+          console.error("Replacement Shiprocket Dispatch Error:", srErr);
+          refundNotes += ` | Warning: Failed to auto-dispatch replacement via Shiprocket: ${srErr.message}`;
         }
       } else {
-        refundNotes += " | Original payment record not found.";
-        actualRefundStatus = 'Received';
+        // --- STANDARD REFUND FLOW ---
+        if (paymentRes.rows.length > 0) {
+          const payment = paymentRes.rows[0];
+          if ((payment.payment_method === 'Prepaid' || payment.payment_method === 'razorpay' || payment.payment_method === 'online') && payment.payment_status === 'Paid') {
+            // Process Razorpay Refund
+            if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+              try {
+                const razorpay = new Razorpay({ 
+                  key_id: process.env.RAZORPAY_KEY_ID, 
+                  key_secret: process.env.RAZORPAY_KEY_SECRET 
+                });
+                await razorpay.payments.refund(payment.payment_id, { 
+                  amount: Math.round(parseFloat(rr.refund_amount) * 100) 
+                });
+                refundNotes += " | Refund automatically processed to original payment method.";
+              } catch (refundErr) {
+                console.error("Razorpay Refund Error:", refundErr);
+                refundNotes += ` | Failed to auto-refund via Razorpay: ${refundErr.message || 'Unknown error'}`;
+                actualRefundStatus = 'Received'; // Item received, but refund failed (manual intervention needed)
+              }
+            } else {
+               refundNotes += " | Razorpay keys missing, manual refund required.";
+               actualRefundStatus = 'Received';
+            }
+          } else if (payment.payment_method === 'cod') {
+            refundNotes += " | COD order: Refund must be manually transferred to customer's bank/wallet.";
+            actualRefundStatus = 'Received';
+          }
+        } else {
+          refundNotes += " | Original payment record not found.";
+          actualRefundStatus = 'Received';
+        }
       }
 
       // 2. Update status in return_requests
@@ -1645,10 +1694,29 @@ export const resolveReturnRequest = async (req, res) => {
             );
           } else {
             console.warn('Shiprocket Return Sync Warning:', srReturn);
+            // Append warning to resolution note so Admin sees it in DB
+            await client.query(
+              "UPDATE return_requests SET resolution_note = CONCAT(resolution_note, ' | Shiprocket sync failed: ', $1) WHERE return_request_id = $2",
+              [srReturn?.message || 'Unknown API error', id]
+            );
+            return res.status(200).json({ success: true, message: `Return Approved, but Shiprocket pickup failed to schedule: ${srReturn?.message || 'Unknown API error'}` });
           }
         } catch (srError) {
           console.error('Shiprocket Return Sync Exception:', srError.message);
+          await client.query(
+            "UPDATE return_requests SET resolution_note = CONCAT(resolution_note, ' | Shiprocket exception: ', $1) WHERE return_request_id = $2",
+            [srError.message, id]
+          );
+          return res.status(200).json({ success: true, message: `Return Approved, but Shiprocket exception occurred: ${srError.message}` });
         }
+      } else {
+        // CRITICAL ERROR SURFACING: Seller has no default pickup location
+        await client.query(
+          "UPDATE return_requests SET resolution_note = CONCAT(resolution_note, ' | Shiprocket bypassed: Seller has no default pickup location.') WHERE return_request_id = $1",
+          [id]
+        );
+        await client.query('COMMIT');
+        return res.status(200).json({ success: true, message: "Return Approved, but Shiprocket pickup was NOT scheduled because the seller lacks a default pickup location. Manual reverse pickup required." });
       }
     } else if (status === 'Rejected') {
       // Just update the status, which was already done at step 2.

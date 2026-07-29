@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getMeetingById, endMeeting } from '../../services/meetingService';
 import { motion } from 'framer-motion';
-import { 
-  Video, Calendar, Clock, AlertTriangle, Shield, Check, Crown, 
-  ArrowLeft, Info, StopCircle, User, Box, Scale 
+import {
+  Video, Calendar, Clock, AlertTriangle, Shield, Check, Crown,
+  ArrowLeft, Info, StopCircle, User, Box, Scale
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
@@ -76,7 +76,7 @@ export default function CustomerConferenceRoom() {
           <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
           <p className="text-sm text-gray-400 mb-6">{error || "Conference not found."}</p>
-          <button 
+          <button
             onClick={() => navigate('/flea-market')}
             className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold uppercase tracking-wider transition-colors"
           >
@@ -100,10 +100,10 @@ export default function CustomerConferenceRoom() {
           <Clock size={48} className="text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Wait for Assigned Time</h2>
           <p className="text-sm text-gray-400 mb-6">
-            You can only join the video conference during the assigned time (up to 40 minutes after scheduled time).<br/><br/>
+            You can only join the video conference during the assigned time (up to 40 minutes after scheduled time).<br /><br />
             Scheduled for: {new Date(meeting.scheduled_at).toLocaleString()}
           </p>
-          <button 
+          <button
             onClick={() => navigate('/flea-market')}
             className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold uppercase tracking-wider transition-colors"
           >
@@ -121,7 +121,7 @@ export default function CustomerConferenceRoom() {
           <Check size={48} className="text-emerald-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Conference Closed</h2>
           <p className="text-sm text-gray-400 mb-6">This video conference has been {meeting.status.toLowerCase()}.</p>
-          <button 
+          <button
             onClick={() => navigate('/flea-market')}
             className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold uppercase tracking-wider transition-colors"
           >
@@ -134,9 +134,9 @@ export default function CustomerConferenceRoom() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col md:flex-row overflow-hidden font-sans">
-      
+
       {/* Sidebar - Conference Details */}
-      <motion.div 
+      <motion.div
         initial={{ x: -300, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -144,14 +144,14 @@ export default function CustomerConferenceRoom() {
       >
         {/* Header */}
         <div className="p-6 border-b border-gray-800 bg-gray-900/50 backdrop-blur-md">
-          <button 
+          <button
             onClick={() => navigate('/flea-market')}
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white uppercase tracking-widest transition-colors mb-6 group"
           >
-            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> 
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
             Back to Dashboard
           </button>
-          
+
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-500/30 shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
               <Video className="text-amber-400" size={20} />
@@ -165,7 +165,7 @@ export default function CustomerConferenceRoom() {
 
         {/* Scrollable Details */}
         <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6">
-          
+
           {/* Product Info */}
           <div className="bg-gray-800/50 rounded-2xl p-4 border border-gray-700">
             <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 mb-3 flex items-center gap-2">
@@ -173,9 +173,9 @@ export default function CustomerConferenceRoom() {
             </h3>
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-700 shrink-0 bg-gray-900">
-                <img 
-                  src={meeting.product_thumbnail || "/fallback-product.png"} 
-                  alt={meeting.product_name} 
+                <img
+                  src={meeting.product_thumbnail || "/fallback-product.png"}
+                  alt={meeting.product_name}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -207,7 +207,7 @@ export default function CustomerConferenceRoom() {
           {/* Meeting Purpose */}
           {meeting.purpose && (
             <div className="bg-gray-800/50 rounded-2xl p-4 border border-gray-700">
-               <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 mb-2 flex items-center gap-2">
+              <h3 className="text-[10px] uppercase tracking-widest font-black text-gray-500 mb-2 flex items-center gap-2">
                 <Info size={12} /> Purpose
               </h3>
               <p className="text-xs text-gray-300 italic leading-relaxed">
@@ -218,16 +218,16 @@ export default function CustomerConferenceRoom() {
 
           {/* Warning */}
           <div className="bg-rose-500/10 rounded-2xl p-4 border border-rose-500/20 flex gap-3">
-             <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
-             <p className="text-[10px] text-rose-300/80 leading-relaxed font-medium">
-               GoMo strictly prohibits sharing direct contact details or processing offline payments. All negotiations must occur within the platform context.
-             </p>
+            <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-rose-300/80 leading-relaxed font-medium">
+              GoMo strictly prohibits sharing direct contact details or processing offline payments. All negotiations must occur within the platform context.
+            </p>
           </div>
         </div>
 
         {/* Footer Controls */}
         <div className="p-6 border-t border-gray-800 bg-gray-900/50 backdrop-blur-md mt-auto">
-          <button 
+          <button
             onClick={handleEndMeeting}
             disabled={isEnding}
             className="w-full py-3.5 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(225,29,72,0.3)] flex items-center justify-center gap-2"
@@ -248,7 +248,7 @@ export default function CustomerConferenceRoom() {
       </motion.div>
 
       {/* Main Content - Jitsi Iframe */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.2 }}

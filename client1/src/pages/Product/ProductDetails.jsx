@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Heart, ArrowLeft, Star, ShieldCheck, Truck, RotateCcw, ChevronDown, ChevronUp, Maximize2, X, Loader2, Tag, Send, MessageSquare, Phone, Video, PhoneOff, MicOff, VideoOff } from 'lucide-react';
+import { ShoppingBag, Heart, ArrowLeft, Star, ShieldCheck, Truck, RotateCcw, ChevronDown, ChevronUp, Maximize2, X, Loader2, Tag, Send, MessageSquare, Phone, Video, PhoneOff, MicOff, VideoOff, Wand2 } from 'lucide-react';
 import * as productService from '../../services/productService';
 import * as offerService from '../../services/offerService';
 import { useShop } from '../../context/ShopContext';
@@ -11,6 +11,7 @@ import ReviewSection from '../../components/common/ReviewSection';
 import ProductQA from '../../components/common/ProductQA';
 
 import ScheduleModal from '../../components/common/ScheduleModal';
+import VirtualTryOnModal from '../../components/common/VirtualTryOnModal';
 import { useToast } from '../../context/ToastContext';
 
 const ProductDetails = () => {
@@ -46,7 +47,16 @@ const ProductDetails = () => {
   const [showDetails, setShowDetails] = useState(true);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isVirtualTryOnOpen, setIsVirtualTryOnOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const isClothing = useMemo(() => {
+    if (!product) return false;
+    const cat = (product.category_name || '').toLowerCase();
+    const tags = (product.tags || '').toLowerCase();
+    const clothingKeywords = ['dress', 'clothing', 'saree', 'chudithar', 'kurtis', 'fashion', 'women', 'mens', 'kids', 'apparel', 'wear', 'top', 'shirt', 'pant', 'jacket', 'shoe', 'accessory'];
+    return clothingKeywords.some(keyword => cat.includes(keyword) || tags.includes(keyword));
+  }, [product]);
 
   // Bargaining system states
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
@@ -732,6 +742,16 @@ const ProductDetails = () => {
                       </>
                     )}
                   </div>
+
+                  {isClothing && (
+                    <button
+                      onClick={() => setIsVirtualTryOnOpen(true)}
+                      className={`w-full mt-3 h-14 text-[11px] uppercase tracking-[0.3em] font-extrabold transition-all duration-300 flex items-center justify-center gap-3 rounded-none border border-orange-400 text-orange-600 bg-orange-50/40 hover:bg-orange-600 hover:text-white hover:border-orange-600`}
+                    >
+                      <Wand2 size={16} />
+                      Virtual Try-On
+                    </button>
+                  )}
 
                   {/* "Make an Offer" & "Chat with Seller" restricted strictly to daily essentials / market items */}
                   {isMarketProduct && !isFleaMarketItem && (
@@ -1463,6 +1483,13 @@ const ProductDetails = () => {
           />
         )}
       </AnimatePresence>
+
+      <VirtualTryOnModal 
+        isOpen={isVirtualTryOnOpen} 
+        onClose={() => setIsVirtualTryOnOpen(false)} 
+        product={product} 
+        initialImage={currentGallery?.[0]} 
+      />
     </div>
   );
 };

@@ -18,7 +18,8 @@ import {
   Handshake,
   Crown,
   Lock,
-  ShieldAlert
+  ShieldAlert,
+  Trophy
 } from "lucide-react";
 
 const menu = [
@@ -27,6 +28,7 @@ const menu = [
   { name: "Orders", path: "/seller-dashboard/orders", icon: ShoppingBag },
 
   { name: "Flea Market", path: "/seller-dashboard/flea-market", icon: Handshake },
+  { name: "Brand Rankings", path: "/seller-dashboard/rankings", icon: Trophy },
   { name: "Q&A", path: "/seller-dashboard/qa", icon: MessageSquare },
   { name: "Reviews", path: "/seller-dashboard/reviews", icon: MessageSquare },
   { name: "Disputes", path: "/seller-dashboard/disputes", icon: ShieldAlert },

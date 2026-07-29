@@ -263,6 +263,8 @@ export const updateCartItem = async (req, res) => {
 
     const client = await pool.connect();
     try {
+        await client.query('BEGIN');
+
         // Ownership Check
         const ownershipCheck = await client.query(
             "SELECT c.customer_id FROM cart c JOIN cart_items ci ON c.cart_id = ci.cart_id WHERE ci.cart_item_id = $1",
@@ -284,7 +286,7 @@ export const updateCartItem = async (req, res) => {
 
         let dbPrice = 0;
         if (!isNaN(qty) && qty > 0) {
-            // Fetch actual stock and price
+            // Fetch actual stock and price (inside transaction to avoid TOCTOU race condition)
             const stockCheck = await client.query(
                 `SELECT 
                     ci.product_id, 
@@ -295,7 +297,8 @@ export const updateCartItem = async (req, res) => {
                  FROM cart_items ci
                  JOIN products p ON ci.product_id = p.product_id
                  LEFT JOIN product_variants pv ON ci.variant_id = pv.variant_id
-                 WHERE ci.cart_item_id = $1`,
+                 WHERE ci.cart_item_id = $1
+                 FOR UPDATE OF p`,
                 [cart_item_id]
             );
 
@@ -312,8 +315,6 @@ export const updateCartItem = async (req, res) => {
             }
             dbPrice = parseFloat(current_price);
         }
-
-        await client.query('BEGIN');
 
         let result;
         if (qty <= 0) {
@@ -334,7 +335,7 @@ export const updateCartItem = async (req, res) => {
         await client.query('COMMIT');
         return res.status(200).json({ 
             success: true, 
-            message: quantity <= 0 ? 'Item removed from cart' : 'Cart item updated' 
+            message: qty <= 0 ? 'Item removed from cart' : 'Cart item updated' 
         });
     } catch (error) {
         await client.query('ROLLBACK');

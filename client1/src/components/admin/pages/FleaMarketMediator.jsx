@@ -3,7 +3,7 @@ import {
   Video, ShieldAlert, Calendar, Clock, CheckCircle, XCircle, Search, AlertCircle, Eye, RefreshCw
 } from "lucide-react";
 import { StatCard } from "../components/StatCard";
-import { getAdminMeetings, cancelMeeting, endMeeting } from "../../../services/meetingService";
+import { getAdminMeetings, cancelMeeting, endMeeting, recordMeetingOutcome } from "../../../services/meetingService";
 import ConfirmModal from '../../common/ConfirmModal';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,6 +16,14 @@ export default function FleaMarketMediator() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', id: null });
+  const [outcomeModal, setOutcomeModal] = useState({ 
+    isOpen: false, 
+    meetingId: null, 
+    dealReached: true, 
+    finalPrice: '', 
+    finalQuantity: '', 
+    contractTerms: '' 
+  });
 
   const fetchMeetings = async () => {
     setLoading(true);
@@ -72,6 +80,45 @@ export default function FleaMarketMediator() {
       console.error(err);
       setErrorMessage("An error occurred while ending the B2B call.");
       setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
+  const handleRecordOutcome = async () => {
+    if (outcomeModal.dealReached && (!outcomeModal.finalPrice || !outcomeModal.finalQuantity)) {
+      setErrorMessage("Price and quantity are required for a successful deal.");
+      setTimeout(() => setErrorMessage(null), 5000);
+      return;
+    }
+
+    try {
+      if (outcomeModal.dealReached) {
+        const res = await recordMeetingOutcome(outcomeModal.meetingId, {
+          final_price: outcomeModal.finalPrice,
+          final_quantity: outcomeModal.finalQuantity,
+          contract_terms: outcomeModal.contractTerms
+        });
+        if (res.success) {
+          setSuccessMessage("Deal outcome recorded successfully and offer generated.");
+          fetchMeetings();
+        } else {
+          setErrorMessage(res.error || "Failed to record meeting outcome.");
+        }
+      } else {
+        // Just end without a deal
+        const res = await endMeeting(outcomeModal.meetingId);
+        if (res.success) {
+          setSuccessMessage("Meeting ended without a deal.");
+          fetchMeetings();
+        } else {
+          setErrorMessage(res.error || "Failed to end meeting.");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMessage("An error occurred while saving the outcome.");
+    } finally {
+      setOutcomeModal({ ...outcomeModal, isOpen: false });
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
     }
   };
 
@@ -358,11 +405,11 @@ export default function FleaMarketMediator() {
                               <Eye size={12} /> Monitor & Mediate
                             </a>
                             <button 
-                              onClick={() => setConfirmModal({ isOpen: true, type: 'end', id: m.meeting_id })}
+                              onClick={() => setOutcomeModal({ isOpen: true, meetingId: m.meeting_id, dealReached: true, finalPrice: '', finalQuantity: '', contractTerms: '' })}
                               className="px-3 py-2.5 bg-orange-100 hover:bg-orange-200 text-orange-800 border border-orange-200 hover:border-orange-300 text-[9px] uppercase tracking-widest font-black transition-all cursor-pointer rounded-xl active:scale-98 shrink-0"
-                              title="End Meeting"
+                              title="Record Outcome & End"
                             >
-                              End
+                              End & Record Outcome
                             </button>
                             <button 
                               onClick={() => setConfirmModal({ isOpen: true, type: 'cancel', id: m.meeting_id })}
@@ -390,6 +437,95 @@ export default function FleaMarketMediator() {
           <div className="space-y-1">
             <p className="text-xs uppercase tracking-widest font-black text-orange-700">No Conferences Scheduled</p>
             <p className="text-[10px] text-orange-400 uppercase tracking-[0.2em]">There are no B2B meetings scheduled under these criteria.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Action Modal */}
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen} 
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })} 
+        onConfirm={handleConfirmAction}
+        title={confirmModal.type === 'cancel' ? "Cancel B2B Conference" : "End Conference"}
+        message={confirmModal.type === 'cancel' 
+          ? "Are you sure you want to cancel this scheduled B2B video conference? This cannot be undone." 
+          : "Are you sure you want to end this video conference?"}
+      />
+
+      {/* Outcome Modal */}
+      {outcomeModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-orange-950/40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-orange-100">
+            <h3 className="text-xl font-black text-orange-955 mb-2">Conference Outcome</h3>
+            <p className="text-xs text-orange-600 mb-6">Record the final negotiated terms before ending.</p>
+
+            <div className="space-y-6">
+              <div className="flex bg-orange-50 p-1 rounded-xl">
+                <button 
+                  onClick={() => setOutcomeModal(prev => ({...prev, dealReached: true}))}
+                  className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${outcomeModal.dealReached ? 'bg-white text-orange-955 shadow-sm' : 'text-orange-400 hover:text-orange-600'}`}
+                >
+                  Deal Negotiated
+                </button>
+                <button 
+                  onClick={() => setOutcomeModal(prev => ({...prev, dealReached: false}))}
+                  className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${!outcomeModal.dealReached ? 'bg-white text-orange-955 shadow-sm' : 'text-orange-400 hover:text-orange-600'}`}
+                >
+                  No Deal Reached
+                </button>
+              </div>
+
+              {outcomeModal.dealReached && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-orange-900 mb-2">Final Price (₹ per kg)</label>
+                    <input 
+                      type="number"
+                      value={outcomeModal.finalPrice}
+                      onChange={(e) => setOutcomeModal(prev => ({...prev, finalPrice: e.target.value}))}
+                      className="w-full px-4 py-3 bg-white border border-orange-200 focus:border-orange-955 rounded-xl text-sm font-bold outline-none"
+                      placeholder="e.g. 1500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-orange-900 mb-2">Final Quantity (kg)</label>
+                    <input 
+                      type="number"
+                      value={outcomeModal.finalQuantity}
+                      onChange={(e) => setOutcomeModal(prev => ({...prev, finalQuantity: e.target.value}))}
+                      className="w-full px-4 py-3 bg-white border border-orange-200 focus:border-orange-955 rounded-xl text-sm font-bold outline-none"
+                      placeholder="e.g. 50"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-orange-900 mb-2">Terms & Notes {outcomeModal.dealReached ? '(Optional)' : ''}</label>
+                <textarea 
+                  value={outcomeModal.contractTerms}
+                  onChange={(e) => setOutcomeModal(prev => ({...prev, contractTerms: e.target.value}))}
+                  className="w-full px-4 py-3 bg-white border border-orange-200 focus:border-orange-955 rounded-xl text-sm font-medium outline-none resize-none"
+                  placeholder="Enter any agreed terms or notes..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => setOutcomeModal({...outcomeModal, isOpen: false})}
+                  className="flex-1 py-3 bg-orange-50 hover:bg-orange-100 text-orange-900 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleRecordOutcome}
+                  className="flex-1 py-3 bg-orange-955 hover:bg-orange-850 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors shadow-md shadow-orange-955/20"
+                >
+                  Save Outcome
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

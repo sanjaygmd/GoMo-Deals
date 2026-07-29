@@ -62,6 +62,24 @@ export default function AddProductPage() {
     sku: ""
   });
 
+  const defaultClothingSizes = [
+    { size: 'S', stock: '', isSelected: false },
+    { size: 'M', stock: '', isSelected: false },
+    { size: 'L', stock: '', isSelected: false },
+    { size: 'XL', stock: '', isSelected: false },
+    { size: 'XXL', stock: '', isSelected: false },
+    { size: 'XXXL', stock: '', isSelected: false },
+  ];
+  const [variantSizes, setVariantSizes] = useState(defaultClothingSizes);
+
+  const selectedCategory = categories.find(c => c.category_id === form.category_id);
+  const selectedSubcategory = subcategories.find(c => c.category_id === form.subcategory_id);
+  const catName = (selectedCategory?.name || "").toLowerCase();
+  const subName = (selectedSubcategory?.name || "").toLowerCase();
+  const isClothing = ["fashion", "clothing", "women", "mens", "kids"].includes(catName) || 
+                     catName.includes("clothing") || catName.includes("apparel") || catName.includes("wear") || catName.includes("dress") ||
+                     subName.includes("dress") || subName.includes("clothing") || subName.includes("saree") || subName.includes("chudithar") || subName.includes("kurtis");
+
   const fetchInitialData = useCallback(async () => {
     try {
       const [catRes, selRes] = await Promise.all([
@@ -150,6 +168,21 @@ export default function AddProductPage() {
               tempId: v.variant_id || v.id,
               stock: v.stock_quantity || v.stock
             })));
+            
+            // Populate variantSizes
+            setVariantSizes(prev => {
+              const newSizes = [...prev];
+              existing.variants.forEach(v => {
+                if (v.variant_name === "Size" || v.name === "Size") {
+                  const szIndex = newSizes.findIndex(ns => ns.size.toLowerCase() === (v.variant_value || v.value || "").toLowerCase());
+                  if (szIndex !== -1) {
+                    newSizes[szIndex].isSelected = true;
+                    newSizes[szIndex].stock = (v.stock_quantity || v.stock || 0).toString();
+                  }
+                }
+              });
+              return newSizes;
+            });
           }
         }
       } catch (err) {
@@ -161,6 +194,35 @@ export default function AddProductPage() {
 
     loadProductData();
   }, [id, products, isEditMode]);
+
+  const handleVariantSizeToggle = (index) => {
+    setVariantSizes(prev => prev.map((item, i) => {
+      if (i === index) {
+        return {
+          ...item,
+          isSelected: !item.isSelected,
+          stock: item.isSelected ? '' : item.stock
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleVariantStockChange = (index, value) => {
+    setVariantSizes(prev => prev.map((item, i) => {
+      if (i === index) {
+        return { ...item, stock: value };
+      }
+      return item;
+    }));
+  };
+
+  useEffect(() => {
+    if (isClothing) {
+      const totalStock = variantSizes.reduce((acc, curr) => acc + (curr.isSelected && curr.stock ? parseInt(curr.stock, 10) : 0), 0);
+      setForm(prev => ({ ...prev, stock_quantity: totalStock.toString() || "0" }));
+    }
+  }, [variantSizes, isClothing]);
 
   useEffect(() => {
     const fetchSubs = async () => {
@@ -310,6 +372,32 @@ export default function AddProductPage() {
       variants: variants,
       is_active: true
     };
+
+    let finalVariants = variants.filter(v => v.variant_name !== "Size" && v.name !== "Size");
+    
+    if (isClothing) {
+      const selectedSizes = variantSizes.filter(vs => vs.isSelected);
+      if (selectedSizes.length > 0) {
+         finalVariants = [
+           ...finalVariants,
+           ...selectedSizes.map(vs => {
+             const existingVar = variants.find(v => (v.variant_name === "Size" || v.name === "Size") && (v.variant_value === vs.size || v.value === vs.size));
+             return {
+               variant_id: existingVar ? (existingVar.variant_id || existingVar.tempId) : undefined,
+               tempId: existingVar ? undefined : `v_${Math.random()}`,
+               name: "Size",
+               value: vs.size,
+               stock: parseInt(vs.stock, 10) || 0,
+               price: form.price,
+               weight: form.weight
+             };
+           })
+         ];
+         payload.size = "";
+      }
+    }
+    
+    payload.variants = finalVariants;
 
     try {
       let res;
@@ -485,10 +573,55 @@ export default function AddProductPage() {
                 </div>
                 <div>
                   <label className={labelClass}>Total Stock *</label>
-                  <input name="stock_quantity" type="number" value={form.stock_quantity} onChange={handleChange} placeholder="0" className={inputClass} />
+                  <input name="stock_quantity" type="number" value={form.stock_quantity} onChange={handleChange} placeholder={isClothing ? "Calculated from sizes" : "0"} disabled={isClothing} className={inputClass} />
                 </div>
              </div>
           </div>
+
+          {/* Clothing Sizes Section */}
+          {isClothing && (
+            <div className="bg-white border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-8 pb-4 border-b border-orange-100">
+                <div className="p-2 bg-orange-50 border border-orange-100 rounded-xl text-orange-500">
+                  <Ruler size={18} />
+                </div>
+                <h3 className="text-base font-extrabold text-orange-955 tracking-wide uppercase">Clothing Sizes & Stock *</h3>
+              </div>
+              <p className="text-[10px] text-orange-600 uppercase tracking-widest font-bold mb-6">Select available sizes and enter stock for each</p>
+              <div className="flex flex-col gap-4">
+                {variantSizes.map((vs, index) => (
+                  <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => handleVariantSizeToggle(index)}
+                      className={`px-6 py-4 border w-full sm:w-32 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-between ${
+                        vs.isSelected 
+                          ? "border-orange-955 bg-orange-955 text-white shadow-md" 
+                          : "border-orange-200 bg-orange-50/50 text-orange-955 hover:border-orange-400"
+                      }`}
+                    >
+                      <span>{vs.size}</span>
+                      {vs.isSelected && <CheckCircle2 size={14} />}
+                    </button>
+                    
+                    {vs.isSelected && (
+                      <div className="flex-grow w-full sm:w-auto animate-in slide-in-from-left-4 duration-300">
+                        <input 
+                          type="number" 
+                          min="0"
+                          value={vs.stock} 
+                          onChange={(e) => handleVariantStockChange(index, e.target.value)} 
+                          className={inputClass} 
+                          placeholder={`Stock for ${vs.size}...`}
+                          required={vs.isSelected}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Section 3: Variant Architecture */}
           <div className="bg-white border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm">

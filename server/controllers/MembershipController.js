@@ -36,7 +36,10 @@ export const subscribe = async (req, res, next) => {
         'free': { price: 0, yearlyPrice: 0 },
         'silver': { price: 299, yearlyPrice: 2999 },
         'gold': { price: 599, yearlyPrice: 5999 },
-        'platinum': { price: 999, yearlyPrice: 9999 }
+        'platinum': { price: 999, yearlyPrice: 9999 },
+        'diamond': { price: 1499, yearlyPrice: 14999 },
+        'titanium': { price: 2499, yearlyPrice: 24999 },
+        'black_elite': { price: 4999, yearlyPrice: 49999 }
       };
       
       const expectedAmount = billing_cycle === 'yearly' ? TIERS[tier]?.yearlyPrice : TIERS[tier]?.price;
@@ -59,10 +62,18 @@ export const subscribe = async (req, res, next) => {
       }
     }
 
-    // Update customer's membership tier
+    // Calculate expiry date
+    let expiresAt = new Date();
+    if (billing_cycle === 'yearly') {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    } else {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    }
+
+    // Update customer's membership tier and expiry date
     const result = await pool.query(
-      `UPDATE customers SET membership = $1 WHERE customer_id = $2 RETURNING *`,
-      [tier, req.user.id]
+      `UPDATE customers SET membership = $1, membership_expires_at = $2 WHERE customer_id = $3 RETURNING *`,
+      [tier, expiresAt, req.user.id]
     );
     return res.json({ success: true, message: `Subscribed to ${tier} tier.`, data: result.rows[0] });
   } catch (err) {
@@ -75,20 +86,21 @@ export const subscribe = async (req, res, next) => {
  */
 export const downgrade = async (req, res, next) => {
   try {
-    const { newTier } = req.body;
-    if (!newTier) {
+    const { target_tier } = req.body;
+    if (!target_tier) {
       return res.status(400).json({ success: false, message: 'Target tier not specified.' });
     }
     
-    if (!['free', 'silver'].includes(newTier)) {
-      return res.status(403).json({ success: false, message: 'Invalid downgrade tier. You can only downgrade to free or silver.' });
+    const validTiers = ['free', 'silver', 'gold', 'platinum', 'diamond', 'titanium', 'black_elite'];
+    if (!validTiers.includes(target_tier)) {
+      return res.status(403).json({ success: false, message: 'Invalid downgrade tier.' });
     }
 
     const result = await pool.query(
-      `UPDATE customers SET membership = $1 WHERE customer_id = $2 RETURNING *`,
-      [newTier, req.user.id]
+      `UPDATE customers SET membership = $1, membership_expires_at = CASE WHEN $1 = 'free' THEN NULL ELSE membership_expires_at END WHERE customer_id = $2 RETURNING *`,
+      [target_tier, req.user.id]
     );
-    return res.json({ success: true, message: `Downgraded to ${newTier}.`, data: result.rows[0] });
+    return res.json({ success: true, message: `Downgraded to ${target_tier}.`, data: result.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -100,7 +112,7 @@ export const downgrade = async (req, res, next) => {
 export const cancel = async (req, res, next) => {
   try {
     const result = await pool.query(
-      `UPDATE customers SET membership = 'free' WHERE customer_id = $1 RETURNING *`,
+      `UPDATE customers SET membership = 'free', membership_expires_at = NULL WHERE customer_id = $1 RETURNING *`,
       [req.user.id]
     );
     return res.json({ success: true, message: 'Membership cancelled, reverted to free tier.', data: result.rows[0] });

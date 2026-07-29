@@ -281,7 +281,7 @@ export const createOrder = async (req, res, next) => {
 
     // 5. Final Order Calculations
     const final_tax_amount = Math.round(serverCalculatedSubtotal * 0.05); // 5% Tax
-    const final_platform_fee = 10;
+    const final_platform_fee = customerPlatformFee; // Use admin-configured platform fee (defaults to 10)
     const final_cod_fee = payment_method === 'cod' ? 50 : 0;
     let final_total_amount = serverCalculatedSubtotal + calculatedShipping + final_tax_amount + final_platform_fee + final_cod_fee - serverDiscountAmount;
 
@@ -938,6 +938,8 @@ export const sendOrderEmail = async (req, res, next) => {
       }
     }
     emailRateLimit.set(userId, now);
+    // Auto-clean the rate limit entry after the cooldown to prevent memory leak
+    setTimeout(() => emailRateLimit.delete(userId), 60000);
 
     // 1. Fetch order ownership check to make sure the requesting client actually placed this order
     const orderOwnerQuery = await pool.query(

@@ -285,6 +285,11 @@ const PaymentModal = ({ tier, billing, action, currentTierId, onClose, onSuccess
               razorpay_signature: response.razorpay_signature || 'mock_sig',
               amount: amountINR,
             });
+            // FIX: Always verify the server acknowledged the upgrade before updating UI
+            if (!confirmRes.success) {
+              setError(confirmRes.message || 'Payment received but activation failed. Please contact support.');
+              return;
+            }
             onSuccess({ type: 'upgrade', tier });
           } catch (e) {
             setError('Payment received but activation failed. Contact support.');
@@ -341,7 +346,7 @@ const PaymentModal = ({ tier, billing, action, currentTierId, onClose, onSuccess
             <div className={`rounded-2xl border p-5 mb-6 ${tier.headerClass}`}>
               <div className="flex items-center justify-between mb-3">
                 <span className={`text-[12px] font-black uppercase tracking-widest ${tier.accentText}`}>{billing === 'yearly' ? 'Annual Plan' : 'Monthly Plan'}</span>
-                {billing === 'yearly' && (
+                {billing === 'yearly' && tier.price > 0 && (
                   <span className="bg-green-100 text-green-700 border border-green-200 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
                     Save {Math.round(100 - (tier.yearlyPrice / (tier.price * 12)) * 100)}%
                   </span>

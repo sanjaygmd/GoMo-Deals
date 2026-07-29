@@ -63,11 +63,11 @@ export const createOffer = async (req, res, next) => {
 
         // 1. Verify the product exists and fetch its catalog price
         const prodRes = await client.query(
-            "SELECT price, name, is_active, is_deleted FROM products WHERE product_id = $1",
+            "SELECT price, name, is_active, deleted_at FROM products WHERE product_id = $1",
             [productId]
         );
 
-        if (prodRes.rows.length === 0 || !prodRes.rows[0].is_active || prodRes.rows[0].is_deleted) {
+        if (prodRes.rows.length === 0 || !prodRes.rows[0].is_active || prodRes.rows[0].deleted_at !== null) {
             await client.query('ROLLBACK');
             client.release();
             return res.status(404).json({ success: false, message: "Product not found or currently unavailable." });

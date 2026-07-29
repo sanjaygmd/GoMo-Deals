@@ -2,7 +2,11 @@ import { pool } from '../config/db.js';
 import { sanitizeText } from '../utils/sanitizer.js';
 import crypto from 'crypto';
 
-const autoExpireMeetings = async () => {
+/**
+ * Auto-expire meetings that are past their 40-minute window.
+ * Called from server.js cron — NOT from individual request handlers.
+ */
+export const autoExpireMeetings = async () => {
     await pool.query(`
         UPDATE flea_market_meetings
         SET status = 'Expired'
@@ -118,9 +122,6 @@ export const createMeeting = async (req, res, next) => {
             RETURNING *
         `, [meetingId, productId, customerId, sellerId, quantity, sanitizedPurpose, scheduledTime.toISOString(), meetingLink]);
 
-        // Log creation for visibility checks (seller and admin can now retrieve this record)
-        console.log('Meeting created:', result.rows[0]);
-
         // Insert notifications for seller and admin
         // Notify seller about new video conference
         await pool.query(
@@ -169,7 +170,7 @@ export const getSellerMeetings = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Access denied: only sellers or admins can view seller meetings.' });
         }
 
-        await autoExpireMeetings();
+        // NOTE: autoExpireMeetings() is now handled by cron in server.js — not called here
 
         const result = await pool.query(`
             SELECT m.*, p.name as product_name, p.images as product_images, c.full_name as customer_name, c.email as customer_email, c.phone as customer_phone
@@ -209,7 +210,7 @@ export const getCustomerMeetings = async (req, res, next) => {
     try {
         const customerId = req.user.id; // Authenticated customer UUID
 
-        await autoExpireMeetings();
+        // NOTE: autoExpireMeetings() is now handled by cron in server.js — not called here
 
         const result = await pool.query(`
             SELECT 
@@ -324,7 +325,10 @@ export const getAdminMeetings = async (req, res, next) => {
         const { page = 1, limit = 50 } = req.query;
         const offset = (page - 1) * limit;
 
-        await autoExpireMeetings();
+        // NOTE: autoExpireMeetings() is now handled by cron in server.js — not called here
+
+        const totalRes = await pool.query(`SELECT COUNT(*) FROM flea_market_meetings`);
+        const total = parseInt(totalRes.rows[0].count);
 
         const result = await pool.query(`
             SELECT 
@@ -339,7 +343,6 @@ export const getAdminMeetings = async (req, res, next) => {
                 m.meeting_link,
                 m.meeting_notes,
                 m.created_at,
-                m.updated_at,
                 p.name as product_name,
                 p.images[1] as product_thumbnail,
                 c.full_name as customer_name,
@@ -349,7 +352,7 @@ export const getAdminMeetings = async (req, res, next) => {
                 s.full_name as seller_name,
                 s.email as seller_email,
                 s.phone as seller_phone,
-                s.verified as seller_verified
+                s.is_verified as seller_verified
             FROM flea_market_meetings m
             JOIN products p ON m.product_id = p.product_id
             JOIN customers c ON m.customer_id = c.customer_id
@@ -363,7 +366,9 @@ export const getAdminMeetings = async (req, res, next) => {
             meetings: result.rows,
             pagination: {
                 page: parseInt(page),
-                limit: parseInt(limit)
+                limit: parseInt(limit),
+                total,
+                totalPages: Math.ceil(total / parseInt(limit))
             }
         });
     } catch (error) {
@@ -402,8 +407,15 @@ export const completeMeeting = async (req, res, next) => {
             return res.status(403).json({ success: false, message: "You are not authorized to complete this conference." });
         }
 
+        // FIX: Guard against re-completing or marking cancelled/expired meetings
+        if (meeting.status === 'Completed') {
+            return res.status(400).json({ success: false, message: "This video conference has already been marked as completed." });
+        }
         if (meeting.status === 'Cancelled') {
-            return res.status(400).json({ success: false, message: "This video conference was cancelled." });
+            return res.status(400).json({ success: false, message: "This video conference was cancelled and cannot be completed." });
+        }
+        if (meeting.status === 'Expired') {
+            return res.status(400).json({ success: false, message: "This video conference has expired and cannot be completed." });
         }
 
         // Update meeting
@@ -436,7 +448,7 @@ export const endMeeting = async (req, res, next) => {
         const userId = req.user.id;
         const userRole = req.user.role || req.user.type;
 
-        // Fetch meeting details to authorize cancellation
+        // Fetch meeting details to authorize
         const meetingRes = await pool.query(
             "SELECT customer_id, seller_id, status FROM flea_market_meetings WHERE meeting_id = $1",
             [meetingId]
@@ -473,7 +485,17 @@ export const endMeeting = async (req, res, next) => {
     }
 };
 
+/**
+ * Record the outcome of a mediated meeting (Admin only)
+ * POST /api/meetings/:id/admin/record-outcome
+ */
 export const recordMeetingOutcome = async (req, res, next) => {
+    // FIX: Defense-in-depth authorization check (route-level guard also exists)
+    const userRole = req.user.role || req.user.type;
+    if (userRole !== 'admin' && userRole !== 'super_admin') {
+        return res.status(403).json({ success: false, message: "Only admins can record a meeting outcome." });
+    }
+
     const client = await pool.connect();
     try {
         const meetingId = req.params.id;
@@ -509,12 +531,9 @@ export const recordMeetingOutcome = async (req, res, next) => {
             [`Admin Mediated Deal: ₹${final_price}/kg for ${final_quantity} kg`, meetingId]
         );
 
-        // 1. If agreement reached, generate checkout token
-        let offerToken = null;
-        if (final_price && final_quantity) {
-            offerToken = "OFFER_TK_" + crypto.randomBytes(16).toString('hex');
-        }
-        
+        // If agreement reached, generate checkout token
+        const offerToken = "OFFER_TK_" + crypto.randomBytes(16).toString('hex');
+
         // Expiry in 48 hours
         const expires_at = new Date();
         expires_at.setHours(expires_at.getHours() + 48);
@@ -613,7 +632,7 @@ export const rescheduleMeeting = async (req, res, next) => {
 
         // Ensure no conflicting schedules
         const conflictCheck = await pool.query(
-            `SELECT 1 FROM flea_market_meetings 
+            `SELECT scheduled_at FROM flea_market_meetings 
              WHERE seller_id = $1 
              AND meeting_id != $2
              AND status IN ('Scheduled', 'In Progress')
@@ -622,13 +641,14 @@ export const rescheduleMeeting = async (req, res, next) => {
         );
 
         if (conflictCheck.rows.length > 0) {
-            const conflictTime = scheduledTime.toLocaleTimeString('en-IN', {
+            // FIX: Show the time of the EXISTING conflicting meeting, not the requested time
+            const existingConflictTime = new Date(conflictCheck.rows[0].scheduled_at).toLocaleTimeString('en-IN', {
                 hour: '2-digit',
                 minute: '2-digit'
             });
             return res.status(409).json({
                 success: false,
-                message: `This seller has another video conference scheduled around ${conflictTime}. Please select a different slot at least 30 minutes apart.`
+                message: `This seller already has a conference at ${existingConflictTime}. Please select a different slot at least 30 minutes apart.`
             });
         }
 
@@ -671,7 +691,7 @@ export const getMeetingById = async (req, res, next) => {
         const userId = req.user.id;
         const userRole = req.user.role || req.user.type;
 
-        await autoExpireMeetings();
+        // NOTE: autoExpireMeetings() is now handled by cron in server.js — not called here
 
         const result = await pool.query(`
             SELECT m.*, p.name AS product_name, p.images[1] AS product_thumbnail, 

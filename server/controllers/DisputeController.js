@@ -39,17 +39,17 @@ export const openDispute = async (req, res, next) => {
             return res.status(400).json({ success: false, message: "A dispute is already open for this order" });
         }
 
-        const insertedDisputes = [];
-        for (const sellerRow of sellersCheck.rows) {
-            const result = await pool.query(`
-                INSERT INTO disputes (order_id, customer_id, seller_id, reason, status)
-                VALUES ($1, $2, $3, $4, 'open')
-                RETURNING *
-            `, [order_id, customer_id, sellerRow.seller_id, cleanReason]);
-            insertedDisputes.push(result.rows[0]);
-        }
+        // Since disputes has a UNIQUE(order_id) constraint, we insert only ONE dispute per order.
+        // We link it to the primary seller of the order.
+        const primarySellerId = sellersCheck.rows[0].seller_id;
 
-        res.status(201).json({ success: true, data: insertedDisputes[0] });
+        const result = await pool.query(`
+            INSERT INTO disputes (order_id, customer_id, seller_id, reason, status)
+            VALUES ($1, $2, $3, $4, 'open')
+            RETURNING *
+        `, [order_id, customer_id, primarySellerId, cleanReason]);
+
+        res.status(201).json({ success: true, data: result.rows[0] });
     } catch (error) {
         next(error);
     }
@@ -109,6 +109,15 @@ export const updateDispute = async (req, res, next) => {
 
         if (role === 'seller' && dispute.seller_id !== id) {
             return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        // Validate status values based on role
+        const adminAllowedStatuses = ['open', 'resolved', 'closed'];
+        const sellerAllowedStatuses = ['seller_replied'];
+        const allowedStatuses = (role === 'admin' || role === 'super_admin') ? adminAllowedStatuses : sellerAllowedStatuses;
+
+        if (status && !allowedStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: `Invalid status for your role. Allowed: ${allowedStatuses.join(', ')}` });
         }
 
         const cleanResolution = resolution ? sanitizeText(resolution) : dispute.resolution;
